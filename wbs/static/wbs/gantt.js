@@ -555,4 +555,39 @@ document.addEventListener("DOMContentLoaded", function () {
       panel.classList.toggle("collapsed");
     });
   }
+
+  /* ------------------------------------------------------------
+     Theme toggle (light / dark) with localStorage persistence
+     ------------------------------------------------------------ */
+  const themeToggleBtn = document.getElementById("toggle-theme");
+  const THEME_KEY = "ganttTheme";
+
+  function applyTheme(mode) {
+    const isDark = mode === "dark";
+    document.body.classList.toggle("theme-dark", isDark);
+    if (themeToggleBtn) {
+      themeToggleBtn.textContent = isDark ? "Light Mode" : "Dark Mode";
+    }
+  }
+
+  const savedTheme = (() => {
+    try {
+      return localStorage.getItem(THEME_KEY);
+    } catch (e) {
+      return null;
+    }
+  })();
+  applyTheme(savedTheme === "dark" ? "dark" : "light");
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      const next = document.body.classList.contains("theme-dark") ? "light" : "dark";
+      applyTheme(next);
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch (_) {
+        /* ignore storage failures */
+      }
+    });
+  }
 });

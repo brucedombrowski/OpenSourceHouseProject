@@ -523,3 +523,183 @@ th {
   background: rgba(248,248,248,0.9);
   padding: 0 1px;
 }
+
+/* ============================================================
+   Dark theme (toggled via body.theme-dark)
+   ============================================================ */
+body.theme-dark {
+  background: #0d1117;
+  color: #cbd5e1;
+}
+
+body.theme-dark .gantt-container {
+  background: #0f172a;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+
+body.theme-dark .gantt-header h1,
+body.theme-dark .gantt-meta,
+body.theme-dark .filter-group-title,
+body.theme-dark .back-link {
+  color: #e2e8f0;
+}
+
+body.theme-dark .gantt-header-actions button,
+body.theme-dark .filter-actions button,
+body.theme-dark .filter-actions a {
+  background: #1f2937;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+body.theme-dark .gantt-header-actions button:hover,
+body.theme-dark .filter-actions button:hover,
+body.theme-dark .filter-actions a:hover {
+  background: #111827;
+}
+body.theme-dark .gantt-header-actions .gantt-link-button {
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+body.theme-dark .gantt-header-actions .gantt-link-button:hover {
+  background: #1d4ed8;
+}
+
+body.theme-dark .gantt-filters {
+  border-bottom-color: #334155;
+}
+
+body.theme-dark table {
+  color: #e2e8f0;
+}
+
+body.theme-dark th {
+  background: #111827;
+  border-color: #1f2937;
+  color: #e2e8f0;
+}
+body.theme-dark td {
+  border-color: #1f2937;
+}
+body.theme-dark .header-timeline-row th,
+body.theme-dark .header-cols-row th {
+  background: #111827;
+}
+body.theme-dark .col-code,
+body.theme-dark .col-task,
+body.theme-dark .col-start,
+body.theme-dark .col-end {
+  background: #111827;
+  box-shadow: 2px 0 3px rgba(0,0,0,0.35);
+}
+body.theme-dark .header-cols-row th:nth-child(5) {
+  background: #111827;
+}
+body.theme-dark .bar-cell,
+body.theme-dark .bar-header {
+  border-left-color: #1f2937;
+}
+
+body.theme-dark .expander {
+  background: #1f2937;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+body.theme-dark .expander[data-expanded="true"] {
+  background: #1e293b;
+  border-color: #60a5fa;
+}
+
+body.theme-dark .gantt-row.selected {
+  background: #1f2937;
+}
+body.theme-dark .gantt-row.highlight-row {
+  background: #3b2f1a;
+}
+body.theme-dark .gantt-row.non-matching-highlight {
+  opacity: 0.28;
+}
+
+body.theme-dark .bar {
+  background: #1d4ed8;
+}
+body.theme-dark .bar-progress {
+  background: #60a5fa;
+}
+body.theme-dark .bar.highlight-bar {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.8);
+}
+
+body.theme-dark .timeline-track {
+  background: #0b1220;
+  border-bottom-color: #1f2937;
+}
+body.theme-dark .timeline-row {
+  border-bottom-color: #111827;
+}
+body.theme-dark .year-band {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+body.theme-dark .month-band {
+  background: #0f172a;
+  border-color: #1f2937;
+  color: #cbd5e1;
+}
+body.theme-dark .day-tick {
+  background: #1f2937;
+}
+body.theme-dark .day-label {
+  color: #cbd5e1;
+  background: rgba(17, 24, 39, 0.85);
+}
+
+body.theme-dark .detail-panel {
+  border-left-color: #1f2937;
+}
+body.theme-dark .detail-panel .pill {
+  background: #1e3a8a;
+  color: #e2e8f0;
+}
+
+body.theme-dark .gantt-modal-card {
+  background: #111827;
+  color: #e2e8f0;
+  border: 1px solid #1f2937;
+}
+body.theme-dark .gantt-modal-card input[type="date"] {
+  background: #0f172a;
+  border-color: #1f2937;
+  color: #e2e8f0;
+}
+body.theme-dark .modal-actions button {
+  background: #1f2937;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+body.theme-dark .modal-actions #modal-save {
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+/* Dark scrollbars */
+body.theme-dark,
+body.theme-dark .gantt-scroll {
+  scrollbar-color: #334155 #0f172a; /* firefox */
+}
+body.theme-dark ::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+body.theme-dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+body.theme-dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 8px;
+  border: 2px solid #0f172a;
+}
+body.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
