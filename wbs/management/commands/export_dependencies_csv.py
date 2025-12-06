@@ -1,13 +1,11 @@
-import csv
-from pathlib import Path
+from django.core.management.base import BaseCommand
 
-from django.core.management.base import BaseCommand, CommandError
-from wbs.models import TaskDependency
 from wbs.export_utils import (
+    DEPENDENCY_EXPORT_FIELDS,
     validate_output_path,
     write_csv,
-    DEPENDENCY_EXPORT_FIELDS,
 )
+from wbs.models import TaskDependency
 
 
 class Command(BaseCommand):
@@ -27,13 +25,15 @@ class Command(BaseCommand):
 
         rows = []
         for dep in qs:
-            rows.append({
-                "predecessor_code": dep.predecessor.code,
-                "successor_code": dep.successor.code,
-                "dependency_type": dep.dependency_type,
-                "lag_days": dep.lag_days,
-                "notes": dep.notes or "",
-            })
+            rows.append(
+                {
+                    "predecessor_code": dep.predecessor.code,
+                    "successor_code": dep.successor.code,
+                    "dependency_type": dep.dependency_type,
+                    "lag_days": dep.lag_days,
+                    "notes": dep.notes or "",
+                }
+            )
 
         write_csv(output_path, DEPENDENCY_EXPORT_FIELDS, rows)
 

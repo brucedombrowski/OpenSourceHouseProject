@@ -7,68 +7,156 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0006_taskdependency_wbs_taskdep_predece_81715c_idx_and_more'),
+        ("wbs", "0006_taskdependency_wbs_taskdep_predece_81715c_idx_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ProjectIssue',
+            name="ProjectIssue",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('open', 'Open'), ('in_progress', 'In Progress'), ('resolved', 'Resolved'), ('closed', 'Closed')], default='open', max_length=20)),
-                ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], default='medium', max_length=20)),
-                ('reported_by', models.CharField(blank=True, max_length=100)),
-                ('owner', models.CharField(blank=True, max_length=100)),
-                ('date_opened', models.DateTimeField(auto_now_add=True)),
-                ('date_closed', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tags', models.CharField(blank=True, help_text='Comma-separated tags, if desired.', max_length=200)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("open", "Open"),
+                            ("in_progress", "In Progress"),
+                            ("resolved", "Resolved"),
+                            ("closed", "Closed"),
+                        ],
+                        default="open",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "severity",
+                    models.CharField(
+                        choices=[
+                            ("low", "Low"),
+                            ("medium", "Medium"),
+                            ("high", "High"),
+                            ("critical", "Critical"),
+                        ],
+                        default="medium",
+                        max_length=20,
+                    ),
+                ),
+                ("reported_by", models.CharField(blank=True, max_length=100)),
+                ("owner", models.CharField(blank=True, max_length=100)),
+                ("date_opened", models.DateTimeField(auto_now_add=True)),
+                ("date_closed", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "tags",
+                    models.CharField(
+                        blank=True, help_text="Comma-separated tags, if desired.", max_length=200
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date_opened'],
+                "ordering": ["-date_opened"],
             },
         ),
         migrations.CreateModel(
-            name='ProjectTask',
+            name="ProjectTask",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('todo', 'To Do'), ('in_progress', 'In Progress'), ('blocked', 'Blocked'), ('done', 'Done')], default='todo', max_length=20)),
-                ('priority', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], default='medium', max_length=20)),
-                ('date_started', models.DateTimeField(blank=True, null=True)),
-                ('date_completed', models.DateTimeField(blank=True, null=True)),
-                ('reported_by', models.CharField(blank=True, max_length=100)),
-                ('owner', models.CharField(blank=True, max_length=100)),
-                ('estimate_hours', models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True)),
-                ('actual_hours', models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tags', models.CharField(blank=True, help_text='Comma-separated tags, if desired.', max_length=200)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("todo", "To Do"),
+                            ("in_progress", "In Progress"),
+                            ("blocked", "Blocked"),
+                            ("done", "Done"),
+                        ],
+                        default="todo",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "priority",
+                    models.CharField(
+                        choices=[
+                            ("low", "Low"),
+                            ("medium", "Medium"),
+                            ("high", "High"),
+                            ("critical", "Critical"),
+                        ],
+                        default="medium",
+                        max_length=20,
+                    ),
+                ),
+                ("date_started", models.DateTimeField(blank=True, null=True)),
+                ("date_completed", models.DateTimeField(blank=True, null=True)),
+                ("reported_by", models.CharField(blank=True, max_length=100)),
+                ("owner", models.CharField(blank=True, max_length=100)),
+                (
+                    "estimate_hours",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True),
+                ),
+                (
+                    "actual_hours",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "tags",
+                    models.CharField(
+                        blank=True, help_text="Comma-separated tags, if desired.", max_length=200
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.RemoveIndex(
-            model_name='taskdependency',
-            name='wbs_taskdep_predece_81715c_idx',
+            model_name="taskdependency",
+            name="wbs_taskdep_predece_81715c_idx",
         ),
         migrations.RemoveIndex(
-            model_name='taskdependency',
-            name='wbs_taskdep_success_f94a75_idx',
+            model_name="taskdependency",
+            name="wbs_taskdep_success_f94a75_idx",
         ),
         migrations.AddField(
-            model_name='projectissue',
-            name='wbs_item',
-            field=models.ForeignKey(blank=True, help_text='Optional: link this issue to a specific WBS item.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='issues', to='wbs.wbsitem'),
+            model_name="projectissue",
+            name="wbs_item",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Optional: link this issue to a specific WBS item.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="issues",
+                to="wbs.wbsitem",
+            ),
         ),
         migrations.AddField(
-            model_name='projecttask',
-            name='wbs_item',
-            field=models.ForeignKey(blank=True, help_text='Optional: link this task to a specific WBS item.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='wbs.wbsitem'),
+            model_name="projecttask",
+            name="wbs_item",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Optional: link this task to a specific WBS item.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="tasks",
+                to="wbs.wbsitem",
+            ),
         ),
     ]

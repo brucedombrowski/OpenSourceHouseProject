@@ -315,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   }
-  
+
   // Draw on load with delay
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
@@ -324,12 +324,12 @@ document.addEventListener("DOMContentLoaded", function () {
   } else {
     setTimeout(drawDependencyArrows, 50);
   }
-  
+
   // Redraw on scroll
   if (scrollElement) {
     scrollElement.addEventListener("scroll", drawDependencyArrows);
   }
-  
+
   // Redraw on window resize
   window.addEventListener("resize", drawDependencyArrows);
 
@@ -344,7 +344,7 @@ document.addEventListener("DOMContentLoaded", function () {
         bar.classList.remove("highlight-bar");
       }
     });
-    
+
     // Clear arrow highlighting
     if (depSvg) {
       const arrows = depSvg.querySelectorAll(".dependency-arrow");
@@ -357,19 +357,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function highlightDependencies(code) {
     clearHighlights();
-    
+
     const preds = (rowsByCode[code]?.dataset.predecessors || "")
       .split(",")
       .filter(Boolean);
     const succs = (rowsByCode[code]?.dataset.successors || "")
       .split(",")
       .filter(Boolean);
-    
+
     const allCodes = new Set();
     if (code) allCodes.add(code);
     preds.forEach(c => allCodes.add(c));
     succs.forEach(c => allCodes.add(c));
-    
+
     allCodes.forEach(c => {
       const r = rowsByCode[c];
       if (!r) return;
@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
         bar.classList.add("highlight-bar");
       }
     });
-    
+
     // Highlight related arrows
     if (depSvg) {
       const arrows = depSvg.querySelectorAll(".dependency-arrow");
@@ -387,7 +387,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const pred = a.getAttribute("data-pred");
         const succ = a.getAttribute("data-succ");
         const isRelated = pred === code || succ === code || preds.includes(pred) || succs.includes(succ);
-        
+
         if (isRelated) {
           a.setAttribute("opacity", "1");
           a.setAttribute("stroke-width", "3");

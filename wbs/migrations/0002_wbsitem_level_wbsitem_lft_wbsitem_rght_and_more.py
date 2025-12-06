@@ -8,37 +8,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0001_initial'),
+        ("wbs", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='wbsitem',
-            name='level',
+            model_name="wbsitem",
+            name="level",
             field=models.PositiveIntegerField(default=0, editable=False),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='lft',
+            model_name="wbsitem",
+            name="lft",
             field=models.PositiveIntegerField(default=0, editable=False),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='rght',
+            model_name="wbsitem",
+            name="rght",
             field=models.PositiveIntegerField(default=0, editable=False),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='tree_id',
+            model_name="wbsitem",
+            name="tree_id",
             field=models.PositiveIntegerField(db_index=True, default=0, editable=False),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='wbsitem',
-            name='parent',
-            field=mptt.fields.TreeForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='wbs.wbsitem'),
+            model_name="wbsitem",
+            name="parent",
+            field=mptt.fields.TreeForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="children",
+                to="wbs.wbsitem",
+            ),
         ),
     ]

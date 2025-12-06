@@ -21,7 +21,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        verbosity = options.get("verbosity", 1)
         include_self = True  # we always want the call to report if this node changed
 
         self.stdout.write(
@@ -31,10 +30,7 @@ class Command(BaseCommand):
         changed_count = 0
 
         # Work from roots downward so each subtree is handled once
-        roots = (
-            WbsItem.objects.filter(parent__isnull=True)
-            .order_by("tree_id", "lft")
-        )
+        roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
 
         if not roots.exists():
             self.stdout.write(self.style.WARNING("No WBS items found."))
@@ -45,7 +41,5 @@ class Command(BaseCommand):
                 changed_count += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Rollup complete. {changed_count} WBS item(s) updated."
-            )
+            self.style.SUCCESS(f"Rollup complete. {changed_count} WBS item(s) updated.")
         )

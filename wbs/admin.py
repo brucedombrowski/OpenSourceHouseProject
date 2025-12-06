@@ -3,11 +3,7 @@
 from django.contrib import admin
 from mptt.admin import DraggableMPTTAdmin
 
-from .models import (
-    WbsItem,
-    TaskDependency,
-    ProjectItem,
-)
+from .models import ProjectItem, TaskDependency, WbsItem
 from .utils import normalize_code_for_sort
 
 
@@ -15,6 +11,7 @@ class ProjectItemInline(admin.TabularInline):
     """
     Inline editor for ProjectItems on the WBS Item detail page.
     """
+
     model = ProjectItem
     extra = 1  # one empty row by default
     # wbs_item is implied by the parent WbsItem, so we don't show it
@@ -110,10 +107,7 @@ class WbsItemAdmin(DraggableMPTTAdmin):
     def renumber_wbs_action(self, request, queryset):
         # Use tree_id and lft (MPPT fields) to maintain tree order consistency
         # This matches the renumber_wbs management command behavior
-        roots = (
-            WbsItem.objects.filter(parent__isnull=True)
-            .order_by("tree_id", "lft")
-        )
+        roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
 
         def renumber_node(node, prefix, index):
             new_code = f"{prefix}.{index}" if prefix else str(index)

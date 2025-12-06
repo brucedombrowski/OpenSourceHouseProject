@@ -9,28 +9,26 @@ even as we split the codebase into smaller files.
 """
 
 from django.db.models import Q
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
-# Gantt-related views
-from .views_gantt import (
-    gantt_chart,
-    gantt_view,
-    gantt_shift_task,
-    gantt_set_task_dates,
-    gantt_optimize_schedule,
-)
+from .constants import KANBAN_STATUS_ORDER, PROJECT_ITEM_STATUS_MAP
 from .models import ProjectItem
-from .constants import (
-    KANBAN_STATUS_ORDER,
-    PROJECT_ITEM_STATUS_MAP,
-)
 from .utils import (
     get_priority_rank_case,
     group_items_by_status,
     group_items_by_wbs,
+)
+
+# Gantt-related views
+from .views_gantt import (
+    gantt_chart,
+    gantt_optimize_schedule,
+    gantt_set_task_dates,
+    gantt_shift_task,
+    gantt_view,
 )
 
 __all__ = [
@@ -113,7 +111,7 @@ def project_item_list(request):
     )
 
     sorted_groups = group_items_by_wbs(items)
-    
+
     context = {
         "groups": sorted_groups,
         "all_types": ProjectItem.TYPE_CHOICES,
@@ -141,9 +139,7 @@ def project_item_status_update(request):
     new_status = request.POST.get("status")
 
     if not item_id or not new_status:
-        return JsonResponse(
-            {"ok": False, "error": "id and status are required"}, status=400
-        )
+        return JsonResponse({"ok": False, "error": "id and status are required"}, status=400)
 
     valid_statuses = {choice[0] for choice in ProjectItem.STATUS_CHOICES}
     if new_status not in valid_statuses:

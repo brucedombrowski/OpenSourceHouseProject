@@ -38,16 +38,16 @@ function getCSRFToken() {
  */
 function applyTheme(theme, themeKey = "appTheme", toggleBtn = null) {
   const isDark = theme === "dark";
-  
+
   // Toggle body class
   document.body.classList.toggle("theme-dark", isDark);
   document.body.classList.toggle("theme-light", !isDark);
-  
+
   // Update button text if provided
   if (toggleBtn) {
     toggleBtn.textContent = isDark ? "Light Mode" : "Dark Mode";
   }
-  
+
   // Persist to localStorage
   localStorage.setItem(themeKey, theme);
 }
@@ -61,11 +61,11 @@ function applyTheme(theme, themeKey = "appTheme", toggleBtn = null) {
 function initializeThemeToggle(buttonId, themeKey = "appTheme", defaultTheme = "dark") {
   const toggleBtn = document.getElementById(buttonId);
   if (!toggleBtn) return;
-  
+
   // Apply saved theme or default
   const savedTheme = localStorage.getItem(themeKey) || defaultTheme;
   applyTheme(savedTheme, themeKey, toggleBtn);
-  
+
   // Add click handler
   toggleBtn.addEventListener("click", () => {
     const currentTheme = document.body.classList.contains("theme-dark") ? "dark" : "light";

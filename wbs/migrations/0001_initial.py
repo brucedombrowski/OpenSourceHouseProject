@@ -8,28 +8,50 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='WbsItem',
+            name="WbsItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(db_index=True, max_length=50)),
-                ('name', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('wbs_level', models.PositiveIntegerField(default=1)),
-                ('sequence', models.PositiveIntegerField(default=1)),
-                ('duration_days', models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True)),
-                ('cost_labor', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('cost_material', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('is_milestone', models.BooleanField(default=False)),
-                ('notes', models.TextField(blank=True)),
-                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='wbs.wbsitem')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("code", models.CharField(db_index=True, max_length=50)),
+                ("name", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                ("wbs_level", models.PositiveIntegerField(default=1)),
+                ("sequence", models.PositiveIntegerField(default=1)),
+                (
+                    "duration_days",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True),
+                ),
+                (
+                    "cost_labor",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True),
+                ),
+                (
+                    "cost_material",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True),
+                ),
+                ("is_milestone", models.BooleanField(default=False)),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="children",
+                        to="wbs.wbsitem",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['wbs_level', 'sequence', 'code'],
+                "ordering": ["wbs_level", "sequence", "code"],
             },
         ),
     ]

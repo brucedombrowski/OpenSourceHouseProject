@@ -26,19 +26,14 @@ class Command(BaseCommand):
             try:
                 project_start = date.fromisoformat(start_date_str)
             except ValueError:
-                raise CommandError(
-                    f"Invalid --start-date '{start_date_str}'. Use YYYY-MM-DD."
-                )
+                raise CommandError(f"Invalid --start-date '{start_date_str}'. Use YYYY-MM-DD.")
         else:
             project_start = date.today()
 
         self.stdout.write(f"Scheduling WBS starting at {project_start.isoformat()}")
 
         # Get root nodes (no parent), ordered
-        roots = (
-            WbsItem.objects.filter(parent__isnull=True)
-            .order_by("sequence", "code")
-        )
+        roots = WbsItem.objects.filter(parent__isnull=True).order_by("sequence", "code")
 
         current_date = project_start
 

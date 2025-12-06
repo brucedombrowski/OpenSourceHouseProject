@@ -6,16 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0005_wbsitem_sort_key'),
+        ("wbs", "0005_wbsitem_sort_key"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='taskdependency',
-            index=models.Index(fields=['predecessor'], name='wbs_taskdep_predece_81715c_idx'),
+            model_name="taskdependency",
+            index=models.Index(fields=["predecessor"], name="wbs_taskdep_predece_81715c_idx"),
         ),
         migrations.AddIndex(
-            model_name='taskdependency',
-            index=models.Index(fields=['successor'], name='wbs_taskdep_success_f94a75_idx'),
+            model_name="taskdependency",
+            index=models.Index(fields=["successor"], name="wbs_taskdep_success_f94a75_idx"),
         ),
     ]

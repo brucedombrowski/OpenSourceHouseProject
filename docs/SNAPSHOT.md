@@ -116,7 +116,7 @@ A Django-based Work Breakdown Structure (WBS) project management system for hous
    - Status: Open
    - Problem: Renumbering behaves differently in admin UI vs CLI; drag of root nodes triggers MPPT InvalidMove
    - Component: Admin UI
-   
+
 2. **Issue #20**: App Module Name 'wbs' Unclear
    - Status: Open
    - Problem: Django app named 'wbs' doesn't match House Project branding

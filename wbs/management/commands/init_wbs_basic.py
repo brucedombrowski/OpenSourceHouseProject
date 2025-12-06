@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from wbs.models import WbsItem
 
+from wbs.models import WbsItem
 
 DEFAULT_ITEMS = [
     ("0", "Pre-Construction & Administration", None, 1, 1),

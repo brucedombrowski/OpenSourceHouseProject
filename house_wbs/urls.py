@@ -1,15 +1,15 @@
 from django.contrib import admin
 from django.urls import path
+
 from wbs.views import (
-    gantt_view,
-    gantt_shift_task,
-    gantt_set_task_dates,
     gantt_optimize_schedule,
+    gantt_set_task_dates,
+    gantt_shift_task,
+    gantt_view,
     project_item_board,
     project_item_list,
     project_item_status_update,
 )
-
 
 urlpatterns = [
     path("admin/", admin.site.urls),

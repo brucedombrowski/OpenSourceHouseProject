@@ -6,7 +6,7 @@
 
 /**
  * Standard fetch wrapper with error handling, CSRF injection, and response parsing.
- * 
+ *
  * @param {string} url - API endpoint URL
  * @param {object} options - Fetch options (method, body, headers, etc.)
  * @param {object} config - Additional config (onSuccess, onError, showAlert, buttonId)

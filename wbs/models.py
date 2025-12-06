@@ -2,39 +2,39 @@
 
 from decimal import Decimal
 
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 
 from .constants import (
-    WBS_STATUS_NOT_STARTED,
-    WBS_STATUS_IN_PROGRESS,
-    WBS_STATUS_DONE,
-    WBS_STATUS_BLOCKED,
-    WBS_STATUS_CHOICES,
-    PROJECT_ITEM_TYPE_ISSUE,
-    PROJECT_ITEM_TYPE_TASK,
-    PROJECT_ITEM_TYPE_ENHANCEMENT,
-    PROJECT_ITEM_TYPE_RISK,
-    PROJECT_ITEM_TYPE_DECISION,
-    PROJECT_ITEM_TYPE_CHOICES,
-    PROJECT_ITEM_STATUS_TODO,
-    PROJECT_ITEM_STATUS_IN_PROGRESS,
-    PROJECT_ITEM_STATUS_BLOCKED,
-    PROJECT_ITEM_STATUS_DONE,
-    PROJECT_ITEM_STATUS_OPEN,
-    PROJECT_ITEM_STATUS_CLOSED,
-    PROJECT_ITEM_STATUS_CHOICES,
+    PROJECT_ITEM_PRIORITY_CHOICES,
+    PROJECT_ITEM_PRIORITY_CRITICAL,
+    PROJECT_ITEM_PRIORITY_HIGH,
     PROJECT_ITEM_PRIORITY_LOW,
     PROJECT_ITEM_PRIORITY_MEDIUM,
-    PROJECT_ITEM_PRIORITY_HIGH,
-    PROJECT_ITEM_PRIORITY_CRITICAL,
-    PROJECT_ITEM_PRIORITY_CHOICES,
+    PROJECT_ITEM_SEVERITY_CHOICES,
+    PROJECT_ITEM_SEVERITY_CRITICAL,
+    PROJECT_ITEM_SEVERITY_HIGH,
     PROJECT_ITEM_SEVERITY_LOW,
     PROJECT_ITEM_SEVERITY_MEDIUM,
-    PROJECT_ITEM_SEVERITY_HIGH,
-    PROJECT_ITEM_SEVERITY_CRITICAL,
-    PROJECT_ITEM_SEVERITY_CHOICES,
+    PROJECT_ITEM_STATUS_BLOCKED,
+    PROJECT_ITEM_STATUS_CHOICES,
+    PROJECT_ITEM_STATUS_CLOSED,
+    PROJECT_ITEM_STATUS_DONE,
+    PROJECT_ITEM_STATUS_IN_PROGRESS,
+    PROJECT_ITEM_STATUS_OPEN,
+    PROJECT_ITEM_STATUS_TODO,
+    PROJECT_ITEM_TYPE_CHOICES,
+    PROJECT_ITEM_TYPE_DECISION,
+    PROJECT_ITEM_TYPE_ENHANCEMENT,
+    PROJECT_ITEM_TYPE_ISSUE,
+    PROJECT_ITEM_TYPE_RISK,
+    PROJECT_ITEM_TYPE_TASK,
+    WBS_STATUS_BLOCKED,
+    WBS_STATUS_CHOICES,
+    WBS_STATUS_DONE,
+    WBS_STATUS_IN_PROGRESS,
+    WBS_STATUS_NOT_STARTED,
 )
 from .utils import normalize_code_for_sort
 
@@ -71,15 +71,9 @@ class WbsItem(MPTTModel):
     sort_key = models.CharField(max_length=255, editable=False, default="")
 
     # --- Planning ---
-    duration_days = models.DecimalField(
-        max_digits=7, decimal_places=2, null=True, blank=True
-    )
-    cost_labor = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    cost_material = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
+    duration_days = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    cost_labor = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    cost_material = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     # --- Schedule ---
     planned_start = models.DateField(null=True, blank=True)
@@ -93,9 +87,7 @@ class WbsItem(MPTTModel):
         choices=STATUS_CHOICES,
         default=STATUS_NOT_STARTED,
     )
-    percent_complete = models.DecimalField(
-        max_digits=5, decimal_places=2, default=Decimal("0.00")
-    )
+    percent_complete = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
 
     is_milestone = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
@@ -138,7 +130,7 @@ class WbsItem(MPTTModel):
 
         Returns:
             True if this node (or any child if include_self=False) changed; False otherwise.
-            
+
         NOTE: Call with include_self=True from roots to ensure return value reflects root changes.
         """
         descendant_changed = False
@@ -163,9 +155,7 @@ class WbsItem(MPTTModel):
                     )
                 if child.planned_end:
                     max_end = (
-                        child.planned_end
-                        if max_end is None
-                        else max(max_end, child.planned_end)
+                        child.planned_end if max_end is None else max(max_end, child.planned_end)
                     )
 
                 # Sum immediate children durations; if missing, fall back to their span
@@ -183,8 +173,10 @@ class WbsItem(MPTTModel):
                 changed_fields.add("planned_end")
 
             # duration rolls up from immediate children; fall back to span if no children durations
-            new_duration = duration_sum if duration_sum > 0 else (
-                Decimal((max_end - min_start).days + 1) if (min_start and max_end) else None
+            new_duration = (
+                duration_sum
+                if duration_sum > 0
+                else (Decimal((max_end - min_start).days + 1) if (min_start and max_end) else None)
             )
             if new_duration is not None and self.duration_days != new_duration:
                 self.duration_days = new_duration
@@ -221,7 +213,7 @@ class WbsItem(MPTTModel):
 
         Returns:
             True if this node (or any child if include_self=False) changed; False otherwise.
-            
+
         NOTE: Call with include_self=True from roots to ensure return value reflects root changes.
         """
         descendant_changed = False
@@ -330,12 +322,10 @@ class TaskDependency(models.Model):
         - (Basic check: no direct circular dependencies are created)
         """
         super().clean()
-        
+
         if self.predecessor_id == self.successor_id:
-            raise ValidationError(
-                "A task cannot have a dependency on itself."
-            )
-        
+            raise ValidationError("A task cannot have a dependency on itself.")
+
         # Check for direct reversal: if successor → predecessor exists, warn
         # (Full circular check requires graph traversal, so we keep this simple)
         if TaskDependency.objects.filter(
@@ -351,9 +341,10 @@ class Tag(models.Model):
     """
     Simple tag model for categorizing ProjectItems.
     """
+
     name = models.CharField(max_length=100, unique=True, db_index=True)
     description = models.TextField(blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -447,12 +438,8 @@ class ProjectItem(models.Model):
     date_started = models.DateTimeField(null=True, blank=True)
     date_completed = models.DateTimeField(null=True, blank=True)
 
-    estimate_hours = models.DecimalField(
-        max_digits=7, decimal_places=2, null=True, blank=True
-    )
-    actual_hours = models.DecimalField(
-        max_digits=7, decimal_places=2, null=True, blank=True
-    )
+    estimate_hours = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    actual_hours = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
 
     external_ref = models.CharField(
         max_length=100,

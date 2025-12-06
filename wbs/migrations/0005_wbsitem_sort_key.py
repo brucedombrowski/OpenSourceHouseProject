@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0004_taskdependency'),
+        ("wbs", "0004_taskdependency"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='wbsitem',
-            name='sort_key',
-            field=models.CharField(default='', editable=False, max_length=255),
+            model_name="wbsitem",
+            name="sort_key",
+            field=models.CharField(default="", editable=False, max_length=255),
         ),
     ]

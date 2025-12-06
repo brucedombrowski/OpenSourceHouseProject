@@ -1,14 +1,12 @@
-import csv
-from pathlib import Path
+from django.core.management.base import BaseCommand
 
-from django.core.management.base import BaseCommand, CommandError
-from wbs.models import WbsItem
 from wbs.export_utils import (
-    validate_output_path,
-    format_date,
-    write_csv,
     WBS_EXPORT_FIELDS,
+    format_date,
+    validate_output_path,
+    write_csv,
 )
+from wbs.models import WbsItem
 
 
 class Command(BaseCommand):
@@ -28,27 +26,28 @@ class Command(BaseCommand):
 
         rows = []
         for item in qs:
-            rows.append({
-                "code": item.code,
-                "name": item.name,
-                "parent_code": item.parent.code if item.parent else "",
-                "wbs_level": item.wbs_level,
-                "sequence": item.sequence,
-                "duration_days": item.duration_days or "",
-                "cost_labor": item.cost_labor or "",
-                "cost_material": item.cost_material or "",
-                "planned_start": format_date(item.planned_start),
-                "planned_end": format_date(item.planned_end),
-                "actual_start": format_date(item.actual_start),
-                "actual_end": format_date(item.actual_end),
-                "status": item.status,
-                "percent_complete": item.percent_complete,
-                "is_milestone": "true" if item.is_milestone else "false",
-                "description": item.description or "",
-                "notes": item.notes or "",
-            })
+            rows.append(
+                {
+                    "code": item.code,
+                    "name": item.name,
+                    "parent_code": item.parent.code if item.parent else "",
+                    "wbs_level": item.wbs_level,
+                    "sequence": item.sequence,
+                    "duration_days": item.duration_days or "",
+                    "cost_labor": item.cost_labor or "",
+                    "cost_material": item.cost_material or "",
+                    "planned_start": format_date(item.planned_start),
+                    "planned_end": format_date(item.planned_end),
+                    "actual_start": format_date(item.actual_start),
+                    "actual_end": format_date(item.actual_end),
+                    "status": item.status,
+                    "percent_complete": item.percent_complete,
+                    "is_milestone": "true" if item.is_milestone else "false",
+                    "description": item.description or "",
+                    "notes": item.notes or "",
+                }
+            )
 
         write_csv(output_path, WBS_EXPORT_FIELDS, rows)
 
         self.stdout.write(self.style.SUCCESS(f"Exported WBS to {output_path}"))
-

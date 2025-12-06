@@ -6,32 +6,42 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0010_alter_projectitem_options_alter_wbsitem_options'),
+        ("wbs", "0010_alter_projectitem_options_alter_wbsitem_options"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Tag',
+            name="Tag",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(db_index=True, max_length=100, unique=True)),
-                ('description', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(db_index=True, max_length=100, unique=True)),
+                ("description", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Tag',
-                'verbose_name_plural': 'Tags',
-                'ordering': ['name'],
+                "verbose_name": "Tag",
+                "verbose_name_plural": "Tags",
+                "ordering": ["name"],
             },
         ),
         migrations.RemoveField(
-            model_name='projectitem',
-            name='tags',
+            model_name="projectitem",
+            name="tags",
         ),
         migrations.AddField(
-            model_name='projectitem',
-            name='tags',
-            field=models.ManyToManyField(blank=True, help_text='Tags for categorizing this item.', related_name='project_items', to='wbs.tag'),
+            model_name="projectitem",
+            name="tags",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="Tags for categorizing this item.",
+                related_name="project_items",
+                to="wbs.tag",
+            ),
         ),
     ]

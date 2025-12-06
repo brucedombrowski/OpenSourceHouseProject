@@ -1,10 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 
 from .models import ProjectItem, TaskDependency, WbsItem
 
@@ -508,9 +508,7 @@ class GanttShiftTests(TestCase):
 
     def setUp(self):
         User = get_user_model()
-        self.staff = User.objects.create_user(
-            username="staff", password="pass", is_staff=True
-        )
+        self.staff = User.objects.create_user(username="staff", password="pass", is_staff=True)
         self.client.force_login(self.staff)
 
     def test_shift_task_moves_children(self):
@@ -543,4 +541,3 @@ class GanttShiftTests(TestCase):
         self.assertEqual(parent.planned_end, date(2025, 1, 10))
         self.assertEqual(child.planned_start, date(2025, 1, 7))
         self.assertEqual(child.planned_end, date(2025, 1, 9))
-

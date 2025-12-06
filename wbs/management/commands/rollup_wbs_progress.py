@@ -6,10 +6,7 @@ from wbs.models import WbsItem
 
 
 class Command(BaseCommand):
-    help = (
-        "Roll up percent_complete from children to parents for the "
-        "entire WBS tree."
-    )
+    help = "Roll up percent_complete from children to parents for the " "entire WBS tree."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,10 +29,7 @@ class Command(BaseCommand):
         changed_count = 0
 
         # Work from roots downward so each subtree is handled once
-        roots = (
-            WbsItem.objects.filter(parent__isnull=True)
-            .order_by("tree_id", "lft")
-        )
+        roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
 
         if not roots.exists():
             self.stdout.write(self.style.WARNING("No WBS items found."))
@@ -48,7 +42,5 @@ class Command(BaseCommand):
                     self.stdout.write(f"- Updated subtree rooted at {root.code or root.pk}")
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Rollup complete. {changed_count} WBS root item(s) updated."
-            )
+            self.style.SUCCESS(f"Rollup complete. {changed_count} WBS root item(s) updated.")
         )

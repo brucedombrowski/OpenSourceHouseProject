@@ -7,38 +7,79 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0008_remove_projecttask_wbs_item_projectitem_and_more'),
+        ("wbs", "0008_remove_projecttask_wbs_item_projectitem_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='projectitem',
-            name='external_ref',
-            field=models.CharField(blank=True, help_text='Optional external ID (e.g. Jira, GitHub, etc.)', max_length=100),
+            model_name="projectitem",
+            name="external_ref",
+            field=models.CharField(
+                blank=True,
+                help_text="Optional external ID (e.g. Jira, GitHub, etc.)",
+                max_length=100,
+            ),
         ),
         migrations.AlterField(
-            model_name='projectitem',
-            name='severity',
-            field=models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], default='medium', max_length=20),
+            model_name="projectitem",
+            name="severity",
+            field=models.CharField(
+                choices=[
+                    ("low", "Low"),
+                    ("medium", "Medium"),
+                    ("high", "High"),
+                    ("critical", "Critical"),
+                ],
+                default="medium",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='projectitem',
-            name='status',
-            field=models.CharField(choices=[('todo', 'To Do'), ('in_progress', 'In Progress'), ('blocked', 'Blocked'), ('done', 'Done'), ('open', 'Open'), ('closed', 'Closed')], default='todo', max_length=20),
+            model_name="projectitem",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("todo", "To Do"),
+                    ("in_progress", "In Progress"),
+                    ("blocked", "Blocked"),
+                    ("done", "Done"),
+                    ("open", "Open"),
+                    ("closed", "Closed"),
+                ],
+                default="todo",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='projectitem',
-            name='tags',
-            field=models.CharField(blank=True, help_text='Comma-separated tags.', max_length=200),
+            model_name="projectitem",
+            name="tags",
+            field=models.CharField(blank=True, help_text="Comma-separated tags.", max_length=200),
         ),
         migrations.AlterField(
-            model_name='projectitem',
-            name='type',
-            field=models.CharField(choices=[('issue', 'Issue'), ('task', 'Task'), ('enhancement', 'Enhancement'), ('risk', 'Risk'), ('decision', 'Decision')], default='task', max_length=20),
+            model_name="projectitem",
+            name="type",
+            field=models.CharField(
+                choices=[
+                    ("issue", "Issue"),
+                    ("task", "Task"),
+                    ("enhancement", "Enhancement"),
+                    ("risk", "Risk"),
+                    ("decision", "Decision"),
+                ],
+                default="task",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='projectitem',
-            name='wbs_item',
-            field=models.ForeignKey(blank=True, help_text='Optional: link this item to a specific WBS node.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='project_items', to='wbs.wbsitem'),
+            model_name="projectitem",
+            name="wbs_item",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Optional: link this item to a specific WBS node.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="project_items",
+                to="wbs.wbsitem",
+            ),
         ),
     ]

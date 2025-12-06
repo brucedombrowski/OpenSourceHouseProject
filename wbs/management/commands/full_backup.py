@@ -1,6 +1,6 @@
 import subprocess
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -37,9 +37,7 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"\n✅ FULL BACKUP COMPLETE\nArchive created:\n{zip_name}\n"
-            )
+            self.style.SUCCESS(f"\n✅ FULL BACKUP COMPLETE\nArchive created:\n{zip_name}\n")
         )
 
     def _run_cmd(self, cmd, check_exists=None):
@@ -58,4 +56,5 @@ class Command(BaseCommand):
 
     def _binary_exists(self, name):
         from shutil import which
+
         return which(name) is not None

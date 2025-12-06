@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
-from .models import WbsItem, ProjectItem, TaskDependency
+from .models import ProjectItem, TaskDependency, WbsItem
 
 
 @staff_member_required
@@ -42,8 +42,7 @@ def gantt_chart(request):
 
     # ---- Base queryset: tasks with dates + prefetch ProjectItems ----
     qs = (
-        WbsItem.objects
-        .filter(planned_start__isnull=False, planned_end__isnull=False)
+        WbsItem.objects.filter(planned_start__isnull=False, planned_end__isnull=False)
         .select_related("parent")
         .prefetch_related(
             Prefetch(
@@ -143,11 +142,15 @@ def gantt_chart(request):
             return False
 
         # Priority filter
-        if selected_priorities and not any(pi.priority in selected_priorities for pi in project_items):
+        if selected_priorities and not any(
+            pi.priority in selected_priorities for pi in project_items
+        ):
             return False
 
         # Severity filter
-        if selected_severities and not any(pi.severity in selected_severities for pi in project_items):
+        if selected_severities and not any(
+            pi.severity in selected_severities for pi in project_items
+        ):
             return False
 
         return True
@@ -199,7 +202,9 @@ def gantt_chart(request):
             t.has_children = t.get_children().exists()
         except AttributeError:
             # Fallback if not using MPTT's get_children
-            t.has_children = bool(getattr(t, "children", []).all()) if hasattr(t, "children") else False
+            t.has_children = (
+                bool(getattr(t, "children", []).all()) if hasattr(t, "children") else False
+            )
 
         # ProjectItem-related flags
         project_items = list(t.project_items.all())
@@ -229,11 +234,13 @@ def gantt_chart(request):
         offset_days = (band_start_date - min_start).days
         width_days = (band_end_date - band_start_date).days + 1
 
-        year_bands.append({
-            "label": str(year),
-            "offset_px": offset_days * px_per_day,
-            "width_px": width_days * px_per_day,
-        })
+        year_bands.append(
+            {
+                "label": str(year),
+                "offset_px": offset_days * px_per_day,
+                "width_px": width_days * px_per_day,
+            }
+        )
 
     # MONTH BANDS
     month_bands = []
@@ -256,11 +263,13 @@ def gantt_chart(request):
 
         label = month_cursor.strftime("%b")
 
-        month_bands.append({
-            "label": label,
-            "offset_px": offset_days * px_per_day,
-            "width_px": width_days * px_per_day,
-        })
+        month_bands.append(
+            {
+                "label": label,
+                "offset_px": offset_days * px_per_day,
+                "width_px": width_days * px_per_day,
+            }
+        )
 
         month_cursor = next_month
 
@@ -273,10 +282,12 @@ def gantt_chart(request):
     day_cursor = first_monday
     while day_cursor <= max_end:
         offset_days = (day_cursor - min_start).days
-        day_ticks.append({
-            "label": day_cursor.strftime("%d"),
-            "offset_px": offset_days * px_per_day,
-        })
+        day_ticks.append(
+            {
+                "label": day_cursor.strftime("%d"),
+                "offset_px": offset_days * px_per_day,
+            }
+        )
         day_cursor += timedelta(days=7)
 
     context = {
@@ -320,9 +331,7 @@ def gantt_shift_task(request):
     new_start_str = request.POST.get("new_start", "").strip()
 
     if not code or not new_start_str:
-        return JsonResponse(
-            {"ok": False, "error": "code and new_start are required"}, status=400
-        )
+        return JsonResponse({"ok": False, "error": "code and new_start are required"}, status=400)
 
     try:
         target = WbsItem.objects.get(code=code)
@@ -330,9 +339,7 @@ def gantt_shift_task(request):
         return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
 
     if not target.planned_start or not target.planned_end:
-        return JsonResponse(
-            {"ok": False, "error": "Task missing planned dates"}, status=400
-        )
+        return JsonResponse({"ok": False, "error": "Task missing planned dates"}, status=400)
 
     try:
         new_start = date.fromisoformat(new_start_str)
@@ -405,9 +412,7 @@ def gantt_set_task_dates(request):
     end_str = request.POST.get("end", "").strip()
 
     if not code or not start_str or not end_str:
-        return JsonResponse(
-            {"ok": False, "error": "code, start, and end are required"}, status=400
-        )
+        return JsonResponse({"ok": False, "error": "code, start, and end are required"}, status=400)
 
     try:
         target = WbsItem.objects.get(code=code)
@@ -421,9 +426,7 @@ def gantt_set_task_dates(request):
         return JsonResponse({"ok": False, "error": "Invalid date"}, status=400)
 
     if end_date < start_date:
-        return JsonResponse(
-            {"ok": False, "error": "End date cannot be before start"}, status=400
-        )
+        return JsonResponse({"ok": False, "error": "End date cannot be before start"}, status=400)
 
     target.planned_start = start_date
     target.planned_end = end_date
@@ -541,21 +544,21 @@ def gantt_optimize_schedule(request):
         # Parent constraint: start no earlier than parent start
         parent = task.parent
         parent_start = parent.planned_start if parent and parent.planned_start else None
-        
+
         # Build earliest start: prioritize predecessor constraints, then parent constraint
         earliest = None
         if pred_earliest:
             # If there are predecessors, use their calculated earliest
             # (don't include current task.planned_start to allow slack removal)
             earliest = pred_earliest
-        
+
         if parent_start:
             # Parent constraint: cannot start before parent
             if earliest:
                 earliest = max(earliest, parent_start)
             else:
                 earliest = parent_start
-        
+
         if root_start and not pred_earliest:
             # Only apply root start if no predecessors (root drives the schedule otherwise)
             if earliest:

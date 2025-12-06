@@ -13,10 +13,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Get roots in true tree order
-        roots = (
-            WbsItem.objects.filter(parent__isnull=True)
-            .order_by("tree_id", "lft")
-        )
+        roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
 
         if not roots.exists():
             self.stdout.write("No WBS items found.")
@@ -48,9 +45,7 @@ class Command(BaseCommand):
             node.sort_key = normalize_code_for_sort(new_code)
             node.save(update_fields=["code", "sequence", "sort_key"])
 
-            self.stdout.write(
-                f"{node.name}: {old_code} -> {new_code} (sequence={new_seq})"
-            )
+            self.stdout.write(f"{node.name}: {old_code} -> {new_code} (sequence={new_seq})")
 
             # Children in tree order
             children = node.get_children().order_by("tree_id", "lft")

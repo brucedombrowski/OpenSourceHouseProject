@@ -1,15 +1,11 @@
 import csv
-from decimal import Decimal
-from pathlib import Path
 from datetime import date
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+
 from wbs.models import WbsItem
-
-from decimal import Decimal, InvalidOperation
-from mptt.exceptions import InvalidMove
-
-
 
 
 def parse_decimal(val, default=None):
@@ -23,7 +19,6 @@ def parse_decimal(val, default=None):
     except InvalidOperation:
         # Bad numeric value in CSV; fall back to default
         return default
-
 
 
 def parse_bool(val):
@@ -104,7 +99,6 @@ class Command(BaseCommand):
                 cost_labor = parse_decimal(row.get("cost_labor"))
                 cost_material = parse_decimal(row.get("cost_material"))
 
-
                 planned_start = parse_date(row.get("planned_start"))
                 planned_end = parse_date(row.get("planned_end"))
                 actual_start = parse_date(row.get("actual_start"))
@@ -172,10 +166,7 @@ class Command(BaseCommand):
 
         if not skip_rollup:
             changed_count = 0
-            roots = (
-                WbsItem.objects.filter(parent__isnull=True)
-                .order_by("tree_id", "lft")
-            )
+            roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
             for root in roots:
                 if root.update_rollup_dates(include_self=True):
                     changed_count += 1

@@ -6,16 +6,24 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0009_alter_projectitem_external_ref_and_more'),
+        ("wbs", "0009_alter_projectitem_external_ref_and_more"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='projectitem',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Project Item', 'verbose_name_plural': 'Project Items'},
+            name="projectitem",
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Project Item",
+                "verbose_name_plural": "Project Items",
+            },
         ),
         migrations.AlterModelOptions(
-            name='wbsitem',
-            options={'ordering': ['sort_key'], 'verbose_name': 'WBS Item', 'verbose_name_plural': 'WBS Items'},
+            name="wbsitem",
+            options={
+                "ordering": ["sort_key"],
+                "verbose_name": "WBS Item",
+                "verbose_name_plural": "WBS Items",
+            },
         ),
     ]

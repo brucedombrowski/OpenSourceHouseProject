@@ -6,38 +6,47 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0002_wbsitem_level_wbsitem_lft_wbsitem_rght_and_more'),
+        ("wbs", "0002_wbsitem_level_wbsitem_lft_wbsitem_rght_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='wbsitem',
-            name='actual_end',
+            model_name="wbsitem",
+            name="actual_end",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='actual_start',
+            model_name="wbsitem",
+            name="actual_start",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='percent_complete',
+            model_name="wbsitem",
+            name="percent_complete",
             field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='planned_end',
+            model_name="wbsitem",
+            name="planned_end",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='planned_start',
+            model_name="wbsitem",
+            name="planned_start",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='wbsitem',
-            name='status',
-            field=models.CharField(choices=[('not_started', 'Not started'), ('in_progress', 'In progress'), ('done', 'Done'), ('blocked', 'Blocked')], default='not_started', max_length=20),
+            model_name="wbsitem",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("not_started", "Not started"),
+                    ("in_progress", "In progress"),
+                    ("done", "Done"),
+                    ("blocked", "Blocked"),
+                ],
+                default="not_started",
+                max_length=20,
+            ),
         ),
     ]

@@ -261,7 +261,7 @@
                 <div class="cards">
                     {% if column.items %}
                         {% for item in column.items %}
-                            <div class="card {{ item.get_priority_display|lower }}" 
+                            <div class="card {{ item.get_priority_display|lower }}"
                                  data-item-id="{{ item.id }}"
                                  data-status="{{ item.status }}"
                                  draggable="true">
@@ -330,7 +330,7 @@
                 'closed': '{{ project_item.STATUS_CLOSED }}'
             };
             const newStatus = Object.keys(statusMap).find(key => statusText.includes(key));
-            
+
             if (newStatus) {
                 fetch('{% url "project_item_status_update" %}', {
                     method: 'POST',

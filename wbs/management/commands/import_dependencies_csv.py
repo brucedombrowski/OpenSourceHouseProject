@@ -3,7 +3,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-from wbs.models import WbsItem, TaskDependency
+
+from wbs.models import TaskDependency, WbsItem
 
 
 def parse_decimal(val):
@@ -85,9 +86,7 @@ class Command(BaseCommand):
                         for field, value in defaults.items():
                             setattr(dep, field, value)
                         dep.save()
-                        self.stdout.write(
-                            f"Updated dependency {pred_code} -> {succ_code}"
-                        )
+                        self.stdout.write(f"Updated dependency {pred_code} -> {succ_code}")
                     else:
                         self.stdout.write(
                             f"Skipping existing dependency {pred_code} -> {succ_code}"
@@ -97,9 +96,7 @@ class Command(BaseCommand):
                         predecessor=predecessor, successor=successor, **defaults
                     )
                     self.stdout.write(
-                        self.style.SUCCESS(
-                            f"Created dependency {pred_code} -> {succ_code}"
-                        )
+                        self.style.SUCCESS(f"Created dependency {pred_code} -> {succ_code}")
                     )
 
         self.stdout.write(self.style.SUCCESS("Dependency import complete."))

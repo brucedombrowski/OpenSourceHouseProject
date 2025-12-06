@@ -7,24 +7,63 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wbs', '0003_wbsitem_actual_end_wbsitem_actual_start_and_more'),
+        ("wbs", "0003_wbsitem_actual_end_wbsitem_actual_start_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TaskDependency',
+            name="TaskDependency",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('dependency_type', models.CharField(choices=[('FS', 'Finish to Start'), ('SS', 'Start to Start'), ('FF', 'Finish to Finish'), ('SF', 'Start to Finish')], default='FS', max_length=2)),
-                ('lag_days', models.DecimalField(decimal_places=2, default=0, help_text='Lag in days (negative for lead).', max_digits=6)),
-                ('notes', models.TextField(blank=True)),
-                ('predecessor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='successor_links', to='wbs.wbsitem')),
-                ('successor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='predecessor_links', to='wbs.wbsitem')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "dependency_type",
+                    models.CharField(
+                        choices=[
+                            ("FS", "Finish to Start"),
+                            ("SS", "Start to Start"),
+                            ("FF", "Finish to Finish"),
+                            ("SF", "Start to Finish"),
+                        ],
+                        default="FS",
+                        max_length=2,
+                    ),
+                ),
+                (
+                    "lag_days",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        help_text="Lag in days (negative for lead).",
+                        max_digits=6,
+                    ),
+                ),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "predecessor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="successor_links",
+                        to="wbs.wbsitem",
+                    ),
+                ),
+                (
+                    "successor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="predecessor_links",
+                        to="wbs.wbsitem",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Task Dependency',
-                'verbose_name_plural': 'Task Dependencies',
-                'unique_together': {('predecessor', 'successor')},
+                "verbose_name": "Task Dependency",
+                "verbose_name_plural": "Task Dependencies",
+                "unique_together": {("predecessor", "successor")},
             },
         ),
     ]
