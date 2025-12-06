@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Project Items — List</title>
+  <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}">
+  <style>
+    body { margin: 16px; font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+    h1 { margin: 0 0 8px 0; }
+    .actions { display: flex; gap: 8px; margin-bottom: 12px; }
+    .actions a { font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; text-decoration: none; color: #111827; background: #f9fafb; }
+    .actions a:hover { background: #e5e7eb; }
+    .group { margin-bottom: 18px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    .group-header { background: #f8fafc; padding: 10px 12px; font-weight: 600; display: flex; justify-content: space-between; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #eee; padding: 6px 8px; text-align: left; }
+    th { background: #f9fafb; }
+    .muted { color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <a href="{% url 'gantt_view' %}">Gantt</a>
+    <a href="{% url 'project_item_board' %}">Board</a>
+  </div>
+  <h1>Project Items — List</h1>
+  <div class="muted">Total: {{ total_count }}</div>
+
+  {% for group, items in groups %}
+    <div class="group">
+      <div class="group-header">
+        <div>{{ group.1 }}</div>
+        <div class="muted">{{ items|length }} item{{ items|length|pluralize }}</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Severity</th>
+            <th>Owner</th>
+            <th>Reported By</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.title }}</td>
+              <td>{{ item.get_type_display }}</td>
+              <td>{{ item.get_status_display }}</td>
+              <td>{{ item.get_priority_display }}</td>
+              <td>{{ item.get_severity_display }}</td>
+              <td>{{ item.owner }}</td>
+              <td>{{ item.reported_by }}</td>
+              <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8">No items.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% empty %}
+    <p>No project items found.</p>
+  {% endfor %}
+</body>
+</html>

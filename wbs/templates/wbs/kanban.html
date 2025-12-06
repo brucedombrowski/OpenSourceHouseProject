@@ -1,0 +1,334 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Project Items — Board</title>
+    <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}">
+    <style>
+        :root {
+            --board-bg: #0f172a;
+            --column-bg: #111827;
+            --card-bg: #1f2937;
+            --card-border: #293548;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #22d3ee;
+            --accent-2: #a855f7;
+        }
+        body {
+            margin: 0;
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 20% 20%, #111827 0, #0b1220 40%, #0a0f1c 70%);
+            color: var(--text);
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid #1f2937;
+            background: linear-gradient(120deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.08));
+        }
+        h1 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0.02em;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            padding: 16px 18px 24px;
+        }
+        .column {
+            background: var(--column-bg);
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            min-height: 220px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+            display: flex;
+            flex-direction: column;
+        }
+        .column-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid #1f2937;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--muted);
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 12px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+        }
+        .card h3 {
+            margin: 0 0 6px;
+            font-size: 15px;
+        }
+        .card .wbs {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .priority {
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .priority.critical { color: #f87171; border-color: rgba(248,113,113,0.3); }
+        .priority.high { color: #fb923c; border-color: rgba(251,146,60,0.3); }
+        .priority.medium { color: #22d3ee; border-color: rgba(34,211,238,0.25); }
+        .priority.low { color: #a3e635; border-color: rgba(163,230,53,0.25); }
+        .empty {
+            margin: 20px 12px;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+        }
+        footer {
+            text-align: center;
+            padding: 16px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(34, 211, 238, 0.14);
+            border: 1px solid rgba(34, 211, 238, 0.35);
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+        .btn-link:hover {
+            background: rgba(34, 211, 238, 0.22);
+            border-color: rgba(34, 211, 238, 0.45);
+        }
+        .drop-hover {
+            outline: 2px dashed rgba(34, 211, 238, 0.6);
+            outline-offset: -6px;
+            background: rgba(34, 211, 238, 0.04);
+        }
+        .dragging {
+            opacity: 0.65;
+            transform: scale(0.99);
+        }
+        .column-body {
+            flex: 1;
+            padding-bottom: 12px;
+        }
+        @media (max-width: 700px) {
+            .board { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <div style="font-size:12px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted);">House Project</div>
+            <h1>Project Items Board</h1>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'gantt' %}" class="btn-link">← Gantt view</a>
+            <div class="pill">Grouped by status</div>
+        </div>
+    </header>
+
+    <section class="board">
+        {% for column in columns %}
+            <div class="column" data-status="{{ column.status }}">
+                <div class="column-header">
+                    <span>{{ column.label }}</span>
+                    <span class="pill column-count">{{ column.items|length }}</span>
+                </div>
+
+                <div class="column-body">
+                    {% if column.items %}
+                        {% for item in column.items %}
+                            <div class="card" draggable="true" data-id="{{ item.id }}">
+                                <div class="wbs">
+                                    {% if item.wbs_item %}
+                                        {{ item.wbs_item.code }} — {{ item.wbs_item.name }}
+                                    {% else %}
+                                        Unassigned
+                                    {% endif %}
+                                </div>
+                                <h3>{{ item.title }}</h3>
+                                {% if item.description %}
+                                    <div class="wbs" style="margin-bottom:8px;">{{ item.description|truncatechars:120 }}</div>
+                                {% endif %}
+                                <div class="meta">
+                                    <span class="priority {{ item.priority }}">{{ item.get_priority_display }}</span>
+                                    <span class="pill">{{ item.get_type_display }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty">No items in this status yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </section>
+
+    <footer>Tip: expand filters in Gantt to target items, then switch here for board view.</footer>
+    <!-- Hidden form just to expose CSRF token for JS and ensure cookie is set -->
+    <form style="display:none;">{% csrf_token %}</form>
+    <script>
+        (function() {
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(";").shift();
+            }
+
+            const csrfToken =
+                getCookie("csrftoken") ||
+                document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                '';
+            const statusUpdateUrl = "{% url 'project_item_status_update' %}";
+
+            function updateCount(column) {
+                const countEl = column.querySelector('.column-count');
+                if (countEl) {
+                    countEl.textContent = column.querySelectorAll('.card').length;
+                }
+            }
+
+            function refreshEmptyState(column) {
+                const body = column.querySelector('.column-body');
+                if (!body) return;
+                const hasCard = body.querySelector('.card');
+                let empty = body.querySelector('.empty');
+                if (hasCard && empty) {
+                    empty.remove();
+                } else if (!hasCard && !empty) {
+                    empty = document.createElement('div');
+                    empty.className = 'empty';
+                    empty.textContent = 'No items in this status yet.';
+                    body.appendChild(empty);
+                }
+            }
+
+            let draggingCard = null;
+
+            document.querySelectorAll('.card').forEach(card => {
+                card.setAttribute('draggable', 'true');
+
+                card.addEventListener('dragstart', (e) => {
+                    draggingCard = card;
+                    card.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('dragging');
+                });
+            });
+
+            document.querySelectorAll('.column').forEach(column => {
+                column.addEventListener('dragover', (e) => {
+                    if (!draggingCard) return;
+                    e.preventDefault();
+                    column.classList.add('drop-hover');
+                });
+
+                column.addEventListener('dragleave', () => {
+                    column.classList.remove('drop-hover');
+                });
+
+                column.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    column.classList.remove('drop-hover');
+                    const card = draggingCard;
+                    if (!card) return;
+
+                    const sourceColumn = card.closest('.column');
+                    const targetStatus = column.dataset.status;
+                    const cardId = card.dataset.id;
+
+                    if (!targetStatus || !cardId || sourceColumn === column) {
+                        draggingCard = null;
+                        return;
+                    }
+
+                    fetch(statusUpdateUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams({ id: cardId, status: targetStatus }),
+                    })
+                        .then(async (resp) => {
+                            const text = await resp.text();
+                            if (!resp.ok) {
+                                let detail = text || `HTTP ${resp.status}`;
+                                try {
+                                    const data = JSON.parse(text);
+                                    detail = data.error || detail;
+                                } catch (_) {
+                                    /* ignore parse errors */
+                                }
+                                throw new Error(detail);
+                            }
+                            let data = {};
+                            try {
+                                data = JSON.parse(text);
+                            } catch (_) {
+                                data = {};
+                            }
+                            if (!data.ok) throw new Error(data.error || 'Update failed');
+
+                            const targetBody = column.querySelector('.column-body');
+                            if (!targetBody) return;
+
+                            card.remove();
+                            targetBody.appendChild(card);
+                            updateCount(sourceColumn);
+                            updateCount(column);
+                            refreshEmptyState(sourceColumn);
+                            refreshEmptyState(column);
+                        })
+                        .catch((err) => {
+                            console.error(err);
+                            const detail = err?.message ? ` (${err.message})` : '';
+                            alert(`Could not move card.${detail}`);
+                        });
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

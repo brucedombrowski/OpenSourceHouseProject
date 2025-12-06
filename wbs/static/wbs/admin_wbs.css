@@ -1,0 +1,38 @@
+/* ===========================
+   Sticky Top Horizontal Scroll
+   =========================== */
+
+   .change-list .results {
+    position: relative;
+    overflow-x: auto;
+  }
+  
+  /* Force table to be as wide as needed */
+  .change-list .results table {
+    width: max-content;
+    min-width: 100%;
+  }
+  
+  /* Sticky header row */
+  .change-list .results thead th {
+    position: sticky;
+    top: 0;
+    background: #f6f6f6;
+    z-index: 3;
+  }
+  
+  /* Create a fake top scrollbar using :before */
+  .change-list .results::before {
+    content: "";
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 16px;
+    width: 100%;
+  }
+  
+  /* Force scrollbar visibility */
+  .change-list .results::-webkit-scrollbar {
+    height: 12px;
+  }
+  

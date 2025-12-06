@@ -1,0 +1,261 @@
+{# templates/wbs/gantt.html #}
+{% load static %}
+{% now "U" as timestamp %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WBS Gantt Chart</title>
+  <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}?v={{ timestamp }}">
+</head>
+<body>
+  <div id="gantt-root" data-px-per-day="{{ px_per_day }}" data-min-start="{{ min_start|date:'Y-m-d' }}">
+  <div class="gantt-header">
+    <div class="gantt-header-top">
+      <div>
+        <h1>WBS Gantt Chart</h1>
+        <a href="{% url 'admin:index' %}" class="back-link">
+              ⬅ Back to Admin
+            </a>
+          </div>
+
+          <div class="gantt-header-actions">
+            <a href="{% url 'project_item_board' %}" class="gantt-link-button">
+              Board view ↗
+            </a>
+            <button type="button" id="optimize-schedule">Optimize Schedule</button>
+            <button type="button" id="expand-all">Expand All</button>
+            <button type="button" id="collapse-all">Collapse All</button>
+            <button type="button" id="toggle-project-panel">Toggle Project Items</button>
+          </div>
+        </div>
+        {% if min_start and max_end %}
+      <div class="gantt-meta">
+        Range: {{ min_start }} → {{ max_end }} ({{ total_days }} days)
+      </div>
+    {% else %}
+      <div class="gantt-meta">
+        No tasks with planned dates found. Run <code>auto_schedule_wbs</code> or set dates.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="gantt-filters">
+    <form class="filter-form" method="get">
+      <div class="filter-group">
+        <div class="filter-group-title">Mode</div>
+        <div class="filter-options">
+          <label><input type="radio" name="mode" value="none" {% if filter_mode == "none" %}checked{% endif %}> None</label>
+          <label><input type="radio" name="mode" value="highlight" {% if filter_mode == "highlight" %}checked{% endif %}> Highlight</label>
+          <label><input type="radio" name="mode" value="filter" {% if filter_mode == "filter" %}checked{% endif %}> Filter</label>
+        </div>
+        <div class="filter-note">Highlight dims non-matching rows; Filter removes them.</div>
+      </div>
+
+      <div class="filter-group">
+        <label><input type="checkbox" name="items_only" value="1" {% if has_items_only %}checked{% endif %}> Only tasks with Project Items</label>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-title">Type</div>
+        <div class="filter-options">
+          {% for val,label in projectitem_type_choices %}
+            <label><input type="checkbox" name="type" value="{{ val }}" {% if val in selected_types %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-title">Status</div>
+        <div class="filter-options">
+          {% for val,label in projectitem_status_choices %}
+            <label><input type="checkbox" name="status" value="{{ val }}" {% if val in selected_statuses %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-title">Priority</div>
+        <div class="filter-options">
+          {% for val,label in projectitem_priority_choices %}
+            <label><input type="checkbox" name="priority" value="{{ val }}" {% if val in selected_priorities %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-title">Severity</div>
+        <div class="filter-options">
+          {% for val,label in projectitem_severity_choices %}
+            <label><input type="checkbox" name="severity" value="{{ val }}" {% if val in selected_severities %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit">Apply</button>
+        <a href="{% url 'gantt_view' %}">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="gantt-container">
+    <div class="gantt-layout">
+      <div class="gantt-main">
+        <div class="gantt-scroll">
+          <table class="gantt-table">
+            <colgroup>
+              <col style="width: 80px;">
+              <col style="width: 240px;">
+              <col style="width: 120px;">
+              <col style="width: 120px;">
+              <col style="width: 90px;">
+              <col style="width: {{ timeline_width_px }}px;">
+            </colgroup>
+            <thead>
+              {% if min_start and max_end %}
+                <!-- existing timeline row above headers -->
+                <tr class="header-timeline-row">
+                  <th colspan="5"></th>
+                  <th>
+                    <div class="timeline">
+                      <div class="timeline-track" style="width: {{ timeline_width_px }}px;">
+                        <!-- Year row -->
+                        <div class="timeline-row">
+                          {% for band in year_bands %}
+                            <div class="year-band"
+                                 style="left: {{ band.offset_px }}px; width: {{ band.width_px }}px;">
+                              {{ band.label }}
+                            </div>
+                          {% endfor %}
+                        </div>
+                        <!-- Month row -->
+                        <div class="timeline-row">
+                          {% for band in month_bands %}
+                            <div class="month-band"
+                                 style="left: {{ band.offset_px }}px; width: {{ band.width_px }}px;">
+                              {{ band.label }}
+                            </div>
+                          {% endfor %}
+                        </div>
+                        <!-- Day row -->
+                        <div class="timeline-row">
+                          {% for tick in day_ticks %}
+                            <div class="day-tick" style="left: {{ tick.offset_px }}px;"></div>
+                            <div class="day-label" style="left: {{ tick.offset_px }}px;">
+                              {{ tick.label }}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+              {% endif %}
+
+              <!-- Column headers row -->
+              <tr class="header-cols-row">
+                <th class="col-code">Code</th>
+                <th class="col-task">Task</th>
+                <th class="col-start">Start</th>
+                <th class="col-end">End</th>
+                <th>Duration</th>
+                <th class="bar-header"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in tasks %}
+                <tr class="gantt-row {% if filter_mode == 'highlight' and not item.matches_filter %}non-matching-highlight{% endif %}"
+                    data-code="{{ item.code }}"
+                    data-parent-code="{% if item.parent %}{{ item.parent.code }}{% endif %}"
+                    data-predecessors="{{ item.predecessor_codes|join:',' }}"
+                    data-successors="{{ item.successor_codes|join:',' }}"
+                    data-level="{{ item.level }}"
+                    data-wbs-name="{{ item.name }}">
+                  <td class="col-code">{{ item.code }}</td>
+                  <td class="task-name col-task">
+                    {% if item.has_children %}
+                      <span class="expander"
+                            data-has-children="true"
+                            data-expanded="true">▾</span>
+                    {% else %}
+                      <span class="expander expander-placeholder"
+                            data-has-children="false"></span>
+                    {% endif %}
+                    {% for _ in item.level_indent %}&nbsp;&nbsp;&nbsp;{% endfor %}
+                    {{ item.name }}
+
+                    <!-- Hidden per-row ProjectItem snippets for JS to read -->
+                    <div class="hidden-project-items">
+                      {% for pi in item.project_items.all %}
+                        <div class="project-item"
+                             data-type="{{ pi.type }}"
+                             data-status="{{ pi.status }}"
+                             data-priority="{{ pi.priority }}"
+                             data-severity="{{ pi.severity }}">
+                          <div class="title">{{ pi.title }}</div>
+                          <div class="meta">
+                            {% if pi.type %}<span class="pill">{{ pi.get_type_display }}</span>{% endif %}
+                            {% if pi.status %}<span class="pill">{{ pi.get_status_display }}</span>{% endif %}
+                            {% if pi.priority %}<span class="pill">{{ pi.get_priority_display }}</span>{% endif %}
+                          </div>
+                          {% if pi.description %}
+                            <div class="desc">
+                              {{ pi.description|truncatechars:120 }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% empty %}
+                        <!-- no project items -->
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td class="col-start">{{ item.planned_start }}</td>
+                  <td class="col-end">{{ item.planned_end }}</td>
+                  <td>{{ item.duration_days }}</td>
+                  <td class="bar-cell">
+                    {% if item.bar_width %}
+                      <div class="bar-wrapper" style="width: {{ timeline_width_px }}px;">
+                    <div class="bar draggable-bar"
+                         data-code="{{ item.code }}"
+                         data-start="{{ item.planned_start|date:'Y-m-d' }}"
+                         data-end="{{ item.planned_end|date:'Y-m-d' }}"
+                         style="margin-left: {{ item.bar_offset }}px; width: {{ item.bar_width }}px;">
+                      {% if item.percent_complete %}
+                        <div class="bar-progress"
+                             style="width: {{ item.percent_complete|default_if_none:0 }}%;"></div>
+                      {% endif %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6">No tasks found.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right-hand detail panel -->
+      <aside class="detail-panel" id="project-detail-panel">
+        <h2>Project Items</h2>
+        <div id="detail-task-header">
+          <div class="selected-task muted">Click a task row to see its project items.</div>
+        </div>
+        <div id="detail-project-items">
+          <!-- Filled by JS -->
+        </div>
+      </aside>
+    </div>
+  </div>
+
+</div>
+<script src="{% static 'wbs/gantt.js' %}?v={{ timestamp }}"></script>
+</div>
+</body>
+</html>

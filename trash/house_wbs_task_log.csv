@@ -1,0 +1,7 @@
+id,task_name,description,status,date_started,date_completed,notes
+1,Collapse/Expand Gantt Rows,"Add client-side JS to support hierarchical hide/show of descendant rows.",Completed,2025-12-05T14:10,2025-12-05T14:35,"Working as designed."
+2,Gantt Highlight Dependencies,"Add hover highlight so predecessor/successor tasks visually respond.",Completed,2025-12-05T15:00,2025-12-05T15:22,"Hover logic fixed and stable."
+3,Sample Dependencies Import,"Import example dependency links and validate import pipeline.",Completed,2025-12-05T15:40,2025-12-05T15:55,"CSV import tool validated."
+4,Percent Complete Bar Overlay,"Add inner bar to visualize % complete on Gantt bars.",Completed,2025-12-05T16:10,2025-12-05T16:32,"Looks correct; styling integrated."
+5,Fix Missing Collapse/Expand Buttons,"Restore removed UI behavior after Gantt timeline changes.",Completed,2025-12-05T16:33,2025-12-05T16:38,"Buttons restored and stable."
+6,Implement update_rollup_dates API,"Add model-level rollup date aggregation for parents.",Completed,2025-12-05T17:20,2025-12-05T17:45,"update_rollup_dates now implemented and called from rollup_wbs_dates."

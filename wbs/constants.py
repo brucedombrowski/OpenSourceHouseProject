@@ -1,0 +1,104 @@
+# wbs/constants.py
+"""
+Centralized constants, choices, and enumerations for the WBS app.
+Reduces duplication across models, views, and admin.
+"""
+
+# WbsItem Status Choices
+WBS_STATUS_NOT_STARTED = "not_started"
+WBS_STATUS_IN_PROGRESS = "in_progress"
+WBS_STATUS_DONE = "done"
+WBS_STATUS_BLOCKED = "blocked"
+
+WBS_STATUS_CHOICES = [
+    (WBS_STATUS_NOT_STARTED, "Not started"),
+    (WBS_STATUS_IN_PROGRESS, "In progress"),
+    (WBS_STATUS_DONE, "Done"),
+    (WBS_STATUS_BLOCKED, "Blocked"),
+]
+
+WBS_STATUS_MAP = {status: label for status, label in WBS_STATUS_CHOICES}
+
+# ProjectItem Type Choices
+PROJECT_ITEM_TYPE_ISSUE = "issue"
+PROJECT_ITEM_TYPE_TASK = "task"
+PROJECT_ITEM_TYPE_ENHANCEMENT = "enhancement"
+PROJECT_ITEM_TYPE_RISK = "risk"
+PROJECT_ITEM_TYPE_DECISION = "decision"
+
+PROJECT_ITEM_TYPE_CHOICES = [
+    (PROJECT_ITEM_TYPE_ISSUE, "Issue"),
+    (PROJECT_ITEM_TYPE_TASK, "Task"),
+    (PROJECT_ITEM_TYPE_ENHANCEMENT, "Enhancement"),
+    (PROJECT_ITEM_TYPE_RISK, "Risk"),
+    (PROJECT_ITEM_TYPE_DECISION, "Decision"),
+]
+
+PROJECT_ITEM_TYPE_MAP = {typ: label for typ, label in PROJECT_ITEM_TYPE_CHOICES}
+
+# ProjectItem Status Choices
+PROJECT_ITEM_STATUS_TODO = "todo"
+PROJECT_ITEM_STATUS_IN_PROGRESS = "in_progress"
+PROJECT_ITEM_STATUS_BLOCKED = "blocked"
+PROJECT_ITEM_STATUS_DONE = "done"
+PROJECT_ITEM_STATUS_OPEN = "open"
+PROJECT_ITEM_STATUS_CLOSED = "closed"
+
+PROJECT_ITEM_STATUS_CHOICES = [
+    (PROJECT_ITEM_STATUS_TODO, "To Do"),
+    (PROJECT_ITEM_STATUS_IN_PROGRESS, "In Progress"),
+    (PROJECT_ITEM_STATUS_BLOCKED, "Blocked"),
+    (PROJECT_ITEM_STATUS_DONE, "Done"),
+    (PROJECT_ITEM_STATUS_OPEN, "Open"),
+    (PROJECT_ITEM_STATUS_CLOSED, "Closed"),
+]
+
+PROJECT_ITEM_STATUS_MAP = {status: label for status, label in PROJECT_ITEM_STATUS_CHOICES}
+
+# ProjectItem Priority Choices
+PROJECT_ITEM_PRIORITY_LOW = "low"
+PROJECT_ITEM_PRIORITY_MEDIUM = "medium"
+PROJECT_ITEM_PRIORITY_HIGH = "high"
+PROJECT_ITEM_PRIORITY_CRITICAL = "critical"
+
+PROJECT_ITEM_PRIORITY_CHOICES = [
+    (PROJECT_ITEM_PRIORITY_LOW, "Low"),
+    (PROJECT_ITEM_PRIORITY_MEDIUM, "Medium"),
+    (PROJECT_ITEM_PRIORITY_HIGH, "High"),
+    (PROJECT_ITEM_PRIORITY_CRITICAL, "Critical"),
+]
+
+PROJECT_ITEM_PRIORITY_MAP = {pri: label for pri, label in PROJECT_ITEM_PRIORITY_CHOICES}
+
+# ProjectItem Severity Choices
+PROJECT_ITEM_SEVERITY_LOW = "low"
+PROJECT_ITEM_SEVERITY_MEDIUM = "medium"
+PROJECT_ITEM_SEVERITY_HIGH = "high"
+PROJECT_ITEM_SEVERITY_CRITICAL = "critical"
+
+PROJECT_ITEM_SEVERITY_CHOICES = [
+    (PROJECT_ITEM_SEVERITY_LOW, "Low"),
+    (PROJECT_ITEM_SEVERITY_MEDIUM, "Medium"),
+    (PROJECT_ITEM_SEVERITY_HIGH, "High"),
+    (PROJECT_ITEM_SEVERITY_CRITICAL, "Critical"),
+]
+
+PROJECT_ITEM_SEVERITY_MAP = {sev: label for sev, label in PROJECT_ITEM_SEVERITY_CHOICES}
+
+# Kanban board status order
+KANBAN_STATUS_ORDER = [
+    PROJECT_ITEM_STATUS_TODO,
+    PROJECT_ITEM_STATUS_IN_PROGRESS,
+    PROJECT_ITEM_STATUS_BLOCKED,
+    PROJECT_ITEM_STATUS_DONE,
+    PROJECT_ITEM_STATUS_OPEN,
+    PROJECT_ITEM_STATUS_CLOSED,
+]
+
+# Priority ordering for sorting (lower number = higher priority)
+PRIORITY_RANK_MAP = {
+    PROJECT_ITEM_PRIORITY_CRITICAL: 0,
+    PROJECT_ITEM_PRIORITY_HIGH: 1,
+    PROJECT_ITEM_PRIORITY_MEDIUM: 2,
+    PROJECT_ITEM_PRIORITY_LOW: 3,
+}
