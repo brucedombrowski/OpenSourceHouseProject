@@ -72,11 +72,13 @@ Data/imports
 Sample templates are provided:
 - `data/wbs_items_template.csv` (validated 148-row WBS)
 - `data/wbs_dependencies_template.csv` (generated dependencies aligned to WBS)
+- `data/project_items_template.csv` (57 diverse project items for testing Kanban/filters)
 
 Restore from templates:
 ```
 python manage.py import_wbs_csv data/wbs_items_template.csv --update
 python manage.py import_dependencies_csv data/wbs_dependencies_template.csv --update
+python manage.py import_project_items_csv data/project_items_template.csv --update
 python manage.py rollup_wbs_dates
 python manage.py rollup_wbs_progress
 ```
