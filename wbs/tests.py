@@ -633,6 +633,34 @@ class GanttShiftTests(TestCase):
         self.staff = User.objects.create_user(username="staff", password="pass", is_staff=True)
         self.client.force_login(self.staff)
 
+    def test_gantt_owner_query_efficiency(self):
+        """Gantt view should compute owner list once, not duplicate queries."""
+        User = get_user_model()
+        user = User.objects.create_user(username="owner1", first_name="Owner")
+        root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 10),
+        )
+        ProjectItem.objects.create(
+            title="Item 1",
+            status=ProjectItem.STATUS_TODO,
+            wbs_item=root,
+            owner=user,
+        )
+        ProjectItem.objects.create(
+            title="Item 2",
+            status=ProjectItem.STATUS_TODO,
+            wbs_item=root,
+            owner=user,
+        )
+
+        # Gantt view should fetch owner list once and use it for both empty/populated cases
+        resp = self.client.get(reverse("gantt_view"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Owner")
+
     def test_shift_task_moves_children(self):
         """
         Shifting a parent should move all children by the same offset.

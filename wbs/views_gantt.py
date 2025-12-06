@@ -80,19 +80,18 @@ def gantt_chart(request):
 
     tasks = list(qs)
 
+    # ---- Prepare owner list for filter UI (computed once, used in both branches) ----
+    User = get_user_model()
+    all_owners = [
+        {
+            "id": str(user.id),
+            "label": (user.get_full_name().strip() or user.get_username()),
+        }
+        for user in User.objects.filter(project_items__isnull=False).distinct().order_by("username")
+    ]
+
     # ---- No-data case ----
     if not tasks:
-        # Get all possible owners for filter UI (all owners in the system)
-        User = get_user_model()
-        all_owners = [
-            {
-                "id": str(user.id),
-                "label": (user.get_full_name().strip() or user.get_username()),
-            }
-            for user in User.objects.filter(project_items__isnull=False)
-            .distinct()
-            .order_by("username")
-        ]
         context = {
             "tasks": [],
             "min_start": None,
@@ -320,16 +319,6 @@ def gantt_chart(request):
             }
         )
         day_cursor += timedelta(days=7)
-
-    # ---- Collect all unique owners from linked ProjectItems for filter UI ----
-    User = get_user_model()
-    all_owners = [
-        {
-            "id": str(user.id),
-            "label": (user.get_full_name().strip() or user.get_username()),
-        }
-        for user in User.objects.filter(project_items__isnull=False).distinct().order_by("username")
-    ]
 
     context = {
         "tasks": tasks,
