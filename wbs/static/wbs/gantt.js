@@ -18,9 +18,19 @@ document.addEventListener("DOMContentLoaded", function () {
   const rows = Array.from(document.querySelectorAll("tbody tr.gantt-row"));
   const { rowsByCode, parentByCode } = buildRowIndex(rows);
   const ganttRoot = document.getElementById("gantt-root");
-  const pxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || "4") : 4;
+  const basePxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || "4") : 4;
   const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
   const minStartDate = minStartStr ? new Date(minStartStr + "T00:00:00") : null;
+  const baseTimelineWidth = ganttRoot ? parseFloat(ganttRoot.dataset.timelineWidth || "0") : 0;
+  const ZOOM_KEY = "ganttZoom";
+  const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
+  const loadZoom = () => {
+    const stored = parseFloat(localStorage.getItem(ZOOM_KEY) || "1");
+    if (Number.isNaN(stored)) return 1;
+    return clamp(stored, 0.5, 3);
+  };
+  let zoom = loadZoom();
+  let currentPxPerDay = basePxPerDay * zoom;
   const setDatesEndpoint = "/gantt/set-dates/";
   const optimizeEndpoint = "/gantt/optimize/";
 
@@ -72,8 +82,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const startDate = new Date(upd.start + "T00:00:00");
       const endDate = new Date(upd.end + "T00:00:00");
       const offsetDays = minStartDate ? daysBetween(minStartDate, startDate) : 0;
-      bar.style.marginLeft = `${Math.max(0, offsetDays * pxPerDay)}px`;
-      bar.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * pxPerDay}px`;
+      bar.style.marginLeft = `${Math.max(0, offsetDays * currentPxPerDay)}px`;
+      bar.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * currentPxPerDay}px`;
       updateRowDates(row, upd.start, upd.end);
     });
   }
@@ -81,18 +91,107 @@ document.addEventListener("DOMContentLoaded", function () {
     /* ------------------------------------------------------------
        Dependency arrows and highlighting (module)
     ------------------------------------------------------------ */
-    const depSvg = document.getElementById("dependency-svg");
-    const scrollElement = document.querySelector(".gantt-scroll");
-    const { drawDependencyArrows, clearHighlights, highlightDependencies } =
-      createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
+  const depSvg = document.getElementById("dependency-svg");
+  const scrollElement = document.querySelector(".gantt-scroll");
+  const { drawDependencyArrows, clearHighlights, highlightDependencies } =
+    createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
 
-    initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
+  initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
 
-    setTimeout(drawDependencyArrows, 50);
-    if (scrollElement) {
-      scrollElement.addEventListener("scroll", drawDependencyArrows);
+  /* ------------------------------------------------------------
+     Zoom controls (persisted in localStorage)
+  ------------------------------------------------------------ */
+  const timelineTrack = document.querySelector(".timeline-track");
+  const barWrappers = Array.from(document.querySelectorAll(".bar-wrapper"));
+  const timelineElements = Array.from(
+    document.querySelectorAll(
+      ".timeline .year-band, .timeline .month-band, .timeline .day-tick, .timeline .day-label"
+    )
+  );
+  let basePositionsCached = false;
+
+  function cacheTimelinePositions() {
+    if (basePositionsCached) return;
+    timelineElements.forEach(el => {
+      const left = parseFloat(el.style.left || "0");
+      if (!Number.isNaN(left)) {
+        el.dataset.baseLeft = left;
+      }
+      const width = parseFloat(el.style.width || "");
+      if (!Number.isNaN(width)) {
+        el.dataset.baseWidth = width;
+      }
+    });
+    basePositionsCached = true;
+  }
+
+  function applyZoom(nextZoom) {
+    zoom = clamp(nextZoom, 0.5, 3);
+    localStorage.setItem(ZOOM_KEY, String(zoom));
+    currentPxPerDay = basePxPerDay * zoom;
+
+    cacheTimelinePositions();
+
+    const trackBaseWidth = baseTimelineWidth || (timelineTrack ? timelineTrack.getBoundingClientRect().width : 0);
+    const newWidth = trackBaseWidth ? trackBaseWidth * zoom : 0;
+
+    if (timelineTrack && newWidth) {
+      timelineTrack.style.width = `${newWidth}px`;
     }
-    window.addEventListener("resize", drawDependencyArrows);
+
+    barWrappers.forEach(wrapper => {
+      if (newWidth) {
+        wrapper.style.width = `${newWidth}px`;
+      }
+    });
+
+    timelineElements.forEach(el => {
+      const baseLeft = parseFloat(el.dataset.baseLeft || "");
+      if (!Number.isNaN(baseLeft)) {
+        el.style.left = `${baseLeft * zoom}px`;
+      }
+      const baseWidth = parseFloat(el.dataset.baseWidth || "");
+      if (!Number.isNaN(baseWidth)) {
+        el.style.width = `${baseWidth * zoom}px`;
+      }
+    });
+
+    rows.forEach(row => {
+      const bar = row.querySelector(".bar");
+      if (!bar || !minStartDate) return;
+      const startDate = parseDate(bar.dataset.start);
+      const endDate = parseDate(bar.dataset.end);
+      if (!startDate || !endDate) return;
+      const offsetDays = daysBetween(minStartDate, startDate);
+      const widthDays = daysBetween(startDate, endDate) + 1;
+      bar.style.marginLeft = `${Math.max(0, offsetDays * currentPxPerDay)}px`;
+      bar.style.width = `${Math.max(1, widthDays * currentPxPerDay)}px`;
+    });
+
+    requestAnimationFrame(drawDependencyArrows);
+  }
+
+  applyZoom(zoom);
+
+  const zoomInBtn = document.getElementById("zoom-in");
+  const zoomOutBtn = document.getElementById("zoom-out");
+  const zoomResetBtn = document.getElementById("zoom-reset");
+
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener("click", () => applyZoom(zoom + 0.25));
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener("click", () => applyZoom(zoom - 0.25));
+  }
+  if (zoomResetBtn) {
+    zoomResetBtn.addEventListener("click", () => applyZoom(1));
+  }
+
+  setTimeout(drawDependencyArrows, 50);
+  if (scrollElement) {
+    scrollElement.addEventListener("scroll", drawDependencyArrows);
+  }
+  window.addEventListener("resize", drawDependencyArrows);
 
     /* ------------------------------------------------------------
      Side panel: click row → show ProjectItems
@@ -187,7 +286,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const onMove = (e) => {
       if (!pointerActive) return;
       const deltaPx = e.clientX - startX;
-      const deltaDays = Math.round(deltaPx / pxPerDay);
+      const deltaDays = Math.round(deltaPx / currentPxPerDay);
       lastDeltaDays = deltaDays;
       bar.style.transform = `translateX(${deltaDays * pxPerDay}px)`;
     };
@@ -249,7 +348,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const offsetDays = minStartDate
             ? daysBetween(minStartDate, newStart)
             : 0;
-          bar.style.marginLeft = `${offsetDays * pxPerDay}px`;
+              bar.style.marginLeft = `${offsetDays * currentPxPerDay}px`;
           bar.dataset.start = data.start;
           bar.dataset.end = data.end || newEnd.toISOString().slice(0, 10);
           updateRowDates(row, bar.dataset.start, bar.dataset.end);
@@ -354,8 +453,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const startDate = new Date(data.start + "T00:00:00");
         const endDate = new Date(data.end + "T00:00:00");
         const offsetDays = minStartDate ? daysBetween(minStartDate, startDate) : 0;
-        modalTarget.style.marginLeft = `${Math.max(0, offsetDays * pxPerDay)}px`;
-        modalTarget.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * pxPerDay}px`;
+        modalTarget.style.marginLeft = `${Math.max(0, offsetDays * currentPxPerDay)}px`;
+        modalTarget.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * currentPxPerDay}px`;
         updateRowDates(row, data.start, data.end);
       })
       .catch((err) => {

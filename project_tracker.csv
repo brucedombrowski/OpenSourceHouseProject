@@ -30,7 +30,7 @@ id,type,title,description,status,severity,component,date_started,date_completed,
 29,task,Gantt enlarge expand/collapse icons,Increase the size/visibility of hierarchy expanders.,Completed,,Gantt,2025-12-05T23:15,2025-12-05T23:18,Bruce,,Expander icons enlarged with border/background.
 30,task,Gantt sticky headers columns,Keep Code/Task/Start/End sticky while vertical scrolling.,Completed,,Gantt,2025-12-05T23:25,2025-12-06T04:55,Bruce,,FIXED: Header (z-index 25) and body cells (z-index 10) both use top: 60px. Duration column also sticky. Bar header label removed.
 31,task,Gantt row height/spacing audit,Standardize row heights/padding so bars align cleanly with headers.,Closed,,Gantt,2025-12-06T15:50,2025-12-06T16:10,Bruce,,Baseline tightened; residual jitter/scroll issues logged separately.
-32,task,Gantt zoom control,Add zoom in/out for timeline (px_per_day) with buttons and persistence.,Planned,,Gantt,,,,Bruce,,User control of zoom level.
+32,task,Gantt zoom control,Add zoom in/out for timeline (px_per_day) with buttons and persistence.,Completed,,Gantt,2025-12-06T21:00,2025-12-06T21:20,Bruce,,Zoom in/out/reset buttons with persisted level; recalculates bar widths/offsets and timeline bands; arrows redraw after zoom.
 33,task,Gantt export to PNG/PDF,Allow exporting current Gantt view to an image/PDF snapshot.,Planned,,Gantt,,,,Bruce,,Server/client export with sticky headers respected.
 34,task,Project Item filters on board,Add type/status/priority filters to Kanban board.,Planned,,Project Items,,,,Bruce,,Match Gantt filter capabilities.
 35,task,Project Item list view,Add sortable/filterable list view with links to Gantt rows.,Completed,,Project Items,,Bruce,,Complete with sorting/filtering/search by WBS.
