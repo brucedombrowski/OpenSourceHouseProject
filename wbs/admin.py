@@ -1,9 +1,10 @@
 # wbs/admin.py
 
 from django.contrib import admin
+from django.utils.html import format_html
 from mptt.admin import DraggableMPTTAdmin
 
-from .models import ProjectItem, TaskDependency, WbsItem
+from .models import ProjectItem, Tag, TaskDependency, WbsItem
 from .utils import normalize_code_for_sort
 
 
@@ -157,22 +158,35 @@ class TaskDependencyAdmin(admin.ModelAdmin):
     list_filter = ("dependency_type",)
 
 
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    search_fields = ("name",)
+    list_display = ("name",)
+
+
 @admin.register(ProjectItem)
 class ProjectItemAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "title",
         "type",
-        "wbs_item",
         "status",
         "priority",
         "severity",
+        "wbs_link",
+        "owner",
         "date_started",
         "date_completed",
         "estimate_hours",
         "actual_hours",
     )
-    list_filter = ("type", "status", "priority", "severity", "wbs_item")
+    list_filter = (
+        "type",
+        "status",
+        "priority",
+        "severity",
+        "wbs_item",
+    )
     search_fields = (
         "title",
         "description",
@@ -180,7 +194,17 @@ class ProjectItemAdmin(admin.ModelAdmin):
         "wbs_item__name",
         "reported_by",
         "owner",
-        "tags",
+        "tags__name",
     )
-    autocomplete_fields = ("wbs_item",)
+    autocomplete_fields = ("wbs_item", "tags")
     readonly_fields = ("created_at", "updated_at")
+    list_select_related = ("wbs_item",)
+
+    def wbs_link(self, obj):
+        if not obj.wbs_item:
+            return ""
+        code = obj.wbs_item.code
+        url = f"/gantt/?highlight={code}#code-{code}"
+        return format_html("<a href='{}' target='_blank' rel='noopener'>{}</a>", url, code)
+
+    wbs_link.short_description = "WBS"
