@@ -1,8 +1,0 @@
-predecessor_code,successor_code,dependency_type,lag_days,notes
-1,1.1,FS,0,Root must start before foundation
-1.1,1.1.1,FS,0,Foundation must start before excavation
-1.1,1.2,SS,2,Foundation start allows framing to start after 2 days
-1.2,1.3,FS,0,Framing must finish before roofing begins
-2,2.1,FS,0,MEP prep must start before electrical rough-in
-2.1,2.1.1,SS,0,Rough-in and panel install can start together
-3,3.1,FF,0,Interior finishes must complete before inspection finishes
