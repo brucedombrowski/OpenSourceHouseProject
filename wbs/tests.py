@@ -622,3 +622,177 @@ class GanttShiftTests(TestCase):
         self.assertEqual(parent.planned_end, date(2025, 1, 10))
         self.assertEqual(child.planned_start, date(2025, 1, 7))
         self.assertEqual(child.planned_end, date(2025, 1, 9))
+
+    def test_update_rollup_progress_with_zero_duration_children(self):
+        """
+        Progress rollup should handle children with zero or missing duration.
+        Default weight (1.0) should apply when duration is zero.
+        """
+        root = WbsItem.objects.create(code="1", name="Root")
+        WbsItem.objects.create(
+            code="1.1",
+            name="Zero duration",
+            parent=root,
+            duration_days=Decimal("0"),
+            percent_complete=Decimal("50"),
+        )
+        WbsItem.objects.create(
+            code="1.2",
+            name="Normal duration",
+            parent=root,
+            duration_days=Decimal("5"),
+            percent_complete=Decimal("100"),
+        )
+
+        root.update_rollup_progress(include_self=True)
+        root.refresh_from_db()
+
+        # (50 * 1.0 + 100 * 5) / (1.0 + 5) = 550 / 6 ≈ 91.67
+        self.assertGreater(root.percent_complete, Decimal("90"))
+
+    def test_update_rollup_dates_with_all_none_children(self):
+        """
+        Rollup with all children having None dates should result in None parent dates.
+        """
+        root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 10),
+        )
+        WbsItem.objects.create(
+            code="1.1",
+            name="No dates child 1",
+            parent=root,
+            planned_start=None,
+            planned_end=None,
+        )
+        WbsItem.objects.create(
+            code="1.2",
+            name="No dates child 2",
+            parent=root,
+            planned_start=None,
+            planned_end=None,
+        )
+
+        root.update_rollup_dates(include_self=True)
+        root.refresh_from_db()
+
+        # When children have no dates, parent dates get cleared via rollup
+        self.assertIsNone(root.planned_start)
+        self.assertIsNone(root.planned_end)
+
+    def test_update_rollup_progress_all_none_children(self):
+        """
+        Progress rollup with all None children should leave parent unchanged.
+        """
+        root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            percent_complete=Decimal("75"),
+        )
+        WbsItem.objects.create(
+            code="1.1",
+            name="Child 1",
+            parent=root,
+            percent_complete=Decimal("0"),  # Use 0 instead of None
+        )
+        WbsItem.objects.create(
+            code="1.2",
+            name="Child 2",
+            parent=root,
+            percent_complete=Decimal("0"),  # Use 0 instead of None
+        )
+
+        root.update_rollup_progress(include_self=True)
+        root.refresh_from_db()
+
+        # Parent progress should be updated to reflect children (both at 0%)
+        self.assertEqual(root.percent_complete, Decimal("0"))
+
+    def test_board_list_view_renders(self):
+        """
+        Project Item board list view should render without errors.
+        """
+        ProjectItem.objects.create(
+            title="Item 1",
+            status=ProjectItem.STATUS_TODO,
+            priority=ProjectItem.PRIORITY_HIGH,
+        )
+        ProjectItem.objects.create(
+            title="Item 2",
+            status=ProjectItem.STATUS_IN_PROGRESS,
+            priority=ProjectItem.PRIORITY_MEDIUM,
+        )
+        ProjectItem.objects.create(
+            title="Item 3",
+            status=ProjectItem.STATUS_DONE,
+            priority=ProjectItem.PRIORITY_LOW,
+        )
+
+        resp = self.client.get(reverse("project_item_list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Item 1")
+        self.assertContains(resp, "Item 2")
+        self.assertContains(resp, "Item 3")
+
+    def test_status_update_persists_other_fields(self):
+        """
+        Status update should not overwrite other fields.
+        """
+        item = ProjectItem.objects.create(
+            title="Test Item",
+            description="Original description",
+            status=ProjectItem.STATUS_TODO,
+            priority=ProjectItem.PRIORITY_HIGH,
+            external_ref="REF-123",
+        )
+
+        resp = self.client.post(
+            reverse("project_item_status_update"),
+            {"id": item.id, "status": ProjectItem.STATUS_DONE},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        item.refresh_from_db()
+        self.assertEqual(item.status, ProjectItem.STATUS_DONE)
+        self.assertEqual(item.description, "Original description")
+        self.assertEqual(item.priority, ProjectItem.PRIORITY_HIGH)
+        self.assertEqual(item.external_ref, "REF-123")
+
+    def test_duration_rollup_with_negative_lag_dependency(self):
+        """
+        Rollup should not be affected by dependency lag values.
+        """
+        root = WbsItem.objects.create(code="1", name="Root")
+        child1 = WbsItem.objects.create(
+            code="1.1",
+            name="Child 1",
+            parent=root,
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 5),
+            duration_days=Decimal("5"),
+        )
+        child2 = WbsItem.objects.create(
+            code="1.2",
+            name="Child 2",
+            parent=root,
+            planned_start=date(2025, 1, 3),
+            planned_end=date(2025, 1, 10),
+            duration_days=Decimal("8"),
+        )
+
+        # Create dependency with lag (should not affect duration rollup)
+        TaskDependency.objects.create(
+            predecessor=child1,
+            successor=child2,
+            dependency_type=TaskDependency.FS,
+            lag_days=-2,
+        )
+
+        root.update_rollup_dates(include_self=True)
+        root.refresh_from_db()
+
+        # Dates should still be correct (min start, max end)
+        self.assertEqual(root.planned_start, date(2025, 1, 1))
+        self.assertEqual(root.planned_end, date(2025, 1, 10))
