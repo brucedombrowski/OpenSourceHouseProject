@@ -22,6 +22,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
   const minStartDate = minStartStr ? new Date(minStartStr + "T00:00:00") : null;
   const baseTimelineWidth = ganttRoot ? parseFloat(ganttRoot.dataset.timelineWidth || "0") : 0;
+  const setTimelineWidthVar = px => {
+    if (!ganttRoot || Number.isNaN(px)) return;
+    ganttRoot.style.setProperty("--timeline-width", `${px}px`);
+  };
   const ZOOM_KEY = "ganttZoom";
   const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
   const loadZoom = () => {
@@ -33,6 +37,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentPxPerDay = basePxPerDay * zoom;
   const setDatesEndpoint = "/gantt/set-dates/";
   const optimizeEndpoint = "/gantt/optimize/";
+
+  setTimelineWidthVar(baseTimelineWidth);
 
   // CSRF token from shared-theme.js
   const csrfToken = getCSRFToken();
@@ -148,6 +154,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (timelineTrack && newWidth) {
       timelineTrack.style.width = `${newWidth}px`;
+    }
+
+    if (newWidth) {
+      setTimelineWidthVar(newWidth);
     }
 
     barWrappers.forEach(wrapper => {

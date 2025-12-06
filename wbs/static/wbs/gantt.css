@@ -312,7 +312,8 @@ table {
   font-size: 12px;
 }
 .gantt-table {
-  table-layout: auto;
+  table-layout: fixed;
+  min-width: calc(80px + 240px + 120px + 120px + 90px + var(--timeline-width, 0px));
 }
 
 .header-timeline-row th {
@@ -407,12 +408,14 @@ th {
 
 .bar-header {
   border-left: 1px solid #ddd;
+  min-width: var(--timeline-width, 0px);
 }
 .bar-cell {
   position: relative;
   padding-left: 8px;
   overflow: hidden;
   border-left: 1px solid #ddd;
+  min-width: var(--timeline-width, 0px);
 }
 
 /* Expander icon for collapsible hierarchy */

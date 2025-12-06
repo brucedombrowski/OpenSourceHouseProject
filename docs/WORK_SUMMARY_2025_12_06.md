@@ -143,6 +143,14 @@
 
 ---
 
+### 7. ✅ Closed Issue #58: Gantt Horizontal Scroll Shrink
+
+**Fixes**:
+- Locked the Gantt table to a fixed layout and set `min-width` via a shared CSS variable tied to the timeline width, preventing columns from collapsing during horizontal scroll.
+- Synced the CSS variable from JS zoom logic so the table width stays consistent when zooming or resizing.
+
+---
+
 ## 📋 Project Documentation Created/Updated
 
 ### SNAPSHOT.md (New)

@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}?v={{ timestamp }}">
 </head>
 <body>
-  <div id="gantt-root" data-px-per-day="{{ px_per_day }}" data-min-start="{{ min_start|date:'Y-m-d' }}" data-timeline-width="{{ timeline_width_px }}">
+  <div id="gantt-root" data-px-per-day="{{ px_per_day }}" data-min-start="{{ min_start|date:'Y-m-d' }}" data-timeline-width="{{ timeline_width_px }}" style="--timeline-width: {{ timeline_width_px }}px;">
   <div class="gantt-header">
     <div class="gantt-header-top">
       <div>
