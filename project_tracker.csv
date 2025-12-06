@@ -35,3 +35,6 @@ id,type,title,description,status,severity,component,date_started,date_completed,
 34,task,Project Item filters on board,Add type/status/priority filters to Kanban board.,Planned,,Project Items,,,,Bruce,,Match Gantt filter capabilities.
 35,task,Project Item list view,Add sortable/filterable list view with links to Gantt rows.,Completed,,Project Items,,Bruce,,Complete with sorting/filtering/search by WBS.
 36,task,Resource/owner view,Add owner-based swimlanes or filtering to show workload distribution.,Planned,,Project Items / Gantt,,,,Bruce,,Basic resource visibility before leveling.
+37,task,Repo cleanup & docs move,Relocate misc .md files into docs/ and remove trash backups from repo root.,Completed,,Repo Hygiene,2025-12-06T06:20,2025-12-06T06:30,Bruce,,Trash removed; ARCHITECTURE_DECISION_RECORD/SNAPSHOT/WORK_SUMMARY moved to docs/.
+38,task,WBS template relocation,"Move WBS/dependency templates into data/, update README paths.",Completed,,Repo Hygiene,2025-12-06T06:30,2025-12-06T06:35,Bruce,,Templates now in data/; README import commands updated.
+39,task,WBS numeric sort fix,"Ensure WbsItem ordering uses sort_key so codes sort numerically; add migration.",Completed,,Gantt/Admin,2025-12-06T06:10,2025-12-06T06:20,Bruce,,MPTT order_insertion_by + Meta ordering set to sort_key; migration 0010 applied.
