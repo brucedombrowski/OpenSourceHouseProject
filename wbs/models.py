@@ -100,12 +100,12 @@ class WbsItem(MPTTModel):
     notes = models.TextField(blank=True)
 
     class MPTTMeta:
-        # Default insertion order in the tree
-        order_insertion_by = ["sequence", "code"]
+        # Default insertion order in the tree (numeric-friendly via sort_key)
+        order_insertion_by = ["sort_key"]
 
     class Meta:
         # Default queryset ordering (admin overrides with sort_key)
-        ordering = ["wbs_level", "sequence", "code"]
+        ordering = ["sort_key"]
         verbose_name = "WBS Item"
         verbose_name_plural = "WBS Items"
 
