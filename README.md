@@ -5,6 +5,11 @@ Django 6 + MPTT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and
 
 Quick start
 -----------
+Copy the sample env and adjust as needed (at minimum set a new SECRET_KEY):
+```
+cp .env.example .env
+```
+
 Option 1 — single command (runs everything, no prompts):
 ```
 bash quickstart.sh  # run from repo root (after git clone && cd OpenSourceHouseProject)
