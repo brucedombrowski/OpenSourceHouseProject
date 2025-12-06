@@ -18,6 +18,7 @@ export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDepende
         const newExpanded = !currentlyExpanded;
 
         exp.dataset.expanded = newExpanded ? "true" : "false";
+        exp.setAttribute("aria-expanded", newExpanded ? "true" : "false");
         exp.textContent = newExpanded ? "▾" : "▸";
 
         const descendants = getDescendants(code, rows);
@@ -47,6 +48,7 @@ export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDepende
         .querySelectorAll(".expander[data-has-children='true']")
         .forEach(exp => {
           exp.dataset.expanded = "true";
+          exp.setAttribute("aria-expanded", "true");
           exp.textContent = "▾";
         });
 
@@ -64,6 +66,7 @@ export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDepende
         .querySelectorAll(".expander[data-has-children='true']")
         .forEach(exp => {
           exp.dataset.expanded = "false";
+          exp.setAttribute("aria-expanded", "false");
           exp.textContent = "▸";
         });
 

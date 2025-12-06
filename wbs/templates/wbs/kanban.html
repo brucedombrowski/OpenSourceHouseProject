@@ -36,6 +36,13 @@
             font-size: 20px;
             letter-spacing: 0.02em;
         }
+        a:focus-visible,
+        button:focus-visible,
+        .card:focus-visible,
+        input[type="checkbox"]:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
         .board {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -165,14 +172,14 @@
         </div>
         <div class="header-actions">
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="toggle-filters" class="btn-link" style="cursor:pointer;">⊕ Filters</button>
-                <a href="{% url 'gantt' %}" class="btn-link">← Gantt view</a>
+                <button id="toggle-filters" class="btn-link" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-panel">⊕ Filters</button>
+                <a href="{% url 'gantt' %}" class="btn-link" aria-label="Back to Gantt view">← Gantt view</a>
                 <div class="pill">Grouped by status</div>
             </div>
         </div>
     </header>
 
-    <section id="filter-panel" style="display:none; padding: 16px 24px; border-bottom: 1px solid #1f2937; background: rgba(34,211,238,0.06);">
+    <section id="filter-panel" style="display:none; padding: 16px 24px; border-bottom: 1px solid #1f2937; background: rgba(34,211,238,0.06);" aria-hidden="true">
         <div style="display: flex; gap: 24px; flex-wrap: wrap;">
             <div>
                 <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Type</div>
@@ -210,15 +217,15 @@
                 </div>
             </div>
             <div>
-                <button id="apply-filters" class="btn-link" style="cursor:pointer; margin-top: 20px;">Apply</button>
-                <button id="clear-filters" class="btn-link" style="cursor:pointer; margin-top: 20px; margin-left: 8px;">Clear</button>
+                <button id="apply-filters" class="btn-link" style="cursor:pointer; margin-top: 20px;" aria-label="Apply filters">Apply</button>
+                <button id="clear-filters" class="btn-link" style="cursor:pointer; margin-top: 20px; margin-left: 8px;" aria-label="Clear filters">Clear</button>
             </div>
         </div>
     </section>
 
     <section class="board">
         {% for column in columns %}
-            <div class="column" data-status="{{ column.status }}">
+            <div class="column" data-status="{{ column.status }}" role="region" aria-label="Status {{ column.label }} column">
                 <div class="column-header">
                     <span>{{ column.label }}</span>
                     <span class="pill column-count">{{ column.items|length }}</span>
@@ -227,7 +234,9 @@
                 <div class="column-body">
                     {% if column.items %}
                         {% for item in column.items %}
-                            <div class="card" draggable="true" data-id="{{ item.id }}" data-type="{{ item.type }}" data-priority="{{ item.priority }}" data-status="{{ item.status }}" data-owner="{{ item.owner|default:'' }}">
+                            <div class="card" draggable="true" tabindex="0" role="article"
+                                 aria-label="{{ item.title }} — {{ item.get_status_display }} — {{ item.get_priority_display }}"
+                                 data-id="{{ item.id }}" data-type="{{ item.type }}" data-priority="{{ item.priority }}" data-status="{{ item.status }}" data-owner="{{ item.owner|default:'' }}">
                                 <div class="wbs">
                                     {% if item.wbs_item %}
                                         {{ item.wbs_item.code }} — {{ item.wbs_item.name }}
@@ -359,13 +368,19 @@
 
             // Toggle filter panel
             toggleFilterBtn.addEventListener('click', () => {
-                filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+                const isHidden = filterPanel.style.display === 'none';
+                const nextDisplay = isHidden ? 'block' : 'none';
+                filterPanel.style.display = nextDisplay;
+                filterPanel.setAttribute('aria-hidden', isHidden ? 'false' : 'true');
+                toggleFilterBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
             });
 
             // Apply filters
             applyFilterBtn.addEventListener('click', () => {
                 applyFilters();
                 filterPanel.style.display = 'none';
+                filterPanel.setAttribute('aria-hidden', 'true');
+                toggleFilterBtn.setAttribute('aria-expanded', 'false');
             });
 
             // Clear filters
@@ -379,6 +394,8 @@
                     card.classList.remove('matches-filter');
                 });
                 filterPanel.style.display = 'none';
+                filterPanel.setAttribute('aria-hidden', 'true');
+                toggleFilterBtn.setAttribute('aria-expanded', 'false');
             });
 
             // Set data attributes on cards for filtering

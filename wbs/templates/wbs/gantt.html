@@ -15,24 +15,24 @@
     <div class="gantt-header-top">
       <div>
         <h1>WBS Gantt Chart</h1>
-        <a href="{% url 'admin:index' %}" class="back-link">
+        <a href="{% url 'admin:index' %}" class="back-link" aria-label="Back to Django admin">
               ⬅ Back to Admin
             </a>
           </div>
 
           <div class="gantt-header-actions">
-            <a href="{% url 'project_item_board' %}" class="gantt-link-button">
+            <a href="{% url 'project_item_board' %}" class="gantt-link-button" aria-label="Open project board view">
               Board view ↗
             </a>
-            <button type="button" id="toggle-theme">Dark Mode</button>
-            <button type="button" id="zoom-out">Zoom -</button>
-            <button type="button" id="zoom-in">Zoom +</button>
-            <button type="button" id="zoom-reset">Reset Zoom</button>
-            <button type="button" id="export-gantt">Export PNG</button>
-            <button type="button" id="optimize-schedule">Optimize Schedule</button>
-            <button type="button" id="expand-all">Expand All</button>
-            <button type="button" id="collapse-all">Collapse All</button>
-            <button type="button" id="toggle-project-panel">Toggle Project Items</button>
+            <button type="button" id="toggle-theme" aria-label="Toggle dark mode">Dark Mode</button>
+            <button type="button" id="zoom-out" aria-label="Zoom out">Zoom -</button>
+            <button type="button" id="zoom-in" aria-label="Zoom in">Zoom +</button>
+            <button type="button" id="zoom-reset" aria-label="Reset zoom">Reset Zoom</button>
+            <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">Export PNG</button>
+            <button type="button" id="optimize-schedule" aria-label="Optimize schedule">Optimize Schedule</button>
+            <button type="button" id="expand-all" aria-label="Expand all tasks">Expand All</button>
+            <button type="button" id="collapse-all" aria-label="Collapse all tasks">Collapse All</button>
+            <button type="button" id="toggle-project-panel" aria-label="Toggle project items panel">Toggle Project Items</button>
           </div>
         </div>
         {% if min_start and max_end %}
@@ -210,12 +210,22 @@
                   <td class="col-code">{{ item.code }}</td>
                   <td class="task-name col-task">
                     {% if item.has_children %}
-                      <span class="expander"
-                            data-has-children="true"
-                            data-expanded="true">▾</span>
+                      <button type="button"
+                              class="expander"
+                              data-has-children="true"
+                              data-expanded="true"
+                              aria-expanded="true"
+                              aria-label="Toggle children for {{ item.code }}">
+                        ▾
+                      </button>
                     {% else %}
-                      <span class="expander expander-placeholder"
-                            data-has-children="false"></span>
+                      <button type="button"
+                              class="expander expander-placeholder"
+                              data-has-children="false"
+                              aria-hidden="true"
+                              tabindex="-1">
+                        ▪
+                      </button>
                     {% endif %}
                     {% for _ in item.level_indent %}&nbsp;&nbsp;&nbsp;{% endfor %}
                     {{ item.name }}

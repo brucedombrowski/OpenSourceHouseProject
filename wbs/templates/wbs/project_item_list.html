@@ -8,6 +8,7 @@
   <style>
     body { margin: 16px; font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
     h1 { margin: 0 0 8px 0; }
+    a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
     .actions { display: flex; gap: 8px; margin-bottom: 12px; }
     .actions a { font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; text-decoration: none; color: #111827; background: #f9fafb; }
     .actions a:hover { background: #e5e7eb; }
@@ -36,14 +37,14 @@
       <table>
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Severity</th>
-            <th>Owner</th>
-            <th>Reported By</th>
-            <th>Created</th>
+            <th scope="col">Title</th>
+            <th scope="col">Type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Priority</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Reported By</th>
+            <th scope="col">Created</th>
           </tr>
         </thead>
         <tbody>
