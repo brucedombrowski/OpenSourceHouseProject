@@ -95,3 +95,4 @@ Notes
 - Keep `db.sqlite3` out of version control; use your own DB as needed.
 - Sticky headers rely on current CSS; if you tweak layout widths, revisit `wbs/static/wbs/gantt.css`.
 - Additional docs live in `docs/` (architecture decision record, snapshot, work summary, API/CSV guide).
+- The Django app name stays `wbs` internally for stability; UI branding uses "House Project" (see `docs/ARCHITECTURE_DECISION_RECORD.md`).

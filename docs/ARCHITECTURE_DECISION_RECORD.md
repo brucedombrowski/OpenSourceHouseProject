@@ -1,7 +1,7 @@
 # Issue #20: App Module Name 'wbs' Unclear - Strategy & Analysis
 
-**Status**: Open | **Severity**: Low | **Component**: Architecture
-**Date**: December 5, 2025
+**Status**: Closed (Documented) | **Severity**: Low | **Component**: Architecture
+**Date**: December 5, 2025 | **Updated**: December 6, 2025
 
 ## Problem Statement
 The Django app is named `wbs` (Work Breakdown Structure), but the project is branded as "House Project" across the admin interface and user-facing views. This creates a discrepancy:
@@ -72,10 +72,10 @@ class WbsConfig(AppConfig):
     verbose_name = "House Project"  # ← Already set
 ```
 
-#### Step 2: Add Code-Level Documentation
-- Add docstring explaining naming convention to `wbs/__init__.py`
-- Document in README.md that `wbs` is internal code name
-- Update management command help texts
+#### Step 2: Add Code-Level Documentation (Completed)
+- Added docstring explaining naming convention to `wbs/__init__.py`
+- Documented in README.md that `wbs` is internal code name
+- Help text unchanged; commands continue to live under the `wbs` label
 
 #### Step 3: Consider Future Refactoring
 - Document for future consideration (not now)
@@ -115,4 +115,4 @@ If a rename is warranted in the future, here's the high-level approach:
 
 ---
 
-**Conclusion**: The architectural naming issue is acknowledged but deferred. The cost of a full rename outweighs the current benefit. The app is functionally and visibly branded as "House Project" to end users, which is the priority.
+**Conclusion**: The architectural naming issue is acknowledged but deferred. The cost of a full rename outweighs the current benefit. The app is functionally and visibly branded as "House Project" to end users, which is the priority. Documentation now clarifies that `wbs` remains the stable internal module name.
