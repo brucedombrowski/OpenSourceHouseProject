@@ -135,6 +135,14 @@
 
 ---
 
+### 6. ✅ Closed Issue #57: Gantt Vertical Scroll Jitter
+
+**Fixes**:
+- Stabilized the Gantt scroll container with `scrollbar-gutter: stable` and `will-change` hints on sticky columns/headers to stop column/header nudging during scroll.
+- Throttled dependency arrow redraws to animation frames to avoid layout thrash on scroll/resize.
+
+---
+
 ## 📋 Project Documentation Created/Updated
 
 ### SNAPSHOT.md (New)

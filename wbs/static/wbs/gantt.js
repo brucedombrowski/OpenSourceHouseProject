@@ -96,6 +96,17 @@ document.addEventListener("DOMContentLoaded", function () {
   const { drawDependencyArrows, clearHighlights, highlightDependencies } =
     createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
 
+  // Throttle expensive redraws to animation frames to avoid scroll jitter
+  let arrowsQueued = false;
+  const scheduleArrowRedraw = () => {
+    if (arrowsQueued) return;
+    arrowsQueued = true;
+    requestAnimationFrame(() => {
+      arrowsQueued = false;
+      drawDependencyArrows();
+    });
+  };
+
   initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
 
   /* ------------------------------------------------------------
@@ -187,11 +198,11 @@ document.addEventListener("DOMContentLoaded", function () {
     zoomResetBtn.addEventListener("click", () => applyZoom(1));
   }
 
-  setTimeout(drawDependencyArrows, 50);
+  setTimeout(scheduleArrowRedraw, 50);
   if (scrollElement) {
-    scrollElement.addEventListener("scroll", drawDependencyArrows);
+    scrollElement.addEventListener("scroll", scheduleArrowRedraw, { passive: true });
   }
-  window.addEventListener("resize", drawDependencyArrows);
+  window.addEventListener("resize", scheduleArrowRedraw);
 
     /* ------------------------------------------------------------
      Side panel: click row → show ProjectItems

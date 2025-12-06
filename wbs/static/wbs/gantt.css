@@ -247,6 +247,7 @@ a:focus-visible,
   position: relative;
   isolation: isolate; /* keep overlays/timeline from sitting above stickies */
   background: #fff;
+  scrollbar-gutter: stable both-edges; /* prevent column/header shift when scrollbars appear */
 }
 
 /* Dependency arrow visualization overlay */
@@ -319,12 +320,14 @@ table {
   top: 0;
   z-index: 50;
   background: #fff;
+  will-change: transform;
 }
 .header-cols-row th {
   position: sticky;
   top: 60px; /* match timeline height */
   z-index: 49;
   background: #fff;
+  will-change: transform;
 }
 td {
   border: 1px solid #ddd;
@@ -349,6 +352,7 @@ th {
   min-width: 80px;
   width: 80px;
   border-right: 1px solid #ddd;
+  will-change: transform;
 }
 .col-task {
   position: sticky;
@@ -358,6 +362,7 @@ th {
   min-width: 240px;
   width: 240px;
   border-right: 1px solid #ddd;
+  will-change: transform;
 }
 .col-start {
   position: sticky;
@@ -368,6 +373,7 @@ th {
   width: 120px;
   max-width: 120px;
   border-right: 1px solid #ddd;
+  will-change: transform;
 }
 .col-end {
   position: sticky;
@@ -378,6 +384,7 @@ th {
   width: 120px;
   max-width: 120px;
   border-right: 1px solid #ddd;
+  will-change: transform;
 }
 
 .header-cols-row th:nth-child(5) {
@@ -387,6 +394,7 @@ th {
   background: #fff;
   min-width: 80px;
   width: 80px;
+  will-change: transform;
 }
 
 
