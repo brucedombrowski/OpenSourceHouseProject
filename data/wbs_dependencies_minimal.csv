@@ -1,0 +1,5 @@
+predecessor_code,successor_code,dependency_type,lag_days,notes
+1,2,FS,0,
+2,3,FS,0,
+3,4,FS,0,
+4,5,FS,0,

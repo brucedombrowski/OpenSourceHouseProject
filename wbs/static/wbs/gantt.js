@@ -143,6 +143,8 @@ document.addEventListener("DOMContentLoaded", function () {
             }
           });
         }
+
+        drawDependencyArrows();
       });
     });
 
@@ -166,6 +168,8 @@ document.addEventListener("DOMContentLoaded", function () {
       rows.forEach(row => {
         row.style.display = "";
       });
+
+      drawDependencyArrows();
     });
   }
 
@@ -184,8 +188,110 @@ document.addEventListener("DOMContentLoaded", function () {
         const parentCode = row.dataset.parentCode || "";
         row.style.display = parentCode ? "none" : "";
       });
+
+      drawDependencyArrows();
     });
   }
+
+  /* ------------------------------------------------------------
+     Dependency arrow visualization (simplified)
+  ------------------------------------------------------------ */
+  const depSvg = document.getElementById("dependency-svg");
+  const scrollElement = document.querySelector(".gantt-scroll");
+
+  function drawDependencyArrows() {
+    if (!depSvg || !scrollElement) return;
+
+    // Clear existing arrows
+    while (depSvg.firstChild) {
+      depSvg.removeChild(depSvg.firstChild);
+    }
+
+    const scrollRect = scrollElement.getBoundingClientRect();
+    const visibleHeight = scrollRect.height;
+    const visibleWidth = scrollRect.width;
+
+    depSvg.setAttribute("width", visibleWidth);
+    depSvg.setAttribute("height", visibleHeight);
+    depSvg.style.width = `${visibleWidth}px`;
+    depSvg.style.height = `${visibleHeight}px`;
+
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+    marker.setAttribute("id", "arrowhead");
+    marker.setAttribute("markerWidth", "8");
+    marker.setAttribute("markerHeight", "8");
+    marker.setAttribute("refX", "7");
+    marker.setAttribute("refY", "3");
+    marker.setAttribute("orient", "auto");
+    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    polygon.setAttribute("points", "0 0, 8 3, 0 6");
+    polygon.setAttribute("fill", "#42c778");
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    depSvg.appendChild(defs);
+
+    // Draw arrows for each dependency (anchor to bars)
+    rows.forEach(row => {
+      // Skip collapsed/hidden rows
+      if (row.style.display === "none") return;
+      const code = row.dataset.code;
+      const succs = (row.dataset.successors || "").split(",").filter(Boolean);
+      const predBar = row.querySelector(".bar");
+      if (!predBar) return;
+      const predRect = predBar.getBoundingClientRect();
+
+      succs.forEach(succCode => {
+        const succRow = rowsByCode[succCode];
+        if (!succRow) return;
+        const succBar = succRow.querySelector(".bar");
+        if (!succBar) return;
+        const succRect = succBar.getBoundingClientRect();
+
+        // Skip if both bars are out of view vertically
+        if (predRect.bottom < scrollRect.top && succRect.bottom < scrollRect.top) return;
+        if (predRect.top > scrollRect.bottom && succRect.top > scrollRect.bottom) return;
+
+        const y1 = predRect.top - scrollRect.top + predRect.height / 2;
+        const y2 = succRect.top - scrollRect.top + succRect.height / 2;
+        const x1 = predRect.right - scrollRect.left;
+        const x2 = succRect.left - scrollRect.left;
+
+        // Draw a smooth path from pred end to succ start
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const midX = x1 + Math.max(12, (x2 - x1) * 0.35);
+        const d = `M ${x1} ${y1} C ${midX} ${y1}, ${x2 - 12} ${y2}, ${x2} ${y2}`;
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "#42c778");
+        path.setAttribute("stroke-width", "1.6");
+        path.setAttribute("opacity", "0.6");
+        path.setAttribute("marker-end", "url(#arrowhead)");
+        path.setAttribute("class", "dependency-arrow");
+        path.setAttribute("data-pred", code);
+        path.setAttribute("data-succ", succCode);
+
+        depSvg.appendChild(path);
+      });
+    });
+  }
+  
+  // Draw on load with delay
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(drawDependencyArrows, 50);
+    });
+  } else {
+    setTimeout(drawDependencyArrows, 50);
+  }
+  
+  // Redraw on scroll
+  if (scrollElement) {
+    scrollElement.addEventListener("scroll", drawDependencyArrows);
+  }
+  
+  // Redraw on window resize
+  window.addEventListener("resize", drawDependencyArrows);
 
   /* ------------------------------------------------------------
      Hover highlighting for dependencies
@@ -198,6 +304,56 @@ document.addEventListener("DOMContentLoaded", function () {
         bar.classList.remove("highlight-bar");
       }
     });
+    
+    // Clear arrow highlighting
+    if (depSvg) {
+      const arrows = depSvg.querySelectorAll(".dependency-arrow");
+      arrows.forEach(a => {
+        a.setAttribute("opacity", "0.5");
+        a.setAttribute("stroke-width", "2");
+      });
+    }
+  }
+
+  function highlightDependencies(code) {
+    clearHighlights();
+    
+    const preds = (rowsByCode[code]?.dataset.predecessors || "")
+      .split(",")
+      .filter(Boolean);
+    const succs = (rowsByCode[code]?.dataset.successors || "")
+      .split(",")
+      .filter(Boolean);
+    
+    const allCodes = new Set();
+    if (code) allCodes.add(code);
+    preds.forEach(c => allCodes.add(c));
+    succs.forEach(c => allCodes.add(c));
+    
+    allCodes.forEach(c => {
+      const r = rowsByCode[c];
+      if (!r) return;
+      r.classList.add("highlight-row");
+      const bar = r.querySelector(".bar");
+      if (bar) {
+        bar.classList.add("highlight-bar");
+      }
+    });
+    
+    // Highlight related arrows
+    if (depSvg) {
+      const arrows = depSvg.querySelectorAll(".dependency-arrow");
+      arrows.forEach(a => {
+        const pred = a.getAttribute("data-pred");
+        const succ = a.getAttribute("data-succ");
+        const isRelated = pred === code || succ === code || preds.includes(pred) || succs.includes(succ);
+        
+        if (isRelated) {
+          a.setAttribute("opacity", "1");
+          a.setAttribute("stroke-width", "3");
+        }
+      });
+    }
   }
 
   /* ------------------------------------------------------------
@@ -251,30 +407,8 @@ document.addEventListener("DOMContentLoaded", function () {
   rows.forEach(row => {
     // Dependency hover
     row.addEventListener("mouseenter", () => {
-      clearHighlights();
-
       const code = row.dataset.code;
-      const preds = (row.dataset.predecessors || "")
-        .split(",")
-        .filter(Boolean);
-      const succs = (row.dataset.successors || "")
-        .split(",")
-        .filter(Boolean);
-
-      const allCodes = new Set();
-      if (code) allCodes.add(code);
-      preds.forEach(c => allCodes.add(c));
-      succs.forEach(c => allCodes.add(c));
-
-      allCodes.forEach(c => {
-        const r = rowsByCode[c];
-        if (!r) return;
-        r.classList.add("highlight-row");
-        const bar = r.querySelector(".bar");
-        if (bar) {
-          bar.classList.add("highlight-bar");
-        }
-      });
+      highlightDependencies(code);
     });
 
     row.addEventListener("mouseleave", () => {

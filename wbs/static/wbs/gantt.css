@@ -207,6 +207,24 @@ body {
   position: relative;
 }
 
+/* Dependency arrow visualization overlay */
+.dependency-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.dependency-arrow {
+  transition: opacity 0.2s, stroke-width 0.2s;
+}
+
+.dependency-arrow:hover {
+  opacity: 1 !important;
+  stroke-width: 4 !important;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
