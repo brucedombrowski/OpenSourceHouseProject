@@ -6,12 +6,20 @@ Django 6 + MPTT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and
 Quick start
 -----------
 ```bash
-cd /Users/brucedombrowski/house_wbs_crud
+# fresh OS: clone and set up env
+git clone https://github.com/brucedombrowski/OpenSourceHouseProject.git
+cd OpenSourceHouseProject
+
+# create virtualenv and install deps
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt  # or pip install django django-mptt
+
+# initialize DB and admin
 python manage.py migrate
 python manage.py createsuperuser
+
+# run dev server
 python manage.py runserver
 ```
 
