@@ -1,4 +1,7 @@
+from collections import defaultdict
+
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from wbs.models import WbsItem, normalize_code_for_sort
 
@@ -12,48 +15,49 @@ class Command(BaseCommand):
     )
 
     def handle(self, *args, **options):
-        # Get roots in true tree order
-        roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
+        verbosity = options.get("verbosity", 1)
 
-        if not roots.exists():
+        items = list(
+            WbsItem.objects.order_by("tree_id", "lft").only("id", "parent_id", "code", "name")
+        )
+
+        if not items:
             self.stdout.write("No WBS items found.")
             return
 
-        self.stdout.write(f"Renumbering WBS for {roots.count()} root items...")
+        self.stdout.write(
+            f"Renumbering WBS for {len([i for i in items if i.parent_id is None])} root items..."
+        )
+
+        by_parent = defaultdict(list)
+        for item in items:
+            by_parent[item.parent_id].append(item)
+
+        updates = []
 
         def renumber_node(node, prefix: str, index: int):
-            """
-            Recursively assign outline codes:
-            prefix='' & index=1 -> '1'
-            prefix='1' & index=1 -> '1.1'
-            prefix='1.1' & index=3 -> '1.1.3'
-            """
-            if prefix:
-                new_code = f"{prefix}.{index}"
-            else:
-                new_code = str(index)
-
-            old_code = node.code or ""
-
+            new_code = f"{prefix}.{index}" if prefix else str(index)
             try:
                 new_seq = int(new_code.split(".")[-1])
             except ValueError:
                 new_seq = 1
 
+            old_code = node.code or ""
             node.code = new_code
             node.sequence = new_seq
             node.sort_key = normalize_code_for_sort(new_code)
-            node.save(update_fields=["code", "sequence", "sort_key"])
+            updates.append(node)
 
-            self.stdout.write(f"{node.name}: {old_code} -> {new_code} (sequence={new_seq})")
+            if verbosity >= 2:
+                self.stdout.write(f"{node.name}: {old_code} -> {new_code} (sequence={new_seq})")
 
-            # Children in tree order
-            children = node.get_children().order_by("tree_id", "lft")
-            for child_idx, child in enumerate(children, start=1):
+            for child_idx, child in enumerate(by_parent.get(node.id, []), start=1):
                 renumber_node(child, new_code, child_idx)
 
-        # Renumber each root subtree
-        for root_idx, root in enumerate(roots, start=1):
+        for root_idx, root in enumerate(by_parent.get(None, []), start=1):
             renumber_node(root, prefix="", index=root_idx)
+
+        with transaction.atomic():
+            WbsItem.objects.bulk_update(updates, ["code", "sequence", "sort_key"])
 
         self.stdout.write(self.style.SUCCESS("Renumbering complete."))

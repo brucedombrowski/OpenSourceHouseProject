@@ -197,6 +197,8 @@ class Command(BaseCommand):
 
         # first pass: create/update items without parent assignment
         pending_parent_links = []
+        needs_rebuild = False
+        needs_rollup = False
 
         for row in parsed_rows:
             code = row["code"]
@@ -228,24 +230,29 @@ class Command(BaseCommand):
                         setattr(item, field, value)
                     item.save()
                     self.stdout.write(f"Updated {code} — {name}")
+                    needs_rollup = True
                 else:
                     self.stdout.write(f"Skipped existing {code} — {name}")
             else:
                 item = WbsItem.objects.create(code=code, **defaults)
                 code_to_item[code] = item
                 self.stdout.write(self.style.SUCCESS(f"Created {code} — {name}"))
+                needs_rebuild = True
+                needs_rollup = True
 
             if parent_code:
                 pending_parent_links.append((code, parent_code))
+                needs_rebuild = True
+                needs_rollup = True
 
         # second pass: set parents (after all codes exist)
         for child_code, parent_code in pending_parent_links:
             child = code_to_item.get(child_code)
             parent = code_to_item.get(parent_code)
             if child and parent:
-                child.parent = parent
-                # if wbs_level not set manually, we *could* infer from parent, but you already have it in CSV
-                child.save()
+                if child.parent_id != parent.id:
+                    child.parent = parent
+                    child.save(update_fields=["parent"])
             else:
                 self.stdout.write(
                     self.style.WARNING(
@@ -253,10 +260,10 @@ class Command(BaseCommand):
                     )
                 )
 
-        # rebuild MPTT tree
-        WbsItem.objects.rebuild()
+        if needs_rebuild:
+            WbsItem.objects.rebuild()
 
-        if not skip_rollup:
+        if not skip_rollup and needs_rollup:
             changed_count = 0
             roots = WbsItem.objects.filter(parent__isnull=True).order_by("tree_id", "lft")
             for root in roots:
@@ -264,10 +271,13 @@ class Command(BaseCommand):
                     changed_count += 1
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Import complete, tree rebuilt, rollup applied ({changed_count} item(s) updated)."
+                    f"Import complete, tree {'rebuilt, ' if needs_rebuild else ''}rollup applied ({changed_count} item(s) updated)."
                 )
             )
         else:
-            self.stdout.write(
-                self.style.SUCCESS("Import complete and tree rebuilt (rollup skipped).")
-            )
+            msg = "Import complete"
+            if needs_rebuild:
+                msg += ", tree rebuilt"
+            if skip_rollup:
+                msg += " (rollup skipped)"
+            self.stdout.write(self.style.SUCCESS(msg + "."))
