@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
@@ -190,6 +191,38 @@ class RollupTests(TestCase):
         self.assertFalse(changed)
         self.assertEqual(leaf.percent_complete, Decimal("42.50"))
 
+    def test_update_rollup_dates_falls_back_to_span_when_children_missing_duration(self):
+        """If children have dates but no duration, parent duration uses span."""
+        root = WbsItem.objects.create(code="1", name="Root")
+        WbsItem.objects.create(
+            code="1.1",
+            name="Child",
+            parent=root,
+            planned_start=date(2025, 2, 1),
+            planned_end=date(2025, 2, 3),
+            duration_days=None,
+        )
+
+        changed = root.update_rollup_dates(include_self=True)
+        root.refresh_from_db()
+
+        self.assertTrue(changed)
+        self.assertEqual(root.duration_days, Decimal("3"))  # inclusive span
+
+    def test_update_rollup_dates_include_self_false_propagates_child_change(self):
+        """When include_self is False, should still return True if a child changed."""
+        root = WbsItem.objects.create(code="1", name="Root")
+        WbsItem.objects.create(
+            code="1.1",
+            name="Child",
+            parent=root,
+            planned_start=date(2025, 3, 1),
+            planned_end=date(2025, 3, 2),
+        )
+
+        changed = root.update_rollup_dates(include_self=False)
+        self.assertTrue(changed)
+
     def test_update_rollup_recursive_depth(self):
         """
         Rollup should work across deep hierarchies (3+ levels).
@@ -306,6 +339,33 @@ class DependencyTests(TestCase):
         expected = "1.1 → 1.2 (FS, 3d)"
         self.assertEqual(str(dep), expected)
 
+    def test_task_dependency_rejects_self_dependency(self):
+        """Model.clean() should block predecessor == successor."""
+        pred = WbsItem.objects.create(code="1.1", name="Task")
+        dep = TaskDependency(
+            predecessor=pred,
+            successor=pred,
+            dependency_type=TaskDependency.FS,
+        )
+
+        with self.assertRaises(ValidationError):
+            dep.full_clean()
+
+    def test_task_dependency_rejects_direct_reverse_cycle(self):
+        """Creating reverse edge should raise ValidationError via clean()."""
+        a = WbsItem.objects.create(code="1", name="A")
+        b = WbsItem.objects.create(code="2", name="B")
+        TaskDependency.objects.create(predecessor=a, successor=b)
+
+        reverse_dep = TaskDependency(
+            predecessor=b,
+            successor=a,
+            dependency_type=TaskDependency.FS,
+        )
+
+        with self.assertRaises(ValidationError):
+            reverse_dep.full_clean()
+
     def test_related_names_work(self):
         """
         Related names successor_links and predecessor_links should work.
@@ -378,6 +438,27 @@ class KanbanViewTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         data = resp.json()
         self.assertFalse(data["ok"])
+
+    def test_status_update_requires_id_and_status(self):
+        """Missing params should return 400."""
+        resp = self.client.post(reverse("project_item_status_update"), {})
+        self.assertEqual(resp.status_code, 400)
+        data = resp.json()
+        self.assertFalse(data["ok"])
+        self.assertIn("required", data["error"])
+
+    def test_status_update_missing_item_returns_404(self):
+        """Unknown item id should 404."""
+        resp = self.client.post(
+            reverse("project_item_status_update"),
+            {"id": 9999, "status": ProjectItem.STATUS_TODO},
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_status_update_rejects_get(self):
+        """GET should be rejected by @require_POST."""
+        resp = self.client.get(reverse("project_item_status_update"))
+        self.assertEqual(resp.status_code, 405)
 
 
 class ListViewTests(TestCase):
