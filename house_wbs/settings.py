@@ -140,6 +140,33 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Use ManifestStaticFilesStorage for production to enable caching and minification
+# Adds hash to filenames and generates a manifest for cache busting
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+        },
+    }
+else:
+    # In development, use basic static file storage for faster reload
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
+# CSS minification configuration (via django-compressor or similar)
+# Note: For production deployments, consider using WhiteNoise or CDN services
+# for better performance
+CSS_MIN = not DEBUG  # Only minify CSS in production
+
 # Security (adjust via env; defaults safe for local dev)
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)

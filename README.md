@@ -85,6 +85,28 @@ python manage.py rollup_wbs_progress
 
 If you have your own CSVs, use the same commands with your filenames.
 
+Build & Deployment
+------------------
+Static assets (CSS/JS) are collected and optimized for production:
+
+**Development** (default):
+```
+python manage.py runserver
+# Uses basic static file storage; assets auto-reload
+```
+
+**Production build** (collectstatic with manifest + cache busting):
+```
+python build_assets.py       # Collect and process static files
+# Generates staticfiles/ with content hashes for cache busting
+# Set DEBUG=False and SECURE_* flags in .env for full production mode
+```
+
+For best performance in production:
+- Use WhiteNoise middleware (optional; see `requirements.txt`)
+- Serve staticfiles/ from CDN or reverse proxy with long cache headers
+- Set `STATIC_ROOT` to a persistent location on your server
+
 Testing
 -------
 ```
