@@ -1,109 +1,51 @@
-HOUSE WBS SYSTEM — MAC RESTORE GUIDE
-==================================
+HOUSE PROJECT MANAGEMENT APP
+============================
 
-This archive restores a full Django-based WBS system
-including tree structure, schedule fields, costs, and dependencies.
+Django 6 + MPTT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and admin tooling.
 
----
-
-REQUIREMENTS:
--------------
-MacOS (Intel or Apple Silicon)
-Python 3.10+
-Internet connection
-
----
-
-STEP 1: INSTALL PYTHON (if missing)
------------------------------------
-Check version:
-    python3 --version
-
-If not found:
-    https://www.python.org/downloads/macos/
-
----
-
-STEP 2: CREATE PROJECT FOLDER
-------------------------------
-cd ~
-mkdir house_wbs_crud
-cd house_wbs_crud
-
----
-
-STEP 3: CREATE VIRTUAL ENVIRONMENT
----------------------------------
+Quick start
+-----------
+```bash
+cd /Users/brucedombrowski/house_wbs_crud
 python3 -m venv venv
 source venv/bin/activate
-
----
-
-STEP 4: INSTALL DEPENDENCIES
-----------------------------
-pip install django django-mptt
-
----
-
-STEP 5: CREATE PROJECT STRUCTURE
---------------------------------
-django-admin startproject house_wbs .
-python manage.py startapp wbs
-
----
-
-STEP 6: COPY PROJECT FILES
---------------------------
-Copy the following directories from your original project into this folder:
-
-    house_wbs/
-    wbs/
-
-Overwrite any existing ones created by Django.
-
----
-
-STEP 7: MIGRATE DATABASE
-------------------------
-python manage.py makemigrations
+pip install -r requirements.txt  # or pip install django django-mptt
 python manage.py migrate
-
----
-
-STEP 8: CREATE ADMIN USER
--------------------------
 python manage.py createsuperuser
-
----
-
-STEP 9: RESTORE DATA
---------------------
-Place files from backup folder into project root:
-
-    wbs_items.csv
-    dependencies.csv
-
-Then:
-
-    python manage.py import_wbs_csv wbs_items.csv --update
-    python manage.py import_dependencies_csv dependencies.csv --update
-
----
-
-STEP 10: RUN SERVER
--------------------
 python manage.py runserver
+```
 
----
-
-ACCESS:
+Key URLs
 --------
-Admin panel:
-    http://127.0.0.1:8000/admin/
+- Admin: http://127.0.0.1:8000/admin/
+- Gantt: http://127.0.0.1:8000/gantt/
+- Project Item Board (Kanban): http://127.0.0.1:8000/project-items/board/
+- Project Item List: http://127.0.0.1:8000/project-items/list/
 
-Gantt chart:
-    http://127.0.0.1:8000/gantt/
+Features
+--------
+- WBS hierarchy with scheduling fields, rollup dates/progress, and dependency lags.
+- Gantt with drag-to-reschedule, date edit modal, dependency highlighting, sticky headers, and Project Item panel toggle.
+- Optimize schedule action (ASAP with dependency lags; root anchored).
+- Project Items (issues/tasks/enhancements/risks/decisions) with board and list views.
+- Admin customizations (inline Project Items, branding).
 
----
+Data/imports
+------------
+If you have CSVs to restore:
+```
+python manage.py import_wbs_csv wbs_items.csv --update
+python manage.py import_dependencies_csv dependencies.csv --update
+```
 
-DONE.
+Testing
+-------
+```
+source venv/bin/activate
+python manage.py test
+```
+
+Notes
+-----
+- Keep `db.sqlite3` out of version control; use your own DB as needed.
+- Sticky headers rely on current CSS; if you tweak layout widths, revisit `wbs/static/wbs/gantt.css`.
