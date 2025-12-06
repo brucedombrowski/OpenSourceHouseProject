@@ -30,6 +30,7 @@ from .constants import (
 from .utils import (
     get_priority_rank_case,
     group_items_by_status,
+    group_items_by_wbs,
 )
 
 __all__ = [
@@ -111,23 +112,8 @@ def project_item_list(request):
         "wbs_item__sort_key", "priority_rank", "-created_at"
     )
 
-    wbs_groups = {}
-    for item in items:
-        wbs_key = (
-            (item.wbs_item.id, f"{item.wbs_item.code} — {item.wbs_item.name}")
-            if item.wbs_item
-            else (None, "Unlinked Items")
-        )
-        if wbs_key not in wbs_groups:
-            wbs_groups[wbs_key] = []
-        wbs_groups[wbs_key].append(item)
-
-    # Sort groups: linked items first (by sort_key), unlinked last
-    sorted_groups = sorted(
-        wbs_groups.items(),
-        key=lambda x: (x[0][0] is None, x[0][0] or ""),
-    )
-
+    sorted_groups = group_items_by_wbs(items)
+    
     context = {
         "groups": sorted_groups,
         "all_types": ProjectItem.TYPE_CHOICES,

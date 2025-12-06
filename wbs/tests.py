@@ -65,6 +65,7 @@ class RollupTests(TestCase):
             name="Root",
             planned_start=date(2025, 1, 1),
             planned_end=date(2025, 1, 5),
+            duration_days=Decimal("5.00"),
         )
         WbsItem.objects.create(
             code="1.1",

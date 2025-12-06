@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from django.db import models
+from django.core.exceptions import ValidationError
 from mptt.models import MPTTModel, TreeForeignKey
 
 from .constants import (
@@ -128,13 +129,19 @@ class WbsItem(MPTTModel):
         """
         Roll up planned_start / planned_end (and derived duration_days) from children to this node.
 
-        Returns True if this node's dates changed as a result of the rollup.
-        Called recursively from roots downward.
+        Recursively processes children first, then updates this node if any changes occurred.
+        Minimizes database writes by batching updates via update_fields.
 
-        NOTE: Signature is compatible with rollup_wbs_dates management command:
-              item.update_rollup_dates(include_self=True)
+        Args:
+            include_self: If True, return True when this node is modified.
+                         If False (default), return True only if any descendant changed.
+
+        Returns:
+            True if this node (or any child if include_self=False) changed; False otherwise.
+            
+        NOTE: Call with include_self=True from roots to ensure return value reflects root changes.
         """
-        changed = False
+        descendant_changed = False
         children = self.get_children()
 
         if children.exists():
@@ -146,7 +153,7 @@ class WbsItem(MPTTModel):
             for child in children:
                 # Recurse first so grandchildren are up to date
                 if child.update_rollup_dates(include_self=True):
-                    changed = True
+                    descendant_changed = True
 
                 if child.planned_start:
                     min_start = (
@@ -183,11 +190,18 @@ class WbsItem(MPTTModel):
                 self.duration_days = new_duration
                 changed_fields.add("duration_days")
 
+            # Batch update: only save if fields changed
             if changed_fields:
                 self.save(update_fields=list(changed_fields))
-                changed = True
+                # Return True if this node changed (when include_self=True)
+                # or if any descendant changed (when include_self=False)
+                return True
 
-        return changed if include_self else False
+        # If no children or no changes to this node
+        if include_self:
+            return False
+        else:
+            return descendant_changed
 
     # --- Rollup: percent_complete ---
 
@@ -199,17 +213,24 @@ class WbsItem(MPTTModel):
           duration-weighted average of its direct children.
         - Leaves keep their own percent_complete values.
 
-        Returns True if this node's percent_complete changed.
-        Compatible with rollup_progress management command:
-            root.update_rollup_progress(include_self=True)
+        Minimizes database writes by batching updates via update_fields.
+
+        Args:
+            include_self: If True, return True when this node is modified.
+                         If False (default), return True only if any descendant changed.
+
+        Returns:
+            True if this node (or any child if include_self=False) changed; False otherwise.
+            
+        NOTE: Call with include_self=True from roots to ensure return value reflects root changes.
         """
-        changed = False
+        descendant_changed = False
         children = self.get_children()
 
         # First recurse so children/grandchildren are up to date
         for child in children:
             if child.update_rollup_progress(include_self=True):
-                changed = True
+                descendant_changed = True
 
         if children.exists():
             total_weight = Decimal("0")
@@ -234,10 +255,17 @@ class WbsItem(MPTTModel):
 
             if new_pct != (self.percent_complete or Decimal("0")):
                 self.percent_complete = new_pct
+                # Batch update: only save percent_complete field
                 self.save(update_fields=["percent_complete"])
-                changed = True
+                # Return True if this node changed (when include_self=True)
+                # or if any descendant changed (when include_self=False)
+                return True
 
-        return changed if include_self else False
+        # If no children or no changes to this node
+        if include_self:
+            return False
+        else:
+            return descendant_changed
 
 
 class TaskDependency(models.Model):
@@ -294,6 +322,48 @@ class TaskDependency(models.Model):
             f"{self.predecessor.code} → {self.successor.code} "
             f"({self.dependency_type}, {self.lag_days}d)"
         )
+
+    def clean(self):
+        """
+        Validate that:
+        - A task cannot depend on itself
+        - (Basic check: no direct circular dependencies are created)
+        """
+        super().clean()
+        
+        if self.predecessor_id == self.successor_id:
+            raise ValidationError(
+                "A task cannot have a dependency on itself."
+            )
+        
+        # Check for direct reversal: if successor → predecessor exists, warn
+        # (Full circular check requires graph traversal, so we keep this simple)
+        if TaskDependency.objects.filter(
+            predecessor=self.successor,
+            successor=self.predecessor,
+        ).exists():
+            raise ValidationError(
+                f"Circular dependency detected: {self.successor.code} already depends on {self.predecessor.code}."
+            )
+
+
+class Tag(models.Model):
+    """
+    Simple tag model for categorizing ProjectItems.
+    """
+    name = models.CharField(max_length=100, unique=True, db_index=True)
+    description = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Tag"
+        verbose_name_plural = "Tags"
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class ProjectItem(models.Model):
@@ -390,8 +460,11 @@ class ProjectItem(models.Model):
         help_text="Optional external ID (e.g. Jira, GitHub, etc.)",
     )
 
-    tags = models.CharField(
-        max_length=200, blank=True, help_text="Comma-separated tags."
+    tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        related_name="project_items",
+        help_text="Tags for categorizing this item.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
