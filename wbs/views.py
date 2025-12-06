@@ -49,7 +49,7 @@ def project_item_board(request):
     Lightweight Kanban view for ProjectItems grouped by status.
     """
     items = (
-        ProjectItem.objects.select_related("wbs_item")
+        ProjectItem.objects.select_related("wbs_item", "owner")
         .annotate(priority_rank=get_priority_rank_case())
         .order_by("status", "priority_rank", "-created_at")
     )
@@ -83,7 +83,7 @@ def project_item_list(request):
     search_query = request.GET.get("q", "").strip()
 
     # Build query
-    items = ProjectItem.objects.select_related("wbs_item")
+    items = ProjectItem.objects.select_related("wbs_item", "owner")
 
     if filter_type:
         items = items.filter(type=filter_type)
@@ -101,7 +101,9 @@ def project_item_list(request):
             | Q(description__icontains=search_query)
             | Q(wbs_item__code__icontains=search_query)
             | Q(wbs_item__name__icontains=search_query)
-            | Q(owner__icontains=search_query)
+            | Q(owner__username__icontains=search_query)
+            | Q(owner__first_name__icontains=search_query)
+            | Q(owner__last_name__icontains=search_query)
             | Q(reported_by__icontains=search_query)
         )
 

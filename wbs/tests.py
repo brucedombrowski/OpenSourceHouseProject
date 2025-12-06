@@ -546,6 +546,20 @@ class ListViewTests(TestCase):
         self.assertContains(resp, "Alpha item")
         self.assertNotContains(resp, "Gamma item")
 
+    def test_list_view_search_by_owner_name(self):
+        """Search should match on owner username or name."""
+        User = get_user_model()
+        owner = User.objects.create_user(username="alice", first_name="Alice")
+        ProjectItem.objects.create(
+            title="Owned item",
+            status=ProjectItem.STATUS_TODO,
+            owner=owner,
+        )
+
+        resp = self.client.get(reverse("project_item_list"), {"q": "alice"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Owned item")
+
     def test_list_view_type_filter(self):
         """
         Type filter should only show items of selected type.

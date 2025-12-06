@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
@@ -433,7 +434,14 @@ class ProjectItem(models.Model):
     )
 
     reported_by = models.CharField(max_length=100, blank=True)
-    owner = models.CharField(max_length=100, blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="project_items",
+        help_text="Assigned owner (User).",
+    )
 
     date_started = models.DateTimeField(null=True, blank=True)
     date_completed = models.DateTimeField(null=True, blank=True)
@@ -472,3 +480,10 @@ class ProjectItem(models.Model):
     def __str__(self) -> str:
         prefix = f"[{self.wbs_item.code}] " if self.wbs_item else ""
         return f"{prefix}{self.title}"
+
+    @property
+    def owner_display(self) -> str:
+        if not self.owner:
+            return ""
+        full_name = self.owner.get_full_name().strip()
+        return full_name or self.owner.get_username()

@@ -151,6 +151,15 @@
 
 ---
 
+### 8. ✅ Completed Enhancement #78: Link ProjectItem Owners to User Accounts
+
+**Changes**:
+- Migrated `ProjectItem.owner` from `CharField` to `ForeignKey(User)` with a data migration that backfills users from existing owner names.
+- Updated Gantt/Kanban/List templates to show `owner_display` (full name or username) and adjusted Gantt owner filters to use user IDs.
+- Updated views to search owners by username/name and to `select_related("owner")` to avoid N+1 queries; added a regression test for owner search.
+
+---
+
 ## 📋 Project Documentation Created/Updated
 
 ### SNAPSHOT.md (New)

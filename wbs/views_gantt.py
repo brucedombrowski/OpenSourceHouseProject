@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Prefetch
 from django.http import JsonResponse
@@ -40,6 +41,7 @@ def gantt_chart(request):
     selected_priorities = request.GET.getlist("priority")
     selected_severities = request.GET.getlist("severity")
     selected_owners = request.GET.getlist("owner")
+    selected_owner_ids = {oid for oid in selected_owners if oid}
 
     # ---- Base queryset: tasks with dates + prefetch ProjectItems ----
     qs = (
@@ -48,7 +50,7 @@ def gantt_chart(request):
         .prefetch_related(
             Prefetch(
                 "project_items",
-                queryset=ProjectItem.objects.order_by("-created_at"),
+                queryset=ProjectItem.objects.select_related("owner").order_by("-created_at"),
             )
         )
         .order_by("tree_id", "lft")  # MPTT-style ordering
@@ -71,6 +73,9 @@ def gantt_chart(request):
         if selected_severities:
             qs = qs.filter(project_items__severity__in=selected_severities)
 
+        if selected_owner_ids:
+            qs = qs.filter(project_items__owner_id__in=selected_owner_ids)
+
         qs = qs.distinct()
 
     tasks = list(qs)
@@ -78,15 +83,16 @@ def gantt_chart(request):
     # ---- No-data case ----
     if not tasks:
         # Get all possible owners for filter UI (all owners in the system)
-        all_owners = sorted(
-            list(
-                set(
-                    ProjectItem.objects.filter(owner__isnull=False)
-                    .values_list("owner", flat=True)
-                    .distinct()
-                )
-            )
-        )
+        User = get_user_model()
+        all_owners = [
+            {
+                "id": str(user.id),
+                "label": (user.get_full_name().strip() or user.get_username()),
+            }
+            for user in User.objects.filter(project_items__isnull=False)
+            .distinct()
+            .order_by("username")
+        ]
         context = {
             "tasks": [],
             "min_start": None,
@@ -103,7 +109,7 @@ def gantt_chart(request):
             "selected_statuses": selected_statuses,
             "selected_priorities": selected_priorities,
             "selected_severities": selected_severities,
-            "selected_owners": selected_owners,
+            "selected_owners": list(selected_owner_ids),
             # Choices for building the filter form
             "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
             "projectitem_status_choices": ProjectItem.STATUS_CHOICES,
@@ -143,7 +149,7 @@ def gantt_chart(request):
             or selected_statuses
             or selected_priorities
             or selected_severities
-            or selected_owners
+            or selected_owner_ids
         ):
             # Match everything (subject to has_items_only above)
             return True
@@ -173,7 +179,9 @@ def gantt_chart(request):
             return False
 
         # Owner filter (empty owner "" is treated as unassigned)
-        if selected_owners and not any((pi.owner or "") in selected_owners for pi in project_items):
+        if selected_owner_ids and not any(
+            str(pi.owner_id) in selected_owner_ids for pi in project_items
+        ):
             return False
 
         return True
@@ -314,12 +322,14 @@ def gantt_chart(request):
         day_cursor += timedelta(days=7)
 
     # ---- Collect all unique owners from linked ProjectItems for filter UI ----
-    all_owners = set()
-    for t in tasks:
-        for pi in t.project_items.all():
-            if pi.owner:
-                all_owners.add(pi.owner)
-    all_owners = sorted(list(all_owners))
+    User = get_user_model()
+    all_owners = [
+        {
+            "id": str(user.id),
+            "label": (user.get_full_name().strip() or user.get_username()),
+        }
+        for user in User.objects.filter(project_items__isnull=False).distinct().order_by("username")
+    ]
 
     context = {
         "tasks": tasks,
@@ -338,7 +348,7 @@ def gantt_chart(request):
         "selected_statuses": selected_statuses,
         "selected_priorities": selected_priorities,
         "selected_severities": selected_severities,
-        "selected_owners": selected_owners,
+        "selected_owners": list(selected_owner_ids),
         # Choices for building the filter form
         "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
         "projectitem_status_choices": ProjectItem.STATUS_CHOICES,

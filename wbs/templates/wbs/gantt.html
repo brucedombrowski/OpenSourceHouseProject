@@ -102,7 +102,10 @@
         <div class="filter-group-title">Owner (Resource)</div>
         <div class="filter-options">
           {% for owner in all_owners %}
-            <label><input type="checkbox" name="owner" value="{{ owner }}" {% if owner in selected_owners %}checked{% endif %}> {{ owner }}</label>
+            <label>
+              <input type="checkbox" name="owner" value="{{ owner.id }}" {% if owner.id|stringformat:'s' in selected_owners %}checked{% endif %}>
+              {{ owner.label }}
+            </label>
           {% endfor %}
           {% if not all_owners %}
             <p style="color: #999; font-style: italic;">No owners assigned yet</p>
