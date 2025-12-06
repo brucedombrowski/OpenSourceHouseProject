@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 from django.urls import reverse
 
@@ -379,6 +379,33 @@ class DependencyTests(TestCase):
 
         self.assertEqual(pred.successor_links.count(), 2)
         self.assertEqual(succ1.predecessor_links.count(), 1)
+
+
+class DatabaseIndexTests(TestCase):
+    """Ensure key database constraints and indexes exist for hot queries."""
+
+    def test_wbsitem_code_is_unique(self):
+        WbsItem.objects.create(code="ABC", name="First")
+        with self.assertRaises(IntegrityError):
+            WbsItem.objects.create(code="ABC", name="Duplicate")
+
+    def test_projectitem_hot_indexes_exist(self):
+        table = ProjectItem._meta.db_table
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(cursor, table)
+
+        index_names = set(constraints.keys())
+        expected = {
+            "projectitem_status_created_idx",
+            "projectitem_type_created_idx",
+            "projectitem_priority_idx",
+            "projectitem_severity_idx",
+            "projectitem_wbs_status_idx",
+        }
+
+        for name in expected:
+            self.assertIn(name, index_names)
+            self.assertTrue(constraints[name].get("index"))
 
 
 class KanbanViewTests(TestCase):

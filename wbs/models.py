@@ -54,7 +54,7 @@ class WbsItem(MPTTModel):
     STATUS_CHOICES = WBS_STATUS_CHOICES
 
     # --- Identity / hierarchy ---
-    code = models.CharField(max_length=50, db_index=True)
+    code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
 
@@ -461,6 +461,13 @@ class ProjectItem(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Project Item"
         verbose_name_plural = "Project Items"
+        indexes = [
+            models.Index(fields=["status", "-created_at"], name="projectitem_status_created_idx"),
+            models.Index(fields=["type", "-created_at"], name="projectitem_type_created_idx"),
+            models.Index(fields=["priority"], name="projectitem_priority_idx"),
+            models.Index(fields=["severity"], name="projectitem_severity_idx"),
+            models.Index(fields=["wbs_item", "status"], name="projectitem_wbs_status_idx"),
+        ]
 
     def __str__(self) -> str:
         prefix = f"[{self.wbs_item.code}] " if self.wbs_item else ""

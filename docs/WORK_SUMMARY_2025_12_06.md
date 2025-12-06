@@ -126,6 +126,15 @@
 
 ---
 
+### 5. ✅ Completed Task #53: Database Index Audit
+
+**Changes**:
+- Added a unique constraint on `WbsItem.code` to prevent duplicate codes and improve lookup reliability.
+- Created hot-path indexes for `ProjectItem` filtering/sorting: `(status, -created_at)`, `(type, -created_at)`, `priority`, `severity`, and `(wbs_item, status)`.
+- Captured the schema changes in migration `0012_alter_wbsitem_code_and_more` with corresponding integrity/index tests in `wbs/tests.py`.
+
+---
+
 ## 📋 Project Documentation Created/Updated
 
 ### SNAPSHOT.md (New)
