@@ -126,7 +126,7 @@ class WbsItem(MPTTModel):
 
     def update_rollup_dates(self, include_self: bool = False) -> bool:
         """
-        Roll up planned_start / planned_end from children to this node.
+        Roll up planned_start / planned_end (and derived duration_days) from children to this node.
 
         Returns True if this node's dates changed as a result of the rollup.
         Called recursively from roots downward.
@@ -140,6 +140,8 @@ class WbsItem(MPTTModel):
         if children.exists():
             min_start = None
             max_end = None
+            changed_fields = set()
+            duration_sum = Decimal("0")
 
             for child in children:
                 # Recurse first so grandchildren are up to date
@@ -159,10 +161,30 @@ class WbsItem(MPTTModel):
                         else max(max_end, child.planned_end)
                     )
 
-            if min_start != self.planned_start or max_end != self.planned_end:
+                # Sum immediate children durations; if missing, fall back to their span
+                child_dur = child.duration_days
+                if child_dur is None and child.planned_start and child.planned_end:
+                    child_dur = Decimal((child.planned_end - child.planned_start).days + 1)
+                if child_dur:
+                    duration_sum += Decimal(child_dur)
+
+            if min_start != self.planned_start:
                 self.planned_start = min_start
+                changed_fields.add("planned_start")
+            if max_end != self.planned_end:
                 self.planned_end = max_end
-                self.save(update_fields=["planned_start", "planned_end"])
+                changed_fields.add("planned_end")
+
+            # duration rolls up from immediate children; fall back to span if no children durations
+            new_duration = duration_sum if duration_sum > 0 else (
+                Decimal((max_end - min_start).days + 1) if (min_start and max_end) else None
+            )
+            if new_duration is not None and self.duration_days != new_duration:
+                self.duration_days = new_duration
+                changed_fields.add("duration_days")
+
+            if changed_fields:
+                self.save(update_fields=list(changed_fields))
                 changed = True
 
         return changed if include_self else False

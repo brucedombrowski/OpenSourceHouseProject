@@ -60,10 +60,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Update existing items (matched by code) instead of skipping",
         )
+        parser.add_argument(
+            "--skip-rollup",
+            action="store_true",
+            help="Skip post-import rollup of planned dates/duration.",
+        )
 
     def handle(self, *args, **options):
         csv_path = Path(options["csv_path"])
         update_existing = options["update"]
+        skip_rollup = options["skip_rollup"]
 
         if not csv_path.exists():
             raise CommandError(f"CSV file not found: {csv_path}")
@@ -164,4 +170,21 @@ class Command(BaseCommand):
         # rebuild MPTT tree
         WbsItem.objects.rebuild()
 
-        self.stdout.write(self.style.SUCCESS("Import complete and tree rebuilt."))
+        if not skip_rollup:
+            changed_count = 0
+            roots = (
+                WbsItem.objects.filter(parent__isnull=True)
+                .order_by("tree_id", "lft")
+            )
+            for root in roots:
+                if root.update_rollup_dates(include_self=True):
+                    changed_count += 1
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Import complete, tree rebuilt, rollup applied ({changed_count} item(s) updated)."
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS("Import complete and tree rebuilt (rollup skipped).")
+            )

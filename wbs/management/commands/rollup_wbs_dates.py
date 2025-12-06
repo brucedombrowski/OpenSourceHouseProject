@@ -5,8 +5,8 @@ from wbs.models import WbsItem
 
 class Command(BaseCommand):
     help = (
-        "Roll up planned_start / planned_end from children to parents for the "
-        "entire WBS tree."
+        "Roll up planned_start / planned_end (and derived duration_days) from "
+        "children to parents for the entire WBS tree."
     )
 
     def add_arguments(self, parser):
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         include_self = True  # we always want the call to report if this node changed
 
         self.stdout.write(
-            "Rolling up planned dates for all WBS items (include_self=True)..."
+            "Rolling up planned dates and duration_days for all WBS items (include_self=True)..."
         )
 
         changed_count = 0

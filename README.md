@@ -5,22 +5,37 @@ Django 6 + MPTT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and
 
 Quick start
 -----------
-```bash
-# fresh OS: clone and set up env
-git clone https://github.com/brucedombrowski/OpenSourceHouseProject.git
-cd OpenSourceHouseProject
+Option 1 — single command (runs everything, no prompts):
+```
+bash quickstart.sh  # run from repo root (after git clone && cd OpenSourceHouseProject)
+# change port/host: PORT=8001 HOST=0.0.0.0 bash quickstart.sh
+```
 
+Already set up and just need the server?
+```
+bash runserver.sh           # auto-picks a free port starting at 8000
+PORT=8001 bash runserver.sh # start search at 8001
+```
+
+Option 2 — do it manually (paste as-is):
+```bash
+set -euo pipefail
+
+# from repo root (after git clone && cd OpenSourceHouseProject)
 # create virtualenv and install deps
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt  # or pip install django django-mptt
+pip install -r requirements.txt  # or: pip install django django-mptt
 
-# initialize DB and admin
+# initialize DB and admin (no prompts)
 python manage.py migrate
-python manage.py createsuperuser
+DJANGO_SUPERUSER_USERNAME=admin \
+DJANGO_SUPERUSER_EMAIL=admin@example.com \
+DJANGO_SUPERUSER_PASSWORD=adminpass \
+python manage.py createsuperuser --noinput
 
 # load sample WBS + dependencies (optional seed data)
-# NOTE: createsuperuser is wiped if you delete db.sqlite3; keep the DB after import.
+# NOTE: the admin user is stored in db.sqlite3; keep the DB after import.
 python manage.py import_wbs_csv data/wbs_items_template.csv --update
 python manage.py import_dependencies_csv data/wbs_dependencies_template.csv --update
 python manage.py rollup_wbs_dates
@@ -29,6 +44,8 @@ python manage.py rollup_wbs_progress
 # run dev server
 python manage.py runserver
 ```
+
+Defaults: admin user `admin/adminpass` (change via `DJANGO_SUPERUSER_*` env vars). Keeps `db.sqlite3` with seeded data.
 
 Key URLs
 --------
