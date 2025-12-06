@@ -250,21 +250,48 @@ body {
 
 .dependency-arrow {
   transition: opacity 0.2s, stroke-width 0.2s;
+  cursor: pointer;
 }
 
 .dependency-arrow:hover {
   opacity: 1 !important;
   stroke-width: 4 !important;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.3));
+}
+
+.dependency-arrow.highlighted-arrow {
+  opacity: 1 !important;
+  stroke-width: 3 !important;
 }
 
 .dep-type-fs { stroke: #42c778; }
 .dep-type-ss { stroke: #4da3ff; stroke-dasharray: 6 4; }
 .dep-type-ff { stroke: #f39c12; stroke-dasharray: 4 3; }
 .dep-type-sf { stroke: #e56bff; stroke-dasharray: 3 3; }
+
+/* Dependency type labels on arrows */
+.dep-type-label {
+  font-size: 9px;
+  font-weight: bold;
+  text-anchor: middle;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.dep-type-label.dep-type-fs { fill: #42c778; }
+.dep-type-label.dep-type-ss { fill: #4da3ff; }
+.dep-type-label.dep-type-ff { fill: #f39c12; }
+.dep-type-label.dep-type-sf { fill: #e56bff; }
+
+/* Lag labels */
 .dep-lag {
   font-size: 10px;
   fill: #9fb1d0;
   opacity: 0.8;
+  text-anchor: middle;
+  pointer-events: none;
+  font-weight: 500;
 }
 
 table {
