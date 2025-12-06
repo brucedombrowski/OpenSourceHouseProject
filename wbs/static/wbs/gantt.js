@@ -528,6 +528,58 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
+     Export Gantt to PNG
+  ------------------------------------------------------------ */
+  const exportBtn = document.getElementById("export-gantt");
+  if (exportBtn && typeof html2canvas !== "undefined") {
+    exportBtn.addEventListener("click", async () => {
+      exportBtn.disabled = true;
+      exportBtn.textContent = "Exporting...";
+
+      try {
+        // Temporarily hide detail panel for cleaner export
+        const detailPanel = document.getElementById("project-detail-panel");
+        const wasCollapsed = detailPanel?.classList.contains("collapsed");
+        if (detailPanel && !wasCollapsed) {
+          detailPanel.classList.add("collapsed");
+        }
+
+        // Capture the gantt-main container
+        const target = document.querySelector(".gantt-main");
+        if (!target) {
+          throw new Error("Gantt container not found");
+        }
+
+        const canvas = await html2canvas(target, {
+          backgroundColor: document.body.classList.contains("theme-dark") ? "#0f172a" : "#ffffff",
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: target.scrollWidth,
+          windowHeight: target.scrollHeight,
+        });
+
+        // Restore panel visibility
+        if (detailPanel && !wasCollapsed) {
+          detailPanel.classList.remove("collapsed");
+        }
+
+        // Download as PNG
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+        link.download = `gantt-${timestamp}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } catch (err) {
+        alert(`Export failed: ${err.message}`);
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = "Export PNG";
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------
      Theme toggle (light / dark) with localStorage persistence
      ------------------------------------------------------------ */
   // Uses initializeThemeToggle() from shared-theme.js

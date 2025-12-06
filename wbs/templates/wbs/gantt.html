@@ -28,6 +28,7 @@
             <button type="button" id="zoom-out">Zoom -</button>
             <button type="button" id="zoom-in">Zoom +</button>
             <button type="button" id="zoom-reset">Reset Zoom</button>
+            <button type="button" id="export-gantt">Export PNG</button>
             <button type="button" id="optimize-schedule">Optimize Schedule</button>
             <button type="button" id="expand-all">Expand All</button>
             <button type="button" id="collapse-all">Collapse All</button>
@@ -279,6 +280,7 @@
 </div>
 <script src="{% static 'wbs/shared-theme.js' %}?v={{ timestamp }}"></script>
 <script src="{% static 'wbs/fetch-utils.js' %}?v={{ timestamp }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module" src="{% static 'wbs/gantt.js' %}?v={{ timestamp }}"></script>
 </div>
 </body>
