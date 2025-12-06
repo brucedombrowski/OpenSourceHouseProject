@@ -146,6 +146,12 @@
             flex: 1;
             padding-bottom: 12px;
         }
+        .filter-active .card {
+            display: none;
+        }
+        .filter-active .card.matches-filter {
+            display: block;
+        }
         @media (max-width: 700px) {
             .board { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
         }
@@ -158,10 +164,50 @@
             <h1>Project Items Board</h1>
         </div>
         <div class="header-actions">
-            <a href="{% url 'gantt' %}" class="btn-link">← Gantt view</a>
-            <div class="pill">Grouped by status</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button id="toggle-filters" class="btn-link" style="cursor:pointer;">⊕ Filters</button>
+                <a href="{% url 'gantt' %}" class="btn-link">← Gantt view</a>
+                <div class="pill">Grouped by status</div>
+            </div>
         </div>
     </header>
+
+    <section id="filter-panel" style="display:none; padding: 16px 24px; border-bottom: 1px solid #1f2937; background: rgba(34,211,238,0.06);">
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Type</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label><input type="checkbox" name="filter-type" value="issue"> Issue</label>
+                    <label><input type="checkbox" name="filter-type" value="task"> Task</label>
+                    <label><input type="checkbox" name="filter-type" value="enhancement"> Enhancement</label>
+                    <label><input type="checkbox" name="filter-type" value="risk"> Risk</label>
+                    <label><input type="checkbox" name="filter-type" value="decision"> Decision</label>
+                </div>
+            </div>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Priority</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label><input type="checkbox" name="filter-priority" value="critical"> Critical</label>
+                    <label><input type="checkbox" name="filter-priority" value="high"> High</label>
+                    <label><input type="checkbox" name="filter-priority" value="medium"> Medium</label>
+                    <label><input type="checkbox" name="filter-priority" value="low"> Low</label>
+                </div>
+            </div>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Status</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label><input type="checkbox" name="filter-status" value="backlog"> Backlog</label>
+                    <label><input type="checkbox" name="filter-status" value="in_progress"> In Progress</label>
+                    <label><input type="checkbox" name="filter-status" value="review"> Review</label>
+                    <label><input type="checkbox" name="filter-status" value="done"> Done</label>
+                </div>
+            </div>
+            <div>
+                <button id="apply-filters" class="btn-link" style="cursor:pointer; margin-top: 20px;">Apply</button>
+                <button id="clear-filters" class="btn-link" style="cursor:pointer; margin-top: 20px; margin-left: 8px;">Clear</button>
+            </div>
+        </div>
+    </section>
 
     <section class="board">
         {% for column in columns %}
@@ -205,6 +251,126 @@
     <form style="display:none;">{% csrf_token %}</form>
     <script>
         (function() {
+            const FILTER_KEY = 'boardFilters';
+            const filterPanel = document.getElementById('filter-panel');
+            const toggleFilterBtn = document.getElementById('toggle-filters');
+            const applyFilterBtn = document.getElementById('apply-filters');
+            const clearFilterBtn = document.getElementById('clear-filters');
+            const board = document.querySelector('.board');
+
+            // Load and apply saved filters on page load
+            function loadFilters() {
+                const saved = localStorage.getItem(FILTER_KEY);
+                if (!saved) return;
+                try {
+                    const filters = JSON.parse(saved);
+                    Object.entries(filters).forEach(([key, values]) => {
+                        values.forEach(val => {
+                            const checkbox = document.querySelector(`input[name="filter-${key}"][value="${val}"]`);
+                            if (checkbox) checkbox.checked = true;
+                        });
+                    });
+                } catch (_) {
+                    // ignore parse errors
+                }
+            }
+
+            function getActiveFilters() {
+                const filters = { type: [], priority: [], status: [] };
+                document.querySelectorAll('input[name^="filter-"]:checked').forEach(cb => {
+                    const key = cb.name.replace('filter-', '');
+                    if (filters.hasOwnProperty(key)) {
+                        filters[key].push(cb.value);
+                    }
+                });
+                return filters;
+            }
+
+            function cardMatchesFilters(card, filters) {
+                if (!filters.type.length && !filters.priority.length && !filters.status.length) {
+                    return true;
+                }
+                const type = card.dataset.type || '';
+                const priority = card.dataset.priority || '';
+                const status = card.closest('.column')?.dataset.status || '';
+
+                const typeMatch = !filters.type.length || filters.type.includes(type);
+                const priorityMatch = !filters.priority.length || filters.priority.includes(priority);
+                const statusMatch = !filters.status.length || filters.status.includes(status);
+
+                return typeMatch && priorityMatch && statusMatch;
+            }
+
+            function applyFilters() {
+                const filters = getActiveFilters();
+                const hasFilters = filters.type.length || filters.priority.length || filters.status.length;
+
+                if (hasFilters) {
+                    localStorage.setItem(FILTER_KEY, JSON.stringify(filters));
+                    board.classList.add('filter-active');
+                } else {
+                    localStorage.removeItem(FILTER_KEY);
+                    board.classList.remove('filter-active');
+                }
+
+                document.querySelectorAll('.card').forEach(card => {
+                    if (hasFilters) {
+                        if (cardMatchesFilters(card, filters)) {
+                            card.classList.add('matches-filter');
+                        } else {
+                            card.classList.remove('matches-filter');
+                        }
+                    } else {
+                        card.classList.remove('matches-filter');
+                    }
+                });
+            }
+
+            // Toggle filter panel
+            toggleFilterBtn.addEventListener('click', () => {
+                filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+            });
+
+            // Apply filters
+            applyFilterBtn.addEventListener('click', () => {
+                applyFilters();
+                filterPanel.style.display = 'none';
+            });
+
+            // Clear filters
+            clearFilterBtn.addEventListener('click', () => {
+                document.querySelectorAll('input[name^="filter-"]:checked').forEach(cb => {
+                    cb.checked = false;
+                });
+                localStorage.removeItem(FILTER_KEY);
+                board.classList.remove('filter-active');
+                document.querySelectorAll('.card').forEach(card => {
+                    card.classList.remove('matches-filter');
+                });
+                filterPanel.style.display = 'none';
+            });
+
+            // Set data attributes on cards for filtering
+            document.querySelectorAll('.card').forEach(card => {
+                const meta = card.querySelector('.meta');
+                if (meta) {
+                    const pills = meta.querySelectorAll('.pill');
+                    if (pills.length > 0) {
+                        const typeText = pills[pills.length - 1]?.textContent?.toLowerCase() || '';
+                        const typeMap = { 'issue': 'issue', 'task': 'task', 'enhancement': 'enhancement', 'risk': 'risk', 'decision': 'decision' };
+                        const type = Object.keys(typeMap).find(k => typeText.includes(k)) || '';
+                        if (type) card.dataset.type = type;
+                    }
+                    const priority = card.querySelector('.priority');
+                    if (priority) {
+                        card.dataset.priority = priority.className.split(' ').find(c => ['critical', 'high', 'medium', 'low'].includes(c)) || '';
+                    }
+                }
+            });
+
+            loadFilters();
+            applyFilters();
+
             function getCookie(name) {
                 const value = `; ${document.cookie}`;
                 const parts = value.split(`; ${name}=`);
