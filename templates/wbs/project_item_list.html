@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
     <title>Project Items - List View</title>
     <style>
         :root {
@@ -463,29 +464,10 @@
         </div>
     {% endif %}
 
+    <script src="{% static 'wbs/shared-theme.js' %}"></script>
     <script>
-        const body = document.body;
-        const toggleBtn = document.getElementById('themeToggle');
-        const THEME_KEY = 'listTheme';
-
-        function applyTheme(theme) {
-            if (theme === 'light') {
-                body.classList.add('theme-light');
-                toggleBtn.textContent = 'Switch to dark';
-            } else {
-                body.classList.remove('theme-light');
-                toggleBtn.textContent = 'Switch to light';
-            }
-            localStorage.setItem(THEME_KEY, theme);
-        }
-
-        const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
-        applyTheme(savedTheme);
-
-        toggleBtn.addEventListener('click', () => {
-            const next = body.classList.contains('theme-light') ? 'dark' : 'light';
-            applyTheme(next);
-        });
+        // Theme toggle using shared utility
+        initializeThemeToggle('themeToggle', 'listTheme', 'dark');
     </script>
 </body>
 </html>

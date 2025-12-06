@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
     <title>Project Items - Kanban Board</title>
     <style>
         :root {
@@ -284,30 +285,10 @@
         {% endfor %}
     </div>
 
+    <script src="{% static 'wbs/shared-theme.js' %}"></script>
     <script>
-        // --- Theme (default dark) ---
-        const body = document.body;
-        const toggleBtn = document.getElementById('themeToggle');
-        const THEME_KEY = 'boardTheme';
-
-        function applyTheme(theme) {
-            if (theme === 'light') {
-                body.classList.add('theme-light');
-                toggleBtn.textContent = 'Switch to dark';
-            } else {
-                body.classList.remove('theme-light');
-                toggleBtn.textContent = 'Switch to light';
-            }
-            localStorage.setItem(THEME_KEY, theme);
-        }
-
-        const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
-        applyTheme(savedTheme);
-
-        toggleBtn.addEventListener('click', () => {
-            const next = body.classList.contains('theme-light') ? 'dark' : 'light';
-            applyTheme(next);
-        });
+        // Theme toggle using shared utility
+        initializeThemeToggle('themeToggle', 'boardTheme', 'dark');
 
         let draggedCard = null;
 

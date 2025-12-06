@@ -288,7 +288,7 @@ table {
 }
 td {
   border: 1px solid #ddd;
-  padding: 4px 6px;
+  padding: 3px 6px;
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
@@ -345,8 +345,8 @@ th {
   left: 560px; /* 80+240+120+120 */
   z-index: 10;
   background: #fff;
-  min-width: 90px;
-  width: 90px;
+  min-width: 80px;
+  width: 80px;
 }
 
 
@@ -402,15 +402,15 @@ th {
 
 .bar-wrapper {
   position: relative;
-  height: 14px;
+  height: 16px;
   min-width: 0; /* timeline width handled by inline style on bar */
 }
 
 /* Full task span */
 .bar {
   position: relative;
-  height: 12px;
-  border-radius: 6px;
+  height: 10px;
+  border-radius: 5px;
   background: #d1e4ff;   /* lighter background for total duration */
   overflow: hidden;       /* hide progress overflow */
 }

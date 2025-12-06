@@ -1,4 +1,5 @@
 // wbs/static/wbs/gantt.js
+// Requires: shared-theme.js (for getCSRFToken)
 
 document.addEventListener("DOMContentLoaded", function () {
   /* ------------------------------------------------------------
@@ -14,16 +15,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const setDatesEndpoint = "/gantt/set-dates/";
   const optimizeEndpoint = "/gantt/optimize/";
 
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-  }
-  const csrfToken =
-    getCookie("csrftoken") ||
-    document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
-    "";
+  // CSRF token from shared-theme.js
+  const csrfToken = getCSRFToken();
 
   rows.forEach(row => {
     const code = row.dataset.code;
@@ -740,35 +733,6 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ------------------------------------------------------------
      Theme toggle (light / dark) with localStorage persistence
      ------------------------------------------------------------ */
-  const themeToggleBtn = document.getElementById("toggle-theme");
-  const THEME_KEY = "ganttTheme";
-
-  function applyTheme(mode) {
-    const isDark = mode === "dark";
-    document.body.classList.toggle("theme-dark", isDark);
-    if (themeToggleBtn) {
-      themeToggleBtn.textContent = isDark ? "Light Mode" : "Dark Mode";
-    }
-  }
-
-  const savedTheme = (() => {
-    try {
-      return localStorage.getItem(THEME_KEY);
-    } catch (e) {
-      return null;
-    }
-  })();
-  applyTheme(savedTheme === "light" ? "light" : "dark");
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener("click", () => {
-      const next = document.body.classList.contains("theme-dark") ? "light" : "dark";
-      applyTheme(next);
-      try {
-        localStorage.setItem(THEME_KEY, next);
-      } catch (_) {
-        /* ignore storage failures */
-      }
-    });
-  }
+  // Uses initializeThemeToggle() from shared-theme.js
+  initializeThemeToggle("toggle-theme", "ganttTheme", "dark");
 });

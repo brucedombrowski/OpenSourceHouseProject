@@ -3,6 +3,11 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from wbs.models import TaskDependency
+from wbs.export_utils import (
+    validate_output_path,
+    write_csv,
+    DEPENDENCY_EXPORT_FIELDS,
+)
 
 
 class Command(BaseCommand):
@@ -16,34 +21,20 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        output_path = Path(options["output_path"])
-
-        if output_path.parent and not output_path.parent.exists():
-            raise CommandError(f"Directory does not exist: {output_path.parent}")
-
-        fieldnames = [
-            "predecessor_code",
-            "successor_code",
-            "dependency_type",
-            "lag_days",
-            "notes",
-        ]
+        output_path = validate_output_path(options["output_path"])
 
         qs = TaskDependency.objects.select_related("predecessor", "successor")
 
-        with output_path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
+        rows = []
+        for dep in qs:
+            rows.append({
+                "predecessor_code": dep.predecessor.code,
+                "successor_code": dep.successor.code,
+                "dependency_type": dep.dependency_type,
+                "lag_days": dep.lag_days,
+                "notes": dep.notes or "",
+            })
 
-            for dep in qs:
-                writer.writerow(
-                    {
-                        "predecessor_code": dep.predecessor.code,
-                        "successor_code": dep.successor.code,
-                        "dependency_type": dep.dependency_type,
-                        "lag_days": dep.lag_days,
-                        "notes": dep.notes or "",
-                    }
-                )
+        write_csv(output_path, DEPENDENCY_EXPORT_FIELDS, rows)
 
         self.stdout.write(self.style.SUCCESS(f"Exported dependencies to {output_path}"))

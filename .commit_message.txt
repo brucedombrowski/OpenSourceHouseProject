@@ -1,0 +1,23 @@
+Refactor: Extract shared theme, fetch utils, and CSV export utilities for DRY principles
+
+- Create wbs/static/wbs/shared-theme.js: Centralized theme toggle, CSRF retrieval, persistence
+  - getCSRFToken(): Unified CSRF token retrieval (eliminates 2 duplicates)
+  - applyTheme(): Consistent theme application logic
+  - initializeThemeToggle(): One-liner theme initialization with localStorage
+
+- Create wbs/static/wbs/fetch-utils.js: Standardized fetch error handling
+  - fetchWithErrorHandling(): Generic wrapper with CSRF injection, error parsing
+  - postJSON(): Convenience helper for JSON POST requests
+
+- Create wbs/export_utils.py: CSV export utility consolidation
+  - validate_output_path(), format_date(), write_csv()
+  - Constants: WBS_EXPORT_FIELDS, DEPENDENCY_EXPORT_FIELDS
+
+- Refactor templates to use shared-theme.js:
+  - gantt.html, kanban.html, project_item_list.html (~90 lines saved)
+
+- Refactor export commands to use export_utils.py:
+  - export_wbs_csv.py, export_dependencies_csv.py (~50 lines saved)
+
+Impact: ~150 lines of duplication removed. All templates now consistent.
+Updated project_tracker.csv with refactor tasks 73-75 marked completed.
