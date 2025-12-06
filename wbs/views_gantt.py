@@ -160,11 +160,19 @@ def gantt_chart(request):
 
     incoming = {}  # succ_code -> [pred_codes]
     outgoing = {}  # pred_code -> [succ_codes]
+    outgoing_meta = {}  # pred_code -> list of dicts {code, type, lag}
     for dep in deps:
         pred_code = dep.predecessor.code
         succ_code = dep.successor.code
         outgoing.setdefault(pred_code, []).append(succ_code)
         incoming.setdefault(succ_code, []).append(pred_code)
+        outgoing_meta.setdefault(pred_code, []).append(
+            {
+                "code": succ_code,
+                "type": getattr(dep, "dependency_type", TaskDependency.FS),
+                "lag": getattr(dep, "lag_days", 0),
+            }
+        )
 
     # ---- Annotate each task with bar offsets, indentation, flags ----
     for t in tasks:
@@ -199,6 +207,7 @@ def gantt_chart(request):
         t.matches_filter = item_matches_filters(t)
         t.predecessor_codes = incoming.get(t.code, [])
         t.successor_codes = outgoing.get(t.code, [])
+        t.successor_meta = outgoing_meta.get(t.code, [])
 
     # ---- Build Year, Month, Day structures for the 3-level timeline ----
 
@@ -532,19 +541,27 @@ def gantt_optimize_schedule(request):
         # Parent constraint: start no earlier than parent start
         parent = task.parent
         parent_start = parent.planned_start if parent and parent.planned_start else None
-        earliest_candidates = []
+        
+        # Build earliest start: prioritize predecessor constraints, then parent constraint
+        earliest = None
         if pred_earliest:
-            earliest_candidates.append(pred_earliest)
-        if task.planned_start:
-            earliest_candidates.append(task.planned_start)
+            # If there are predecessors, use their calculated earliest
+            # (don't include current task.planned_start to allow slack removal)
+            earliest = pred_earliest
+        
         if parent_start:
-            earliest_candidates.append(parent_start)
-        if root_start:
-            earliest_candidates.append(root_start)
-
-        earliest = max(earliest_candidates) if earliest_candidates else None
-        if earliest and parent_start:
-            earliest = max(earliest, parent_start)
+            # Parent constraint: cannot start before parent
+            if earliest:
+                earliest = max(earliest, parent_start)
+            else:
+                earliest = parent_start
+        
+        if root_start and not pred_earliest:
+            # Only apply root start if no predecessors (root drives the schedule otherwise)
+            if earliest:
+                earliest = max(earliest, root_start)
+            else:
+                earliest = root_start
 
         if not earliest:
             # fallback to today for tasks without dates

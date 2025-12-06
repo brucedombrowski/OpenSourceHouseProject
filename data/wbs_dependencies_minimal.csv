@@ -1,5 +1,6 @@
 predecessor_code,successor_code,dependency_type,lag_days,notes
-1,2,FS,0,
-2,3,FS,0,
-3,4,FS,0,
-4,5,FS,0,
+1,2,FS,0,Finish-to-Start chain
+1,3,SS,0,Start-to-Start example
+2,4,FF,0,Finish-to-Finish example
+3,5,SF,0,Start-to-Finish example
+4,5,FS,1,Lag example (1 day)

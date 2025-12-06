@@ -100,6 +100,22 @@
       </div>
     </form>
   </div>
+  <div class="gantt-legend">
+    <strong>Dependency types:</strong>
+    <span class="legend-item">
+      <span class="legend-swatch dep-type-fs"></span> FS
+    </span>
+    <span class="legend-item">
+      <span class="legend-swatch dep-type-ss"></span> SS
+    </span>
+    <span class="legend-item">
+      <span class="legend-swatch dep-type-ff"></span> FF
+    </span>
+    <span class="legend-item">
+      <span class="legend-swatch dep-type-sf"></span> SF
+    </span>
+    <span class="legend-item">Lag label shown when lag ≠ 0</span>
+  </div>
 
   <div class="gantt-container">
     <div class="gantt-layout">
@@ -172,6 +188,7 @@
                     data-parent-code="{% if item.parent %}{{ item.parent.code }}{% endif %}"
                     data-predecessors="{{ item.predecessor_codes|join:',' }}"
                     data-successors="{{ item.successor_codes|join:',' }}"
+                    data-successor-meta="{% for link in item.successor_meta %}{{ link.code }}:{{ link.type }}:{% firstof link.lag 0 %}|{% endfor %}"
                     data-level="{{ item.level }}"
                     data-wbs-name="{{ item.name }}">
                   <td class="col-code">{{ item.code }}</td>

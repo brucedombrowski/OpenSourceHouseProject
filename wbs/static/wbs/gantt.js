@@ -208,13 +208,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const scrollRect = scrollElement.getBoundingClientRect();
-    const visibleHeight = scrollRect.height;
-    const visibleWidth = scrollRect.width;
+    const svgWidth = scrollElement.scrollWidth;
+    const svgHeight = scrollElement.scrollHeight;
 
-    depSvg.setAttribute("width", visibleWidth);
-    depSvg.setAttribute("height", visibleHeight);
-    depSvg.style.width = `${visibleWidth}px`;
-    depSvg.style.height = `${visibleHeight}px`;
+    depSvg.setAttribute("width", svgWidth);
+    depSvg.setAttribute("height", svgHeight);
+    depSvg.style.width = `${svgWidth}px`;
+    depSvg.style.height = `${svgHeight}px`;
 
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
@@ -237,6 +237,13 @@ document.addEventListener("DOMContentLoaded", function () {
       if (row.style.display === "none") return;
       const code = row.dataset.code;
       const succs = (row.dataset.successors || "").split(",").filter(Boolean);
+      const succLinksRaw = (row.dataset.successorMeta || "").split("|").filter(Boolean);
+      const succLinks = succLinksRaw.map(s => {
+        const parts = s.split(":");
+        return { code: parts[0], type: parts[1] || "FS", lag: parseInt(parts[2] || "0", 10) || 0 };
+      });
+      const succByCode = {};
+      succLinks.forEach(link => { succByCode[link.code] = link; });
       const predBar = row.querySelector(".bar");
       if (!predBar) return;
       const predRect = predBar.getBoundingClientRect();
@@ -252,10 +259,39 @@ document.addEventListener("DOMContentLoaded", function () {
         if (predRect.bottom < scrollRect.top && succRect.bottom < scrollRect.top) return;
         if (predRect.top > scrollRect.bottom && succRect.top > scrollRect.bottom) return;
 
-        const y1 = predRect.top - scrollRect.top + predRect.height / 2;
-        const y2 = succRect.top - scrollRect.top + succRect.height / 2;
-        const x1 = predRect.right - scrollRect.left;
-        const x2 = succRect.left - scrollRect.left;
+        const linkMeta = succByCode[succCode] || { type: "FS", lag: 0 };
+        const depType = (linkMeta.type || "FS").toUpperCase();
+        const depColor = {
+          FS: "#42c778",
+          SS: "#4da3ff",
+          FF: "#f39c12",
+          SF: "#e56bff",
+        };
+
+        const y1 = predRect.top - scrollRect.top + predRect.height / 2 + scrollElement.scrollTop;
+        const y2 = succRect.top - scrollRect.top + succRect.height / 2 + scrollElement.scrollTop;
+        let x1, x2;
+
+        // Anchor points based on dependency type
+        switch (depType) {
+          case "SS":
+            x1 = predRect.left - scrollRect.left + scrollElement.scrollLeft;
+            x2 = succRect.left - scrollRect.left + scrollElement.scrollLeft;
+            break;
+          case "FF":
+            x1 = predRect.right - scrollRect.left + scrollElement.scrollLeft;
+            x2 = succRect.right - scrollRect.left + scrollElement.scrollLeft;
+            break;
+          case "SF":
+            x1 = predRect.left - scrollRect.left + scrollElement.scrollLeft;
+            x2 = succRect.right - scrollRect.left + scrollElement.scrollLeft;
+            break;
+          case "FS":
+          default:
+            x1 = predRect.right - scrollRect.left + scrollElement.scrollLeft;
+            x2 = succRect.left - scrollRect.left + scrollElement.scrollLeft;
+            break;
+        }
 
         // Draw a smooth path from pred end to succ start
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -263,15 +299,26 @@ document.addEventListener("DOMContentLoaded", function () {
         const d = `M ${x1} ${y1} C ${midX} ${y1}, ${x2 - 12} ${y2}, ${x2} ${y2}`;
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "#42c778");
-        path.setAttribute("stroke-width", "1.6");
-        path.setAttribute("opacity", "0.6");
+        path.setAttribute("stroke", depColor[depType] || "#42c778");
+        path.setAttribute("stroke-width", "1.4");
+        path.setAttribute("opacity", "0.8");
         path.setAttribute("marker-end", "url(#arrowhead)");
-        path.setAttribute("class", "dependency-arrow");
+        path.setAttribute("class", `dependency-arrow dep-type-${depType.toLowerCase()}`);
         path.setAttribute("data-pred", code);
         path.setAttribute("data-succ", succCode);
 
         depSvg.appendChild(path);
+
+        if (linkMeta.lag && linkMeta.lag !== 0) {
+          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          const labelX = x1 + (x2 - x1) * 0.6;
+          const labelY = y1 + (y2 - y1) * 0.4;
+          text.setAttribute("x", labelX);
+          text.setAttribute("y", labelY);
+          text.setAttribute("class", "dep-lag");
+          text.textContent = `+${linkMeta.lag}d`;
+          depSvg.appendChild(text);
+        }
       });
     });
   }
@@ -711,7 +758,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return null;
     }
   })();
-  applyTheme(savedTheme === "dark" ? "dark" : "light");
+  applyTheme(savedTheme === "light" ? "light" : "dark");
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
