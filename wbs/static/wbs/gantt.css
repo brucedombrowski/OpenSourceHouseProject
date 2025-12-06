@@ -234,6 +234,8 @@ body {
   max-height: 70vh;
   overflow: auto; /* both horizontal and vertical */
   position: relative;
+  isolation: isolate; /* keep overlays/timeline from sitting above stickies */
+  background: #fff;
 }
 
 /* Dependency arrow visualization overlay */
@@ -304,7 +306,7 @@ th {
 .col-code {
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 30;
   background: #fff;
   min-width: 80px;
   width: 80px;
@@ -313,7 +315,7 @@ th {
 .col-task {
   position: sticky;
   left: 80px;
-  z-index: 10;
+  z-index: 30;
   background: #fff;
   min-width: 240px;
   width: 240px;
@@ -322,7 +324,7 @@ th {
 .col-start {
   position: sticky;
   left: 320px; /* 80 + 240 */
-  z-index: 10;
+  z-index: 30;
   background: #fff;
   min-width: 120px;
   width: 120px;
@@ -332,7 +334,7 @@ th {
 .col-end {
   position: sticky;
   left: 440px; /* 80 + 240 + 120 */
-  z-index: 10;
+  z-index: 30;
   background: #fff;
   min-width: 120px;
   width: 120px;
@@ -343,7 +345,7 @@ th {
 .header-cols-row th:nth-child(5) {
   position: sticky;
   left: 560px; /* 80+240+120+120 */
-  z-index: 10;
+  z-index: 25;
   background: #fff;
   min-width: 80px;
   width: 80px;
@@ -593,6 +595,10 @@ body.theme-dark {
 body.theme-dark .gantt-container {
   background: #0f172a;
   box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+
+body.theme-dark .gantt-scroll {
+  background: #0f172a;
 }
 
 body.theme-dark .gantt-header h1,
