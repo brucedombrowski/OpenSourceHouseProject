@@ -198,7 +198,8 @@ class ProjectItemAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("wbs_item", "tags")
     readonly_fields = ("created_at", "updated_at")
-    list_select_related = ("wbs_item",)
+    list_select_related = ("wbs_item", "owner")
+    list_prefetch_related = ("tags",)
 
     def wbs_link(self, obj):
         if not obj.wbs_item:
