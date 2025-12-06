@@ -1,13 +1,22 @@
 // wbs/static/wbs/gantt.js
 // Requires: shared-theme.js (for getCSRFToken)
+import {
+  addDays,
+  buildRowIndex,
+  daysBetween,
+  getDescendants,
+  isAnyAncestorCollapsed,
+  parseDate,
+} from "./gantt-utils.js";
+import { createArrowDrawer } from "./gantt-arrows.js";
+import { initExpandCollapse } from "./gantt-expand.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   /* ------------------------------------------------------------
      Build lookup tables
   ------------------------------------------------------------ */
   const rows = Array.from(document.querySelectorAll("tbody tr.gantt-row"));
-  const rowsByCode = {};
-  const parentByCode = {};
+  const { rowsByCode, parentByCode } = buildRowIndex(rows);
   const ganttRoot = document.getElementById("gantt-root");
   const pxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || "4") : 4;
   const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
@@ -28,39 +37,6 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ------------------------------------------------------------
      Helpers
   ------------------------------------------------------------ */
-  function getDescendants(code) {
-    const prefix = code + ".";
-    return rows.filter(r => r.dataset.code.startsWith(prefix));
-  }
-
-  function isAnyAncestorCollapsed(code) {
-    let current = parentByCode[code];
-    while (current) {
-      const row = rowsByCode[current];
-      if (!row) break;
-      const exp = row.querySelector(".expander[data-has-children='true']");
-      if (exp && exp.dataset.expanded === "false") {
-        return true;
-      }
-      current = parentByCode[current] || "";
-    }
-    return false;
-  }
-
-  function daysBetween(a, b) {
-    const diffMs = b.getTime() - a.getTime();
-    return Math.round(diffMs / (1000 * 60 * 60 * 24));
-  }
-
-  function addDays(d, n) {
-    const copy = new Date(d.getTime());
-    copy.setDate(copy.getDate() + n);
-    return copy;
-  }
-
-  function parseDate(val) {
-    return val ? new Date(val + "T00:00:00") : null;
-  }
 
   function earliestAllowedStart(row) {
     const preds = (row.dataset.predecessors || "").split(",").filter(Boolean);
@@ -103,305 +79,22 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
     /* ------------------------------------------------------------
-      Expand/collapse helpers
+       Dependency arrows and highlighting (module)
     ------------------------------------------------------------ */
-    const redrawArrowsAsync = () => requestAnimationFrame(drawDependencyArrows);
+    const depSvg = document.getElementById("dependency-svg");
+    const scrollElement = document.querySelector(".gantt-scroll");
+    const { drawDependencyArrows, clearHighlights, highlightDependencies } =
+      createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
+
+    initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
+
+    setTimeout(drawDependencyArrows, 50);
+    if (scrollElement) {
+      scrollElement.addEventListener("scroll", drawDependencyArrows);
+    }
+    window.addEventListener("resize", drawDependencyArrows);
 
     /* ------------------------------------------------------------
-      Per-row expand/collapse
-    ------------------------------------------------------------ */
-  document
-    .querySelectorAll(".expander[data-has-children='true']")
-    .forEach(exp => {
-      const row = exp.closest("tr.gantt-row");
-      const code = row.dataset.code;
-
-      exp.addEventListener("click", (event) => {
-        // Don't trigger row click selection when toggling
-        event.stopPropagation();
-
-        const currentlyExpanded = exp.dataset.expanded === "true";
-        const newExpanded = !currentlyExpanded;
-
-        exp.dataset.expanded = newExpanded ? "true" : "false";
-        exp.textContent = newExpanded ? "▾" : "▸";
-
-        const descendants = getDescendants(code);
-
-        if (!newExpanded) {
-          // collapsing
-          descendants.forEach(r => {
-            r.style.display = "none";
-          });
-        } else {
-          // expanding
-          descendants.forEach(r => {
-            if (!isAnyAncestorCollapsed(r.dataset.code)) {
-              r.style.display = "";
-            }
-          });
-        }
-
-        redrawArrowsAsync();
-      });
-    });
-
-  /* ------------------------------------------------------------
-     Expand All / Collapse All
-  ------------------------------------------------------------ */
-  const expandAllBtn = document.getElementById("expand-all");
-  const collapseAllBtn = document.getElementById("collapse-all");
-
-  if (expandAllBtn) {
-    expandAllBtn.addEventListener("click", () => {
-      // expand all expander icons
-      document
-        .querySelectorAll(".expander[data-has-children='true']")
-        .forEach(exp => {
-          exp.dataset.expanded = "true";
-          exp.textContent = "▾";
-        });
-
-      // show all rows
-      rows.forEach(row => {
-        row.style.display = "";
-      });
-
-      redrawArrowsAsync();
-    });
-  }
-
-  if (collapseAllBtn) {
-    collapseAllBtn.addEventListener("click", () => {
-      // collapse all expander icons
-      document
-        .querySelectorAll(".expander[data-has-children='true']")
-        .forEach(exp => {
-          exp.dataset.expanded = "false";
-          exp.textContent = "▸";
-        });
-
-      // hide all children
-      rows.forEach(row => {
-        const parentCode = row.dataset.parentCode || "";
-        row.style.display = parentCode ? "none" : "";
-      });
-
-      redrawArrowsAsync();
-    });
-  }
-
-  /* ------------------------------------------------------------
-     Dependency arrow visualization (simplified)
-  ------------------------------------------------------------ */
-  const depSvg = document.getElementById("dependency-svg");
-  const scrollElement = document.querySelector(".gantt-scroll");
-
-  function drawDependencyArrows() {
-    if (!depSvg || !scrollElement) return;
-
-    // Clear existing arrows
-    while (depSvg.firstChild) {
-      depSvg.removeChild(depSvg.firstChild);
-    }
-
-    const scrollRect = scrollElement.getBoundingClientRect();
-    const svgWidth = scrollElement.scrollWidth;
-    const svgHeight = scrollElement.scrollHeight;
-
-    depSvg.setAttribute("width", svgWidth);
-    depSvg.setAttribute("height", svgHeight);
-    depSvg.style.width = `${svgWidth}px`;
-    depSvg.style.height = `${svgHeight}px`;
-
-    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
-    marker.setAttribute("id", "arrowhead");
-    marker.setAttribute("markerWidth", "8");
-    marker.setAttribute("markerHeight", "8");
-    marker.setAttribute("refX", "7");
-    marker.setAttribute("refY", "3");
-    marker.setAttribute("orient", "auto");
-    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    polygon.setAttribute("points", "0 0, 8 3, 0 6");
-    polygon.setAttribute("fill", "#42c778");
-    marker.appendChild(polygon);
-    defs.appendChild(marker);
-    depSvg.appendChild(defs);
-
-    // Draw arrows for each dependency (anchor to bars)
-    rows.forEach(row => {
-      // Skip collapsed/hidden rows
-      if (row.style.display === "none") return;
-      const code = row.dataset.code;
-      const succs = (row.dataset.successors || "").split(",").filter(Boolean);
-      const succLinksRaw = (row.dataset.successorMeta || "").split("|").filter(Boolean);
-      const succLinks = succLinksRaw.map(s => {
-        const parts = s.split(":");
-        return { code: parts[0], type: parts[1] || "FS", lag: parseInt(parts[2] || "0", 10) || 0 };
-      });
-      const succByCode = {};
-      succLinks.forEach(link => { succByCode[link.code] = link; });
-      const predBar = row.querySelector(".bar");
-      if (!predBar) return;
-      const predRect = predBar.getBoundingClientRect();
-
-      succs.forEach(succCode => {
-        const succRow = rowsByCode[succCode];
-        if (!succRow) return;
-        const succBar = succRow.querySelector(".bar");
-        if (!succBar) return;
-        const succRect = succBar.getBoundingClientRect();
-
-        // Skip if both bars are out of view vertically
-        if (predRect.bottom < scrollRect.top && succRect.bottom < scrollRect.top) return;
-        if (predRect.top > scrollRect.bottom && succRect.top > scrollRect.bottom) return;
-
-        const linkMeta = succByCode[succCode] || { type: "FS", lag: 0 };
-        const depType = (linkMeta.type || "FS").toUpperCase();
-        const depColor = {
-          FS: "#42c778",
-          SS: "#4da3ff",
-          FF: "#f39c12",
-          SF: "#e56bff",
-        };
-
-        const y1 = predRect.top - scrollRect.top + predRect.height / 2 + scrollElement.scrollTop;
-        const y2 = succRect.top - scrollRect.top + succRect.height / 2 + scrollElement.scrollTop;
-        let x1, x2;
-
-        // Anchor points based on dependency type
-        switch (depType) {
-          case "SS":
-            x1 = predRect.left - scrollRect.left + scrollElement.scrollLeft;
-            x2 = succRect.left - scrollRect.left + scrollElement.scrollLeft;
-            break;
-          case "FF":
-            x1 = predRect.right - scrollRect.left + scrollElement.scrollLeft;
-            x2 = succRect.right - scrollRect.left + scrollElement.scrollLeft;
-            break;
-          case "SF":
-            x1 = predRect.left - scrollRect.left + scrollElement.scrollLeft;
-            x2 = succRect.right - scrollRect.left + scrollElement.scrollLeft;
-            break;
-          case "FS":
-          default:
-            x1 = predRect.right - scrollRect.left + scrollElement.scrollLeft;
-            x2 = succRect.left - scrollRect.left + scrollElement.scrollLeft;
-            break;
-        }
-
-        // Draw a smooth path from pred end to succ start
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        const midX = x1 + Math.max(12, (x2 - x1) * 0.35);
-        const d = `M ${x1} ${y1} C ${midX} ${y1}, ${x2 - 12} ${y2}, ${x2} ${y2}`;
-        path.setAttribute("d", d);
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", depColor[depType] || "#42c778");
-        path.setAttribute("stroke-width", "1.4");
-        path.setAttribute("opacity", "0.8");
-        path.setAttribute("marker-end", "url(#arrowhead)");
-        path.setAttribute("class", `dependency-arrow dep-type-${depType.toLowerCase()}`);
-        path.setAttribute("data-pred", code);
-        path.setAttribute("data-succ", succCode);
-
-        depSvg.appendChild(path);
-
-        if (linkMeta.lag && linkMeta.lag !== 0) {
-          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          const labelX = x1 + (x2 - x1) * 0.6;
-          const labelY = y1 + (y2 - y1) * 0.4;
-          text.setAttribute("x", labelX);
-          text.setAttribute("y", labelY);
-          text.setAttribute("class", "dep-lag");
-          text.textContent = `+${linkMeta.lag}d`;
-          depSvg.appendChild(text);
-        }
-      });
-    });
-  }
-
-  // Draw on load with delay
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(drawDependencyArrows, 50);
-    });
-  } else {
-    setTimeout(drawDependencyArrows, 50);
-  }
-
-  // Redraw on scroll
-  if (scrollElement) {
-    scrollElement.addEventListener("scroll", drawDependencyArrows);
-  }
-
-  // Redraw on window resize
-  window.addEventListener("resize", drawDependencyArrows);
-
-  /* ------------------------------------------------------------
-     Hover highlighting for dependencies
-  ------------------------------------------------------------ */
-  function clearHighlights() {
-    rows.forEach(r => {
-      r.classList.remove("highlight-row");
-      const bar = r.querySelector(".bar");
-      if (bar) {
-        bar.classList.remove("highlight-bar");
-      }
-    });
-
-    // Clear arrow highlighting
-    if (depSvg) {
-      const arrows = depSvg.querySelectorAll(".dependency-arrow");
-      arrows.forEach(a => {
-        a.setAttribute("opacity", "0.5");
-        a.setAttribute("stroke-width", "2");
-      });
-    }
-  }
-
-  function highlightDependencies(code) {
-    clearHighlights();
-
-    const preds = (rowsByCode[code]?.dataset.predecessors || "")
-      .split(",")
-      .filter(Boolean);
-    const succs = (rowsByCode[code]?.dataset.successors || "")
-      .split(",")
-      .filter(Boolean);
-
-    const allCodes = new Set();
-    if (code) allCodes.add(code);
-    preds.forEach(c => allCodes.add(c));
-    succs.forEach(c => allCodes.add(c));
-
-    allCodes.forEach(c => {
-      const r = rowsByCode[c];
-      if (!r) return;
-      r.classList.add("highlight-row");
-      const bar = r.querySelector(".bar");
-      if (bar) {
-        bar.classList.add("highlight-bar");
-      }
-    });
-
-    // Highlight related arrows
-    if (depSvg) {
-      const arrows = depSvg.querySelectorAll(".dependency-arrow");
-      arrows.forEach(a => {
-        const pred = a.getAttribute("data-pred");
-        const succ = a.getAttribute("data-succ");
-        const isRelated = pred === code || succ === code || preds.includes(pred) || succs.includes(succ);
-
-        if (isRelated) {
-          a.setAttribute("opacity", "1");
-          a.setAttribute("stroke-width", "3");
-        }
-      });
-    }
-  }
-
-  /* ------------------------------------------------------------
      Side panel: click row → show ProjectItems
   ------------------------------------------------------------ */
   const panel = document.getElementById("project-detail-panel");
