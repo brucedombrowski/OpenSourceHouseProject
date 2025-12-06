@@ -102,9 +102,14 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  /* ------------------------------------------------------------
-     Per-row expand/collapse
-  ------------------------------------------------------------ */
+    /* ------------------------------------------------------------
+      Expand/collapse helpers
+    ------------------------------------------------------------ */
+    const redrawArrowsAsync = () => requestAnimationFrame(drawDependencyArrows);
+
+    /* ------------------------------------------------------------
+      Per-row expand/collapse
+    ------------------------------------------------------------ */
   document
     .querySelectorAll(".expander[data-has-children='true']")
     .forEach(exp => {
@@ -137,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
           });
         }
 
-        drawDependencyArrows();
+        redrawArrowsAsync();
       });
     });
 
@@ -162,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
         row.style.display = "";
       });
 
-      drawDependencyArrows();
+      redrawArrowsAsync();
     });
   }
 
@@ -182,7 +187,7 @@ document.addEventListener("DOMContentLoaded", function () {
         row.style.display = parentCode ? "none" : "";
       });
 
-      drawDependencyArrows();
+      redrawArrowsAsync();
     });
   }
 

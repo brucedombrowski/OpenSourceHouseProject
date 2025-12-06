@@ -37,7 +37,8 @@ class ProjectItemInline(admin.TabularInline):
 @admin.register(WbsItem)
 class WbsItemAdmin(DraggableMPTTAdmin):
     mptt_indent_field = "wbs_label"
-    ordering = ("sort_key",)
+    # Use MPTT natural tree order so draggable reordering works correctly
+    ordering = ("tree_id", "lft")
 
     # Attach inline project items
     inlines = [ProjectItemInline]
