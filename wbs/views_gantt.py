@@ -39,6 +39,7 @@ def gantt_chart(request):
     selected_statuses = request.GET.getlist("status")
     selected_priorities = request.GET.getlist("priority")
     selected_severities = request.GET.getlist("severity")
+    selected_owners = request.GET.getlist("owner")
 
     # ---- Base queryset: tasks with dates + prefetch ProjectItems ----
     qs = (
@@ -76,6 +77,16 @@ def gantt_chart(request):
 
     # ---- No-data case ----
     if not tasks:
+        # Get all possible owners for filter UI (all owners in the system)
+        all_owners = sorted(
+            list(
+                set(
+                    ProjectItem.objects.filter(owner__isnull=False)
+                    .values_list("owner", flat=True)
+                    .distinct()
+                )
+            )
+        )
         context = {
             "tasks": [],
             "min_start": None,
@@ -92,11 +103,13 @@ def gantt_chart(request):
             "selected_statuses": selected_statuses,
             "selected_priorities": selected_priorities,
             "selected_severities": selected_severities,
+            "selected_owners": selected_owners,
             # Choices for building the filter form
             "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
             "projectitem_status_choices": ProjectItem.STATUS_CHOICES,
             "projectitem_priority_choices": ProjectItem.PRIORITY_CHOICES,
             "projectitem_severity_choices": ProjectItem.SEVERITY_CHOICES,
+            "all_owners": all_owners,
         }
         return render(request, "wbs/gantt.html", context)
 
@@ -125,12 +138,18 @@ def gantt_chart(request):
             return False
 
         # If no specific ProjectItem filters are selected:
-        if not (selected_types or selected_statuses or selected_priorities or selected_severities):
+        if not (
+            selected_types
+            or selected_statuses
+            or selected_priorities
+            or selected_severities
+            or selected_owners
+        ):
             # Match everything (subject to has_items_only above)
             return True
 
         if not project_items:
-            # No items to satisfy type/status/priority/severity filters
+            # No items to satisfy type/status/priority/severity/owner filters
             return False
 
         # Type filter
@@ -151,6 +170,10 @@ def gantt_chart(request):
         if selected_severities and not any(
             pi.severity in selected_severities for pi in project_items
         ):
+            return False
+
+        # Owner filter (empty owner "" is treated as unassigned)
+        if selected_owners and not any((pi.owner or "") in selected_owners for pi in project_items):
             return False
 
         return True
@@ -290,6 +313,14 @@ def gantt_chart(request):
         )
         day_cursor += timedelta(days=7)
 
+    # ---- Collect all unique owners from linked ProjectItems for filter UI ----
+    all_owners = set()
+    for t in tasks:
+        for pi in t.project_items.all():
+            if pi.owner:
+                all_owners.add(pi.owner)
+    all_owners = sorted(list(all_owners))
+
     context = {
         "tasks": tasks,
         "min_start": min_start,
@@ -307,11 +338,13 @@ def gantt_chart(request):
         "selected_statuses": selected_statuses,
         "selected_priorities": selected_priorities,
         "selected_severities": selected_severities,
+        "selected_owners": selected_owners,
         # Choices for building the filter form
         "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
         "projectitem_status_choices": ProjectItem.STATUS_CHOICES,
         "projectitem_priority_choices": ProjectItem.PRIORITY_CHOICES,
         "projectitem_severity_choices": ProjectItem.SEVERITY_CHOICES,
+        "all_owners": all_owners,
     }
     return render(request, "wbs/gantt.html", context)
 

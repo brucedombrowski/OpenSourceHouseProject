@@ -203,6 +203,13 @@
                 </div>
             </div>
             <div>
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Owner (Resource)</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label><input type="checkbox" name="filter-owner" value="owner-unassigned"> Unassigned</label>
+                    <label><input type="checkbox" name="filter-owner" value="owner-any"> (any with owner)</label>
+                </div>
+            </div>
+            <div>
                 <button id="apply-filters" class="btn-link" style="cursor:pointer; margin-top: 20px;">Apply</button>
                 <button id="clear-filters" class="btn-link" style="cursor:pointer; margin-top: 20px; margin-left: 8px;">Clear</button>
             </div>
@@ -220,7 +227,7 @@
                 <div class="column-body">
                     {% if column.items %}
                         {% for item in column.items %}
-                            <div class="card" draggable="true" data-id="{{ item.id }}">
+                            <div class="card" draggable="true" data-id="{{ item.id }}" data-type="{{ item.type }}" data-priority="{{ item.priority }}" data-status="{{ item.status }}" data-owner="{{ item.owner|default:'' }}">
                                 <div class="wbs">
                                     {% if item.wbs_item %}
                                         {{ item.wbs_item.code }} — {{ item.wbs_item.name }}
@@ -235,6 +242,11 @@
                                 <div class="meta">
                                     <span class="priority {{ item.priority }}">{{ item.get_priority_display }}</span>
                                     <span class="pill">{{ item.get_type_display }}</span>
+                                    {% if item.owner %}
+                                        <span class="pill" style="background: rgba(168,85,247,0.2); border-color: rgba(168,85,247,0.4); color: #a855f7;">👤 {{ item.owner }}</span>
+                                    {% else %}
+                                        <span class="pill" style="color: var(--muted);">No owner</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
@@ -276,7 +288,7 @@
             }
 
             function getActiveFilters() {
-                const filters = { type: [], priority: [], status: [] };
+                const filters = { type: [], priority: [], status: [], owner: [] };
                 document.querySelectorAll('input[name^="filter-"]:checked').forEach(cb => {
                     const key = cb.name.replace('filter-', '');
                     if (filters.hasOwnProperty(key)) {
@@ -287,18 +299,37 @@
             }
 
             function cardMatchesFilters(card, filters) {
-                if (!filters.type.length && !filters.priority.length && !filters.status.length) {
+                if (!filters.type.length && !filters.priority.length && !filters.status.length && !filters.owner.length) {
                     return true;
                 }
                 const type = card.dataset.type || '';
                 const priority = card.dataset.priority || '';
                 const status = card.closest('.column')?.dataset.status || '';
+                const owner = card.dataset.owner || '';
 
                 const typeMatch = !filters.type.length || filters.type.includes(type);
                 const priorityMatch = !filters.priority.length || filters.priority.includes(priority);
                 const statusMatch = !filters.status.length || filters.status.includes(status);
 
-                return typeMatch && priorityMatch && statusMatch;
+                // Owner filter special handling
+                let ownerMatch = true;
+                if (filters.owner.length) {
+                    const hasUnassignedFilter = filters.owner.includes('owner-unassigned');
+                    const hasAnyOwnerFilter = filters.owner.includes('owner-any');
+
+                    if (hasUnassignedFilter && hasAnyOwnerFilter) {
+                        // Both checked: show all
+                        ownerMatch = true;
+                    } else if (hasUnassignedFilter) {
+                        // Only unassigned: show items with no owner
+                        ownerMatch = !owner;
+                    } else if (hasAnyOwnerFilter) {
+                        // Only "any with owner": show items that have an owner
+                        ownerMatch = !!owner;
+                    }
+                }
+
+                return typeMatch && priorityMatch && statusMatch && ownerMatch;
             }
 
             function applyFilters() {
