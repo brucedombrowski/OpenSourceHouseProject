@@ -21,8 +21,8 @@ python manage.py createsuperuser
 
 # load sample WBS + dependencies (optional seed data)
 # NOTE: createsuperuser is wiped if you delete db.sqlite3; keep the DB after import.
-python manage.py import_wbs_csv wbs_items_template.csv --update
-python manage.py import_dependencies_csv wbs_dependencies_template.csv --update
+python manage.py import_wbs_csv data/wbs_items_template.csv --update
+python manage.py import_dependencies_csv data/wbs_dependencies_template.csv --update
 python manage.py rollup_wbs_dates
 python manage.py rollup_wbs_progress
 
@@ -48,15 +48,13 @@ Features
 Data/imports
 ------------
 Sample templates are provided:
-- `wbs_items_template.csv` (validated 148-row WBS)
-- `wbs_dependencies_template.csv` (generated dependencies aligned to WBS)
+- `data/wbs_items_template.csv` (validated 148-row WBS)
+- `data/wbs_dependencies_template.csv` (generated dependencies aligned to WBS)
 
 Restore from templates:
 ```
-cp wbs_items_template.csv wbs_items.csv
-cp wbs_dependencies_template.csv dependencies.csv
-python manage.py import_wbs_csv wbs_items.csv --update
-python manage.py import_dependencies_csv dependencies.csv --update
+python manage.py import_wbs_csv data/wbs_items_template.csv --update
+python manage.py import_dependencies_csv data/wbs_dependencies_template.csv --update
 python manage.py rollup_wbs_dates
 python manage.py rollup_wbs_progress
 ```
