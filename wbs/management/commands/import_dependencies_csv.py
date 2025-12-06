@@ -24,7 +24,12 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("csv_path", type=str, help="Path to CSV file to import")
+        parser.add_argument(
+            "csv_path",
+            type=str,
+            nargs="?",
+            help="Path to CSV file to import (optional if --minimal)",
+        )
         parser.add_argument(
             "--update",
             action="store_true",
@@ -35,11 +40,28 @@ class Command(BaseCommand):
             action="store_true",
             help="Validate the CSV without writing to the database",
         )
+        parser.add_argument(
+            "--minimal",
+            action="store_true",
+            help="Use minimal fixture (quick testing). Ignores csv_path.",
+        )
 
     def handle(self, *args, **options):
-        csv_path = Path(options["csv_path"])
+        csv_path_arg = options["csv_path"]
+        use_minimal = options.get("minimal", False)
         update_existing = options["update"]
         dry_run = options["dry_run"]
+
+        # Resolve CSV path
+        if use_minimal:
+            csv_path = (
+                Path(__file__).parent.parent.parent.parent / "data" / "wbs_dependencies_minimal.csv"
+            )
+            self.stdout.write(self.style.SUCCESS(f"Using minimal fixture: {csv_path}"))
+        else:
+            if not csv_path_arg:
+                raise CommandError("csv_path required unless --minimal is used")
+            csv_path = Path(csv_path_arg)
 
         if not csv_path.exists():
             raise CommandError(f"CSV file not found: {csv_path}")

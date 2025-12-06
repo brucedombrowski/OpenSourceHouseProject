@@ -73,6 +73,8 @@ Sample templates are provided:
 - `data/wbs_items_template.csv` (validated 148-row WBS)
 - `data/wbs_dependencies_template.csv` (generated dependencies aligned to WBS)
 - `data/project_items_template.csv` (57 diverse project items for testing Kanban/filters)
+- `data/wbs_items_minimal.csv` (5 top-level tasks for quick testing)
+- `data/wbs_dependencies_minimal.csv` (5 dependency relationships: FS, SS, FF, SF, + lag)
 
 Restore from templates:
 ```
@@ -81,6 +83,14 @@ python manage.py import_dependencies_csv data/wbs_dependencies_template.csv --up
 python manage.py import_project_items_csv data/project_items_template.csv --update
 python manage.py rollup_wbs_dates
 python manage.py rollup_wbs_progress
+```
+
+Quick start with minimal fixtures (for testing Gantt arrows/dependencies):
+```
+python manage.py import_wbs_csv --minimal --update
+python manage.py import_dependencies_csv --minimal --update
+python manage.py rollup_wbs_dates
+# Minimal fixture: 5 tasks with FS/SS/FF/SF dependencies and 1-day lag example
 ```
 
 If you have your own CSVs, use the same commands with your filenames.
