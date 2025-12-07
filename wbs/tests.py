@@ -497,7 +497,7 @@ class ListViewTests(TestCase):
         """
         resp = self.client.get(reverse("project_item_list"))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "List View")
+        self.assertContains(resp, "Project Items")
 
     def test_list_view_groups_by_wbs(self):
         """
@@ -687,7 +687,8 @@ class ListViewTests(TestCase):
             )
 
         # Query count should be minimal (not N+1)
-        with self.assertNumQueries(3):  # 1 for items, 1 for annotation, 1 for owner distinct
+        # With select_related, all data is fetched in a single query with JOINs
+        with self.assertNumQueries(1):  # Single query with JOINs for wbs_item and owner
             resp = self.client.get(reverse("project_item_list"))
             self.assertEqual(resp.status_code, 200)
 

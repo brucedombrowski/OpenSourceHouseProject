@@ -321,6 +321,28 @@
             font-size: 16px;
             margin-bottom: 10px;
         }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover {
+            background: var(--panel-accent);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .pagination-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -461,6 +483,33 @@
     {% else %}
         <div class="empty-state">
             <p>No items match your filters.</p>
+        </div>
+    {% endif %}
+
+    <!-- Pagination Controls -->
+    {% if page_obj.has_other_pages %}
+        <div class="pagination-controls" style="margin-top: 24px; display: flex; gap: 12px; justify-content: center; align-items: center;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}" class="pagination-btn">
+                    « First
+                </a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}" class="pagination-btn">
+                    ‹ Previous
+                </a>
+            {% endif %}
+
+            <span class="pagination-info" style="color: var(--muted); padding: 8px 16px;">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}" class="pagination-btn">
+                    Next ›
+                </a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}" class="pagination-btn">
+                    Last »
+                </a>
+            {% endif %}
         </div>
     {% endif %}
 
