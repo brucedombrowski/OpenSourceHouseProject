@@ -34,6 +34,7 @@ from .views_gantt import (
 )
 
 __all__ = [
+    "index",
     "gantt_chart",
     "gantt_view",
     "gantt_shift_task",
@@ -43,6 +44,27 @@ __all__ = [
     "project_item_list",
     "project_item_status_update",
 ]
+
+
+def index(request):
+    """
+    Dashboard landing page with project overview and statistics.
+    """
+    items = ProjectItem.objects.all()
+
+    total_items = items.count()
+    completed_items = items.filter(status="completed").count()
+    in_progress_items = items.filter(status="in_progress").count()
+    not_started_items = items.filter(status="not_started").count()
+
+    context = {
+        "total_items": total_items,
+        "completed_items": completed_items,
+        "in_progress_items": in_progress_items,
+        "not_started_items": not_started_items,
+    }
+
+    return render(request, "index.html", context)
 
 
 @ensure_csrf_cookie

@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - House Project{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .dashboard-hero {
+        background: linear-gradient(135deg, var(--panel-accent) 0%, var(--panel) 100%);
+        border-radius: 12px;
+        padding: 40px;
+        margin-bottom: 40px;
+        text-align: center;
+        border: 1px solid var(--border);
+    }
+
+    .dashboard-hero h1 {
+        font-size: 36px;
+        margin-bottom: 10px;
+        color: var(--text);
+    }
+
+    .dashboard-hero p {
+        font-size: 18px;
+        color: var(--muted);
+        margin-bottom: 30px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .dashboard-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 25px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(91, 141, 239, 0.2);
+        border-color: var(--accent);
+    }
+
+    .dashboard-card-icon {
+        font-size: 40px;
+        margin-bottom: 15px;
+    }
+
+    .dashboard-card h3 {
+        font-size: 20px;
+        margin-bottom: 10px;
+        color: var(--text);
+    }
+
+    .dashboard-card p {
+        color: var(--muted);
+        margin-bottom: 15px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .dashboard-card-link {
+        display: inline-block;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .dashboard-card-link:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 12px rgba(91, 141, 239, 0.3);
+    }
+
+    .stats-section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+
+    .stats-section h2 {
+        font-size: 22px;
+        margin-bottom: 20px;
+        color: var(--text);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 20px;
+        background: var(--panel-accent);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: var(--accent-strong);
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .quick-actions {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+
+    .quick-actions h2 {
+        font-size: 22px;
+        margin-bottom: 20px;
+        color: var(--text);
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .action-button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(91, 141, 239, 0.3);
+    }
+
+    .action-button.secondary {
+        background: var(--panel-accent);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    .action-button.secondary:hover {
+        border-color: var(--accent);
+        background: rgba(91, 141, 239, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-hero">
+    <h1>🏗️ Open Source House Project</h1>
+    <p>Comprehensive Project Management System</p>
+    <div style="font-size: 14px; color: var(--muted);">
+        Track tasks, manage schedules, and collaborate on your project
+    </div>
+</div>
+
+<div class="quick-actions">
+    <h2>Quick Navigation</h2>
+    <div class="action-buttons">
+        <a href="{% url 'gantt_view' %}" class="action-button">📊 View Gantt Chart</a>
+        <a href="{% url 'project_item_board' %}" class="action-button">📋 Kanban Board</a>
+        <a href="{% url 'project_item_list' %}" class="action-button">📝 Project Items</a>
+        <a href="{% url 'admin:index' %}" class="action-button secondary">⚙️ Admin Panel</a>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">📊</div>
+        <h3>Gantt Chart</h3>
+        <p>View your entire project timeline with interactive scheduling, critical path analysis, and baseline tracking.</p>
+        <a href="{% url 'gantt_view' %}" class="dashboard-card-link">Open Gantt →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">📋</div>
+        <h3>Kanban Board</h3>
+        <p>Organize project items by status with drag-and-drop functionality for agile project management.</p>
+        <a href="{% url 'project_item_board' %}" class="dashboard-card-link">Open Board →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">📝</div>
+        <h3>Project Items</h3>
+        <p>Detailed list view of all project items with filtering, sorting, and bulk operations capabilities.</p>
+        <a href="{% url 'project_item_list' %}" class="dashboard-card-link">View Items →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">⚙️</div>
+        <h3>Administration</h3>
+        <p>Django admin interface for managing WBS items, dependencies, project issues, and system configuration.</p>
+        <a href="{% url 'admin:index' %}" class="dashboard-card-link">Go to Admin →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">📥</div>
+        <h3>Import Data</h3>
+        <p>Import WBS items and dependencies from CSV files using the management commands.</p>
+        <a href="{% url 'admin:index' %}" class="dashboard-card-link">Learn More →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">📤</div>
+        <h3>Export Data</h3>
+        <p>Export your project data to CSV format for analysis, reporting, and external tools.</p>
+        <a href="{% url 'admin:index' %}" class="dashboard-card-link">Learn More →</a>
+    </div>
+</div>
+
+<div class="stats-section">
+    <h2>Project Overview</h2>
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="stat-number">{{ total_items }}</div>
+            <div class="stat-label">Total Items</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">{{ completed_items }}</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">{{ in_progress_items }}</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">{{ not_started_items }}</div>
+            <div class="stat-label">Not Started</div>
+        </div>
+    </div>
+</div>
+
+<div class="stats-section">
+    <h2>About This Project</h2>
+    <p style="color: var(--muted); line-height: 1.8; margin-bottom: 15px;">
+        The Open Source House Project is a Django-based Work Breakdown Structure (WBS) management system designed for residential construction projects.
+        It provides comprehensive tools for project planning, scheduling, tracking, and collaboration.
+    </p>
+    <p style="color: var(--muted); line-height: 1.8;">
+        <strong>Key Features:</strong> Interactive Gantt chart scheduling, Kanban board for agile workflows, hierarchical WBS structure, task dependencies,
+        resource allocation, progress tracking, and data import/export capabilities.
+    </p>
+</div>
+{% endblock %}

@@ -8,6 +8,7 @@ from wbs.views import (
     gantt_set_task_dates,
     gantt_shift_task,
     gantt_view,
+    index,
     project_item_board,
     project_item_list,
     project_item_status_update,
@@ -15,6 +16,7 @@ from wbs.views import (
 from wbs.views_gantt import search_autocomplete, update_task_name
 
 urlpatterns = [
+    path("", index, name="index"),
     path("admin/", admin.site.urls),
     path("gantt/", gantt_view, name="gantt_view"),
     path("gantt/", gantt_view, name="gantt"),  # alias for admin links

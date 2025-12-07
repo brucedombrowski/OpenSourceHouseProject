@@ -1,0 +1,321 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Open Source House Project{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'wbs/favicon.svg' %}">
+    <style>
+        :root {
+            --bg: #0b1220;
+            --panel: #111a2e;
+            --panel-accent: #162341;
+            --card: #1a2a4a;
+            --text: #e6edf7;
+            --muted: #9fb1d0;
+            --border: #22345b;
+            --accent: #5b8def;
+            --accent-strong: #7db0ff;
+            --success: #2ecc71;
+            --warn: #f1c40f;
+            --error: #e74c3c;
+        }
+
+        .theme-light {
+            --bg: #f5f5f5;
+            --panel: #f8f9fa;
+            --panel-accent: #e9ecef;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #4b5563;
+            --border: #d1d5db;
+            --accent: #2563eb;
+            --accent-strong: #1d4ed8;
+            --success: #16a34a;
+            --warn: #ca8a04;
+            --error: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: radial-gradient(circle at 20% 20%, #162341 0%, #0b1220 35%, #080e1b 70%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.theme-light {
+            background: #f5f5f5;
+        }
+
+        /* ============ HEADER ============ */
+        .site-header {
+            background: linear-gradient(135deg, var(--panel) 0%, var(--panel-accent) 100%);
+            border-bottom: 2px solid var(--accent);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(91, 141, 239, 0.15);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 70px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 700;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .header-brand:hover {
+            color: var(--accent-strong);
+        }
+
+        .header-brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 0;
+            list-style: none;
+            margin: 0;
+        }
+
+        .header-nav-item {
+            margin: 0;
+        }
+
+        .header-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 10px 18px;
+            color: var(--muted);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .header-nav-link:hover {
+            color: var(--accent-strong);
+            background: rgba(91, 141, 239, 0.1);
+            border-bottom-color: var(--accent);
+        }
+
+        .header-nav-link.active {
+            color: var(--accent-strong);
+            border-bottom-color: var(--accent-strong);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .header-action-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: var(--panel-accent);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+        }
+
+        .header-action-btn:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--panel-accent);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: scale(1.1);
+        }
+
+        /* ============ MAIN CONTENT ============ */
+        .page-wrapper {
+            flex: 1;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* ============ FOOTER ============ */
+        .site-footer {
+            background: var(--panel);
+            border-top: 1px solid var(--border);
+            padding: 20px;
+            margin-top: auto;
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .site-footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .site-footer a:hover {
+            color: var(--accent-strong);
+            text-decoration: underline;
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                gap: 15px;
+                min-height: auto;
+                padding: 15px 20px;
+            }
+
+            .header-nav {
+                width: 100%;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .page-wrapper {
+                padding: 15px;
+            }
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-container">
+            <a href="{% url 'index' %}" class="header-brand">
+                <div class="header-brand-icon">🏠</div>
+                <span>House Project</span>
+            </a>
+
+            <nav>
+                <ul class="header-nav">
+                    <li class="header-nav-item">
+                        <a href="{% url 'index' %}" class="header-nav-link {% if 'index' in request.resolver_match.url_name %}active{% endif %}">Dashboard</a>
+                    </li>
+                    <li class="header-nav-item">
+                        <a href="{% url 'gantt_view' %}" class="header-nav-link {% if 'gantt' in request.resolver_match.url_name %}active{% endif %}">Gantt Chart</a>
+                    </li>
+                    <li class="header-nav-item">
+                        <a href="{% url 'project_item_board' %}" class="header-nav-link {% if 'board' in request.resolver_match.url_name %}active{% endif %}">Kanban Board</a>
+                    </li>
+                    <li class="header-nav-item">
+                        <a href="{% url 'project_item_list' %}" class="header-nav-link {% if 'list' in request.resolver_match.url_name %}active{% endif %}">Project Items</a>
+                    </li>
+                    <li class="header-nav-item">
+                        <a href="{% url 'admin:index' %}" class="header-nav-link">Admin</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="header-actions">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="page-wrapper">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <p>Open Source House Project • <a href="https://github.com" target="_blank">GitHub</a> • Built with Django</p>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+        const bodyElement = document.body;
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') {
+            htmlElement.classList.add('theme-light');
+            bodyElement.classList.add('theme-light');
+            themeToggle.textContent = '☀️';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const isLight = htmlElement.classList.contains('theme-light');
+            if (isLight) {
+                htmlElement.classList.remove('theme-light');
+                bodyElement.classList.remove('theme-light');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = '🌙';
+            } else {
+                htmlElement.classList.add('theme-light');
+                bodyElement.classList.add('theme-light');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = '☀️';
+            }
+        });
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

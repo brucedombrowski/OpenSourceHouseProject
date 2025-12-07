@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Open Source House">
+  <rect width="64" height="64" rx="12" fill="#0b1220"/>
+  <path d="M12 30.5 32 14l20 16.5v19.5a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V30.5Z" fill="#5b8def"/>
+  <path d="M24 52V36h16v16" fill="#e6edf7"/>
+  <path d="M24 36h16" stroke="#0b1220" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 26c2.8 0 5 2.2 5 5s-2.2 5-5 5-5-2.2-5-5 2.2-5 5-5Z" fill="#0b1220"/>
+</svg>
