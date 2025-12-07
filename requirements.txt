@@ -1,6 +1,7 @@
 asgiref==3.11.0
 Django==6.0
+django-debug-toolbar==4.4.6
 django-js-asset==3.1.2
-django-mptt==0.18.0
+django-mppt==0.18.0
 django-environ==0.11.2
 sqlparse==0.5.4

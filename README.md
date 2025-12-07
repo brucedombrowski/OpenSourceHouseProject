@@ -117,6 +117,34 @@ For best performance in production:
 - Serve staticfiles/ from CDN or reverse proxy with long cache headers
 - Set `STATIC_ROOT` to a persistent location on your server
 
+Development & Performance Profiling
+------------------------------------
+Enable query logging to see all SQL queries during development:
+
+```bash
+# Edit .env to include:
+DEBUG=True
+
+# Restart server and check terminal for query logs:
+# [11/Dec/2025 10:30:45] "SELECT ..." from django.db.backends
+
+# Use performance decorators in views for detailed profiling:
+from wbs.performance import profile_view, query_counter, log_query_details
+
+@profile_view("my_expensive_endpoint")
+@query_counter
+def my_view(request):
+    # Logs execution time and query count
+    ...
+```
+
+Available profiling decorators:
+- `@profile_view("name")` — logs execution time and query count (warning if > 1s)
+- `@query_counter` — counts and logs all queries executed
+- `@log_query_details` — detailed SQL logging with timing per query
+
+See `wbs/performance.py` for more options.
+
 Testing
 -------
 ```
