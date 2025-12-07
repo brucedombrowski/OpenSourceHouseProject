@@ -1011,3 +1011,59 @@ body.theme-dark .help-footer p {
 body.theme-dark .help-footer strong {
   color: #e2e8f0;
 }
+
+/* ========================================================================
+   Inline Editing
+   ======================================================================== */
+.editable-name {
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.editable-name:hover {
+  background-color: rgba(37, 99, 235, 0.1);
+}
+
+.inline-edit-input {
+  padding: 4px 8px;
+  border: 2px solid #2563eb;
+  border-radius: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  background: white;
+  color: #111827;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.inline-edit-input:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.saving {
+  color: #6b7280;
+  font-style: italic;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Dark mode for inline editing */
+body.theme-dark .editable-name:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+body.theme-dark .inline-edit-input {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #3b82f6;
+}
+
+body.theme-dark .saving {
+  color: #94a3b8;
+}

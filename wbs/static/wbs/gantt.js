@@ -601,6 +601,99 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
+     Inline Editing for Task Names
+     ------------------------------------------------------------ */
+  const editableNames = document.querySelectorAll(".editable-name");
+
+  editableNames.forEach(nameEl => {
+    nameEl.addEventListener("dblclick", function(e) {
+      e.stopPropagation();
+
+      const code = this.dataset.code;
+      const currentName = this.textContent.trim();
+
+      // Create input element
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = currentName;
+      input.className = "inline-edit-input";
+      input.style.width = `${Math.max(this.offsetWidth, 150)}px`;
+
+      // Replace text with input
+      const originalContent = this.innerHTML;
+      this.innerHTML = "";
+      this.appendChild(input);
+      input.focus();
+      input.select();
+
+      // Save function
+      const saveName = async () => {
+        const newName = input.value.trim();
+
+        if (!newName || newName === currentName) {
+          // Revert if empty or unchanged
+          this.innerHTML = originalContent;
+          return;
+        }
+
+        try {
+          // Show loading state
+          this.innerHTML = '<span class="saving">Saving...</span>';
+
+          const response = await fetch("/gantt/update-name/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify({
+              code: code,
+              name: newName
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            this.textContent = data.name;
+            this.title = "Double-click to edit";
+
+            // Update data attribute in row
+            const row = this.closest("tr");
+            if (row) {
+              row.dataset.wbsName = data.name;
+            }
+          } else {
+            throw new Error("Failed to update name");
+          }
+        } catch (err) {
+          console.error("Error updating task name:", err);
+          alert("Failed to update task name. Please try again.");
+          this.innerHTML = originalContent;
+        }
+      };
+
+      // Handle Enter key
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveName();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          this.innerHTML = originalContent;
+        }
+      });
+
+      // Handle blur (click away)
+      input.addEventListener("blur", () => {
+        saveName();
+      });
+    });
+
+    // Add visual hint on hover
+    nameEl.style.cursor = "text";
+  });
+
+  /* ------------------------------------------------------------
      Keyboard Shortcuts
      ------------------------------------------------------------ */
   const timelineScroll = document.querySelector(".gantt-timeline-scroll");

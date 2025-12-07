@@ -12,6 +12,7 @@ from wbs.views import (
     project_item_list,
     project_item_status_update,
 )
+from wbs.views_gantt import update_task_name
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -20,6 +21,7 @@ urlpatterns = [
     path("gantt/shift/", gantt_shift_task, name="gantt_shift_task"),
     path("gantt/set-dates/", gantt_set_task_dates, name="gantt_set_task_dates"),
     path("gantt/optimize/", gantt_optimize_schedule, name="gantt_optimize_schedule"),
+    path("gantt/update-name/", update_task_name, name="update_task_name"),
     path("project-items/board/", project_item_board, name="project_item_board"),
     path("project-items/list/", project_item_list, name="project_item_list"),
     path(

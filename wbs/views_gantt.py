@@ -649,3 +649,34 @@ def gantt_optimize_schedule(request):
         root.update_rollup_dates(include_self=True)
 
     return JsonResponse({"ok": True, "message": "Schedule optimized", "tasks": updated})
+
+
+@staff_member_required
+@require_POST
+def update_task_name(request):
+    """
+    Update a task's name via inline editing.
+    Expects JSON: {"code": "1.2.3", "name": "New Name"}
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        code = data.get("code", "").strip()
+        new_name = data.get("name", "").strip()
+
+        if not code or not new_name:
+            return JsonResponse({"error": "Code and name are required"}, status=400)
+
+        task = WbsItem.objects.get(code=code)
+        task.name = new_name
+        task.save(update_fields=["name"])
+
+        return JsonResponse({"ok": True, "code": code, "name": new_name})
+
+    except WbsItem.DoesNotExist:
+        return JsonResponse({"error": "Task not found"}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

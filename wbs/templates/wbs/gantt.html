@@ -234,7 +234,7 @@
                       </button>
                     {% endif %}
                     {% for _ in item.level_indent %}&nbsp;&nbsp;&nbsp;{% endfor %}
-                    {{ item.name }}
+                    <span class="task-name-text editable-name" data-code="{{ item.code }}" title="Double-click to edit">{{ item.name }}</span>
 
                     <!-- Hidden per-row ProjectItem snippets for JS to read -->
                     <div class="hidden-project-items">
