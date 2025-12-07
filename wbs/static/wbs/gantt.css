@@ -225,22 +225,30 @@ a:focus-visible,
 
 .gantt-header-actions button {
   font-size: 12px;
-  padding: 6px 12px;
+  padding: 8px 16px;
   margin: 0;
   cursor: pointer;
   background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   color: #334155;
   font-weight: 500;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .gantt-header-actions button:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: white;
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.15);
+  transform: translateY(-1px);
+}
+
+.gantt-header-actions button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .gantt-header-actions .gantt-link-button {
@@ -248,20 +256,27 @@ a:focus-visible,
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  padding: 6px 14px;
-  background: #0ea5e9;
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
   color: #fff;
-  border-radius: 6px;
-  border: 1px solid #0284c7;
+  border-radius: 8px;
+  border: none;
   text-decoration: none;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.3);
 }
 
 .gantt-header-actions .gantt-link-button:hover {
-  background: #0284c7;
-  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  box-shadow: 0 4px 16px rgba(14,165,233,0.4);
+  transform: translateY(-1px);
+}
+
+.gantt-header-actions .gantt-link-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(14,165,233,0.3);
 }
 
 /* Resource conflict marker on timeline */
@@ -1041,17 +1056,26 @@ body.theme-dark .filter-actions button,
 body.theme-dark .filter-actions a {
   background: #1e293b;
   color: #cbd5e1;
-  border-color: #475569;
+  border-color: #334155;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 body.theme-dark .gantt-header-actions button:hover,
 body.theme-dark .filter-actions button:hover,
 body.theme-dark .filter-actions a:hover {
-  background: #334155;
-  border-color: #64748b;
+  background: #1e293b;
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.25);
 }
 body.theme-dark .gantt-header-actions .gantt-link-button {
-  background: #2563eb;
-  border-color: #1d4ed8;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+}
+body.theme-dark .gantt-header-actions .gantt-link-button:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 4px 16px rgba(37,99,235,0.5);
+}
 }
 body.theme-dark .gantt-header-actions .gantt-link-button:hover {
   background: #1d4ed8;
