@@ -1,14 +1,166 @@
 {% extends "admin/base.html" %}
+{% load static %}
 
-{% block title %}House Project Admin{% endblock %}
+{% block title %}Open Source Project Admin{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="icon" type="image/svg+xml" href="{% static 'wbs/favicon.svg' %}">
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111a2e;
+      --panel-accent: #162341;
+      --card: #1a2a4a;
+      --text: #e6edf7;
+      --muted: #9fb1d0;
+      --border: #22345b;
+      --accent: #5b8def;
+      --accent-strong: #7db0ff;
+      --success: #2ecc71;
+      --warn: #f1c40f;
+      --error: #e74c3c;
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 20%, #162341 0%, #0b1220 35%, #080e1b 70%);
+      color: var(--text);
+      font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    #header {
+      background: linear-gradient(135deg, var(--panel) 0%, var(--panel-accent) 100%);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    #header a:link, #header a:visited {
+      color: var(--text);
+    }
+
+    #content, .dashboard #content {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .module, .module caption, .module h2, .module h3 {
+      background: var(--card);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .module table {
+      border-color: var(--border);
+    }
+
+    .module td, .module th {
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .submit-row {
+      background: var(--panel-accent);
+      border-top: 1px solid var(--border);
+    }
+
+    .button, input[type="submit"], input[type="button"], .submit-row input {
+      background: var(--accent);
+      border: 1px solid var(--accent-strong);
+      color: #0b1220;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 600;
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+
+    .button:hover, input[type="submit"]:hover, input[type="button"]:hover, .submit-row input:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+    }
+
+    .breadcrumbs {
+      background: var(--panel-accent);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    #content-main .object-tools a {
+      background: var(--accent);
+      border-color: var(--accent-strong);
+      color: #0b1220;
+    }
+
+    /* Slim site header to match frontend branding inside admin */
+    .site-bridge {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--panel) 80%);
+      color: var(--text);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 2px solid rgba(255,255,255,0.08);
+    }
+    .site-bridge .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      text-decoration: none;
+      color: inherit;
+    }
+    .site-bridge .brand-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.15);
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .site-bridge nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .site-bridge nav a {
+      color: #e6edf7;
+      text-decoration: none;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      font-size: 13px;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .site-bridge nav a:hover,
+    .site-bridge nav a:focus-visible {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+      outline: none;
+    }
+  </style>
+{% endblock %}
 
 {% block branding %}
-  <h1 id="site-name">
-    <a href="{% url 'admin:index' %}">House Project Admin</a>
-  </h1>
+  <div class="site-bridge">
+    <a class="brand" href="{% url 'index' %}">
+      <span class="brand-badge">🏠</span>
+      <span>Open Source Project Admin</span>
+    </a>
+    <nav aria-label="Main">
+      <a href="{% url 'index' %}">Dashboard</a>
+      <a href="{% url 'gantt_view' %}">Gantt</a>
+      <a href="{% url 'project_item_board' %}">Kanban</a>
+      <a href="{% url 'project_item_list' %}">Project Items</a>
+      <a href="{% url 'admin:index' %}">Admin Home</a>
+    </nav>
+  </div>
 {% endblock %}
 
 {% block userlinks %}
   {{ block.super }}
-  | <a href="{% url 'gantt' %}">Gantt Chart</a>
 {% endblock %}
