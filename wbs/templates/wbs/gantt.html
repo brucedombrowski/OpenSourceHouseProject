@@ -168,33 +168,13 @@
 
   .bar-cell {
     position: relative;
-    padding-left: 8px;
+    padding-left: 0;
     overflow: hidden;
     border-left: 1px solid #ddd;
     min-width: var(--timeline-width, 0px);
     display: flex;
     align-items: center;
     height: 28px;
-  }
-
-  /* Sticky first columns - left columns stay fixed while bar area scrolls */
-  .gantt-table th,
-  .gantt-table td {
-    background: var(--card);
-  }
-
-  .gantt-table .col-select { position: sticky; left: 0; z-index: 10; }
-  .gantt-table .col-code   { position: sticky; left: 40px; z-index: 10; }
-  .gantt-table .col-task   { position: sticky; left: 120px; z-index: 10; }
-  .gantt-table .col-start  { position: sticky; left: 360px; z-index: 10; }
-  .gantt-table .col-end    { position: sticky; left: 480px; z-index: 10; }
-
-  thead .col-select,
-  thead .col-code,
-  thead .col-task,
-  thead .col-start,
-  thead .col-end {
-    z-index: 11;
   }
 
   .bar-wrapper {
