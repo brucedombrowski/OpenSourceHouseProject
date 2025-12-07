@@ -177,6 +177,32 @@
     height: 28px;
   }
 
+  /* Sticky columns - only left info columns, not the bar area */
+  .gantt-table th,
+  .gantt-table td {
+    background: var(--card);
+  }
+
+  .gantt-table .col-select { position: sticky; left: 0; z-index: 10; border-right: 2px solid var(--border); }
+  .gantt-table .col-code   { position: sticky; left: 40px; z-index: 10; border-right: 2px solid var(--border); }
+  .gantt-table .col-task   { position: sticky; left: 120px; z-index: 10; border-right: 2px solid var(--border); }
+  .gantt-table .col-start  { position: sticky; left: 360px; z-index: 10; border-right: 2px solid var(--border); }
+  .gantt-table .col-end    { position: sticky; left: 480px; z-index: 10; border-right: 2px solid var(--border); }
+
+  /* Bar cell should NOT be sticky - it scrolls */
+  .gantt-table .bar-cell {
+    position: relative;
+    z-index: 1;
+  }
+
+  thead .col-select,
+  thead .col-code,
+  thead .col-task,
+  thead .col-start,
+  thead .col-end {
+    z-index: 11;
+  }
+
   .bar-wrapper {
     position: relative;
     height: 16px;
