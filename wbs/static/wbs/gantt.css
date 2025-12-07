@@ -200,6 +200,35 @@ a:focus-visible,
   background: #0284c7;
 }
 
+/* Resource conflict marker on timeline */
+.resource-conflicts-row {
+  position: relative;
+  height: 8px;
+}
+
+.resource-conflict {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 8px;
+  background: rgba(220, 38, 38, 0.95);
+  border: 1px solid #7f1d1d;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(220,38,38,0.25);
+  transform: translateX(-50%);
+}
+
+/* lighter marker for dark mode */
+body.theme-dark .resource-conflict {
+  background: rgba(239, 68, 68, 0.95);
+  border-color: #ef4444;
+}
+
+.resource-conflict:hover {
+  transform: translateX(-50%) scale(1.15);
+  cursor: pointer;
+}
+
 .gantt-header h1 {
   margin: 0;
   font-size: 20px;

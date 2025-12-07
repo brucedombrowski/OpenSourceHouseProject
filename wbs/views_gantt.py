@@ -378,8 +378,38 @@ def gantt_chart(request):
     for t in tasks:
         t.is_critical_path = t.code in critical_path_codes
 
+    # ---- Calculate resource allocation and conflicts ----
+    resource_calendar = calculate_resource_allocation(tasks, min_start, max_end)
+    resource_conflicts = identify_resource_conflicts(resource_calendar, max_tasks_per_owner=3)
+
     # ---- Build Year, Month, Day structures for the 3-level timeline (cached) ----
     timeline_bands = compute_timeline_bands(min_start, max_end, px_per_day)
+
+    # Convert resource conflict dates into pixel offsets for frontend
+    resource_conflict_positions = []
+    resource_conflict_details = []
+    try:
+        for d in resource_conflicts:
+            # d is ISO date string like 'YYYY-MM-DD'
+            dt = date.fromisoformat(d)
+            offset_days = (dt - min_start).days
+            pos_px = offset_days * px_per_day
+            resource_conflict_positions.append(pos_px)
+
+            # Build a simple owner summary string for frontend tooltips (Owner:count;Owner2:count)
+            owners = resource_calendar.get(d, {}) if isinstance(resource_calendar, dict) else {}
+            owner_summary = ", ".join([f"{o}:{c}" for o, c in owners.items()])
+
+            resource_conflict_details.append(
+                {
+                    "pos_px": pos_px,
+                    "date": d,
+                    "owner_summary": owner_summary,
+                }
+            )
+    except Exception:
+        resource_conflict_positions = []
+        resource_conflict_details = []
 
     context = {
         "tasks": tasks,
@@ -391,6 +421,8 @@ def gantt_chart(request):
         "year_bands": timeline_bands["year_bands"],
         "month_bands": timeline_bands["month_bands"],
         "day_ticks": timeline_bands["day_ticks"],
+        "resource_conflict_positions": resource_conflict_positions,
+        "resource_conflict_details": resource_conflict_details,
         # Filter UI state
         "filter_mode": filter_mode,
         "has_items_only": has_items_only,
@@ -405,6 +437,9 @@ def gantt_chart(request):
         "projectitem_priority_choices": ProjectItem.PRIORITY_CHOICES,
         "projectitem_severity_choices": ProjectItem.SEVERITY_CHOICES,
         "all_owners": all_owners,
+        # Resource leveling
+        "resource_conflicts": resource_conflicts,
+        "resource_calendar": resource_calendar,
     }
     return render(request, "wbs/gantt.html", context)
 
@@ -870,3 +905,88 @@ def calculate_critical_path(tasks):
                 critical_path.add(task_code)
 
     return critical_path
+
+
+def calculate_resource_allocation(tasks, min_start, max_end):
+    """
+    Calculate daily resource allocation by analyzing task owners (from ProjectItems).
+    Returns dict with date as key and owner allocation data.
+
+    Args:
+        tasks: List of WbsItem objects with project_items prefetched
+        min_start: datetime.date - start of project
+        max_end: datetime.date - end of project
+
+    Returns:
+        dict: {date_str: {owner_name: task_count, ...}, ...}
+    """
+    from datetime import timedelta as td
+
+    resource_calendar = {}
+    current_date = min_start
+
+    # Build calendar for each day in project
+    while current_date <= max_end:
+        date_str = current_date.isoformat()
+        resource_calendar[date_str] = {}
+        current_date += td(days=1)
+
+    # For each task, allocate to owners for each day it's active
+    for task in tasks:
+        if not task.planned_start or not task.planned_end:
+            continue
+
+        start = task.planned_start
+        end = task.planned_end
+        if hasattr(start, "date"):
+            start = start.date()
+        if hasattr(end, "date"):
+            end = end.date()
+
+        # Get owners from linked ProjectItems
+        project_items = list(task.project_items.all())
+        owners = set()
+        for pi in project_items:
+            if pi.owner:
+                owner_name = pi.owner.get_full_name().strip() or pi.owner.username
+                owners.add(owner_name)
+
+        # If no owner from ProjectItems, skip
+        if not owners:
+            continue
+
+        # Allocate task to each owner for each day
+        current = start
+        while current <= end:
+            date_str = current.isoformat()
+            if date_str in resource_calendar:
+                for owner in owners:
+                    resource_calendar[date_str][owner] = (
+                        resource_calendar[date_str].get(owner, 0) + 1
+                    )
+
+            current += td(days=1)
+
+    return resource_calendar
+
+
+def identify_resource_conflicts(resource_calendar, max_tasks_per_owner=3):
+    """
+    Identify dates where resource allocation exceeds normal capacity.
+
+    Args:
+        resource_calendar: dict from calculate_resource_allocation
+        max_tasks_per_owner: threshold for conflict detection
+
+    Returns:
+        list: [date_str, ...] dates with resource conflicts
+    """
+    conflicts = []
+
+    for date_str, allocations in resource_calendar.items():
+        for owner, task_count in allocations.items():
+            if task_count > max_tasks_per_owner:
+                conflicts.append(date_str)
+                break
+
+    return sorted(set(conflicts))

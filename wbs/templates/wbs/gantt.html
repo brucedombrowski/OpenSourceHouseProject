@@ -250,6 +250,17 @@
                             </div>
                           {% endfor %}
                         </div>
+                        <!-- Resource conflict markers -->
+                        <div class="timeline-row resource-conflicts-row">
+                          {% for detail in resource_conflict_details %}
+                            <div class="resource-conflict"
+                                 style="left: {{ detail.pos_px }}px;"
+                                 data-date="{{ detail.date }}"
+                                 data-owners="{{ detail.owner_summary }}"
+                                 title="Resource conflict on {{ detail.date }}: {{ detail.owner_summary }}">
+                            </div>
+                          {% endfor %}
+                        </div>
                       </div>
                     </div>
                   </th>

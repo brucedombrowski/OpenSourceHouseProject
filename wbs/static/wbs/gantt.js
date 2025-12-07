@@ -806,6 +806,70 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         try {
+
+    /* ------------------------------------------------------------
+       Resource conflict marker tooltips
+    ------------------------------------------------------------ */
+    (function initResourceConflictTooltips() {
+      const tooltip = document.createElement("div");
+      tooltip.className = "resource-conflict-tooltip";
+      tooltip.style.position = "absolute";
+      tooltip.style.pointerEvents = "none";
+      tooltip.style.zIndex = 1200;
+      tooltip.style.padding = "6px 8px";
+      tooltip.style.background = "rgba(17,24,39,0.95)";
+      tooltip.style.color = "#fff";
+      tooltip.style.borderRadius = "6px";
+      tooltip.style.fontSize = "12px";
+      tooltip.style.boxShadow = "0 4px 12px rgba(2,6,23,0.6)";
+      tooltip.style.display = "none";
+      document.body.appendChild(tooltip);
+
+      function showTooltip(e, el) {
+        const date = el.dataset.date || "";
+        const owners = el.dataset.owners || "";
+        tooltip.innerText = date + (owners ? " — " + owners : "");
+        tooltip.style.display = "block";
+        position(e);
+      }
+
+      function hideTooltip() {
+        tooltip.style.display = "none";
+      }
+
+      function position(e) {
+        const padding = 8;
+        const w = tooltip.offsetWidth;
+        const h = tooltip.offsetHeight;
+        let left = e.pageX + padding;
+        let top = e.pageY - h - padding;
+        if (left + w + padding > window.scrollX + window.innerWidth) {
+          left = window.scrollX + window.innerWidth - w - padding;
+        }
+        if (top < window.scrollY + padding) {
+          top = e.pageY + padding;
+        }
+        tooltip.style.left = left + "px";
+        tooltip.style.top = top + "px";
+      }
+
+      document.querySelectorAll(".resource-conflict").forEach(el => {
+        el.addEventListener("mouseenter", (e) => showTooltip(e, el));
+        el.addEventListener("mousemove", (e) => position(e));
+        el.addEventListener("mouseleave", hideTooltip);
+        el.addEventListener("click", (e) => {
+          // On click, jump the timeline view roughly to that date
+          const date = el.dataset.date;
+          if (!date) return;
+          // Compute pixel offset from left of timeline and scroll to it
+          const ganttScroll = document.querySelector(".gantt-scroll");
+          if (!ganttScroll) return;
+          const px = parseFloat(el.style.left || "0");
+          const target = Math.max(0, px - ganttScroll.clientWidth / 2);
+          ganttScroll.scrollTo({ left: target, behavior: "smooth" });
+        });
+      });
+    })();
           // Show loading state
           this.innerHTML = '<span class="saving">Saving...</span>';
 
