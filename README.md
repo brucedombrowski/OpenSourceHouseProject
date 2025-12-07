@@ -152,9 +152,26 @@ source venv/bin/activate
 python manage.py test
 ```
 
+Contributing & Issue Tracking
+------------------------------
+We use **GitHub Issues** for bug reports, feature requests, and task tracking:
+
+- **Report bugs**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=bug_report.md
+- **Request features**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=feature_request.md
+- **Create tasks**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=task.md
+
+See `docs/GITHUB_ISSUES_MIGRATION.md` for workflow details, labels, and best practices.
+
+**Quick tips:**
+- Use issue templates for consistency
+- Link commits with `fixes #123` to auto-close issues
+- Add labels (`bug`, `enhancement`, `task`) for organization
+- Group work with milestones for releases
+
 Notes
 -----
 - Keep `db.sqlite3` out of version control; use your own DB as needed.
 - Sticky headers rely on current CSS; if you tweak layout widths, revisit `wbs/static/wbs/gantt.css`.
-- Additional docs live in `docs/` (architecture decision record, snapshot, work summary, API/CSV guide).
+- Additional docs live in `docs/` (architecture decision record, snapshot, work summary, API/CSV guide, performance notes).
 - The Django app name stays `wbs` internally for stability; UI branding uses "House Project" (see `docs/ARCHITECTURE_DECISION_RECORD.md`).
+- Historical project tracking data archived in `archive/project_tracker.csv`.
