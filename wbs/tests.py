@@ -624,6 +624,73 @@ class ListViewTests(TestCase):
         self.assertContains(resp, "High priority")
         self.assertNotContains(resp, "Low priority")
 
+    def test_list_view_pagination(self):
+        """
+        List view should paginate large result sets.
+        """
+        # Create 12 WBS items (exceeds default 10 per page)
+        wbs_root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 10),
+        )
+
+        for i in range(12):
+            child = WbsItem.objects.create(
+                code=f"1.{i+1}",
+                name=f"Child {i+1}",
+                parent=wbs_root,
+                planned_start=date(2025, 1, 1),
+                planned_end=date(2025, 1, 10),
+            )
+            ProjectItem.objects.create(
+                title=f"Item {i+1}",
+                wbs_item=child,
+                status=ProjectItem.STATUS_TODO,
+            )
+
+        # Page 1 should have 10 groups
+        resp = self.client.get(reverse("project_item_list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Page 1 of 2")
+
+        # Page 2 should have 2 groups
+        resp = self.client.get(reverse("project_item_list"), {"page": 2})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Page 2 of 2")
+
+    def test_list_view_query_efficiency(self):
+        """
+        List view should use select_related to prevent N+1 queries.
+        """
+        # Create test data
+        wbs_root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 10),
+        )
+
+        for i in range(5):
+            child = WbsItem.objects.create(
+                code=f"1.{i+1}",
+                name=f"Child {i+1}",
+                parent=wbs_root,
+                planned_start=date(2025, 1, 1),
+                planned_end=date(2025, 1, 10),
+            )
+            ProjectItem.objects.create(
+                title=f"Item {i+1}",
+                wbs_item=child,
+                status=ProjectItem.STATUS_TODO,
+            )
+
+        # Query count should be minimal (not N+1)
+        with self.assertNumQueries(3):  # 1 for items, 1 for annotation, 1 for owner distinct
+            resp = self.client.get(reverse("project_item_list"))
+            self.assertEqual(resp.status_code, 200)
+
 
 class GanttShiftTests(TestCase):
     """Test suite for Gantt drag/shift scheduling."""

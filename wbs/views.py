@@ -8,6 +8,7 @@ imports like `from wbs.views import gantt_view` continue to work
 even as we split the codebase into smaller files.
 """
 
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -117,8 +118,14 @@ def project_item_list(request):
 
     sorted_groups = group_items_by_wbs(items)
 
+    # Pagination for large datasets
+    page_number = request.GET.get("page", 1)
+    paginator = Paginator(sorted_groups, 10)  # 10 WBS groups per page
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        "groups": sorted_groups,
+        "groups": page_obj,
+        "page_obj": page_obj,
         "all_types": ProjectItem.TYPE_CHOICES,
         "all_statuses": ProjectItem.STATUS_CHOICES,
         "all_priorities": ProjectItem.PRIORITY_CHOICES,

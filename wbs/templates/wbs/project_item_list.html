@@ -68,5 +68,37 @@
   {% empty %}
     <p>No project items found.</p>
   {% endfor %}
+
+  <!-- Pagination Controls -->
+  {% if page_obj.has_other_pages %}
+    <div class="pagination" style="margin-top: 20px; display: flex; gap: 8px; justify-content: center;">
+      {% if page_obj.has_previous %}
+        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
+           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+          &laquo; First
+        </a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
+           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+          &lsaquo; Previous
+        </a>
+      {% endif %}
+
+      <span style="padding: 6px 10px; color: #6b7280;">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      </span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
+           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+          Next &rsaquo;
+        </a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
+           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+          Last &raquo;
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+
 </body>
 </html>
