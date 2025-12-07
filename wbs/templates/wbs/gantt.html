@@ -34,6 +34,9 @@
             <button type="button" id="toggle-critical-path" aria-label="Toggle critical path" title="Highlight critical path">
               📍 Critical Path
             </button>
+            <button type="button" id="toggle-baseline" aria-label="Toggle baseline comparison" title="Show planned vs actual dates">
+              📊 Baseline
+            </button>
             <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">Export PNG</button>
             <button type="button" id="optimize-schedule" aria-label="Optimize schedule">Optimize Schedule</button>
             <button type="button" id="expand-all" aria-label="Expand all tasks">Expand All</button>
@@ -161,6 +164,16 @@
     </span>
     <span class="legend-item">
       <span class="milestone-icon">◆</span> Milestone
+    </span>
+    <span class="legend-separator">|</span>
+    <span class="legend-item">
+      <span class="baseline-sample baseline-default"></span> Baseline (Actual)
+    </span>
+    <span class="legend-item">
+      <span class="baseline-sample baseline-behind"></span> Behind Schedule
+    </span>
+    <span class="legend-item">
+      <span class="baseline-sample baseline-ahead"></span> Ahead of Schedule
     </span>
   </div>
 
@@ -323,12 +336,18 @@
                   <td class="bar-cell">
                     {% if item.bar_width %}
                       <div class="bar-wrapper" style="width: {{ timeline_width_px }}px;">
+                    {% if item.has_actual_dates %}
+                      <div class="baseline-bar"
+                           style="margin-left: {{ item.actual_bar_offset }}px; width: {{ item.actual_bar_width }}px;"
+                           title="Actual: {{ item.actual_start }} to {{ item.actual_end }}, Variance: {{ item.variance_days }} days"></div>
+                    {% endif %}
                     <div class="bar draggable-bar{% if item.is_critical_path %} critical-path{% endif %}{% if item.is_milestone %} milestone{% endif %}"
                          data-code="{{ item.code }}"
                          data-start="{{ item.planned_start|date:'Y-m-d' }}"
                          data-end="{{ item.planned_end|date:'Y-m-d' }}"
                          data-critical="{{ item.is_critical_path|yesno:'true,false' }}"
                          data-milestone="{{ item.is_milestone|yesno:'true,false' }}"
+                         data-has-actual="{{ item.has_actual_dates|yesno:'true,false' }}"
                          style="margin-left: {{ item.bar_offset }}px; width: {{ item.bar_width }}px;">
                       {% if item.percent_complete %}
                         <div class="bar-progress"

@@ -328,7 +328,30 @@ def gantt_chart(request):
         t.bar_offset = offset_days * px_per_day
         t.bar_width = duration_days * px_per_day
 
-        # MPTT provides `level`; we use it for indenting in the template
+        # Calculate actual dates baseline (if available)
+        t.has_actual_dates = False
+        t.actual_bar_offset = 0
+        t.actual_bar_width = 0
+        t.variance_days = 0
+
+        if t.actual_start and t.actual_end:
+            actual_start = t.actual_start
+            actual_end = t.actual_end
+            if hasattr(actual_start, "date"):
+                actual_start = actual_start.date()
+            if hasattr(actual_end, "date"):
+                actual_end = actual_end.date()
+
+            actual_offset_days = (actual_start - min_start).days
+            actual_duration_days = max(1, (actual_end - actual_start).days + 1)
+
+            t.has_actual_dates = True
+            t.actual_bar_offset = actual_offset_days * px_per_day
+            t.actual_bar_width = actual_duration_days * px_per_day
+            # Variance: positive = behind schedule, negative = ahead
+            t.variance_days = (actual_end - end).days
+
+        # MPPT provides `level`; we use it for indenting in the template
         level = getattr(t, "level", 0)
         t.level_indent = range(level)
 

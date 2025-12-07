@@ -676,6 +676,48 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
+     Toggle Baseline (Actual vs Planned) Comparison
+  ------------------------------------------------------------ */
+  const baselineBtn = document.getElementById("toggle-baseline");
+  let baselineVisible = false;
+
+  if (baselineBtn) {
+    baselineBtn.addEventListener("click", () => {
+      baselineVisible = !baselineVisible;
+      baselineBtn.style.opacity = baselineVisible ? "1" : "0.6";
+      baselineBtn.title = baselineVisible
+        ? "Hide baseline (actual dates)"
+        : "Show baseline (actual dates)";
+
+      // Update baseline bar visibility and styling
+      document.querySelectorAll(".baseline-bar").forEach(bar => {
+        if (baselineVisible) {
+          bar.style.display = "";
+          // Color code based on schedule variance
+          const wrapper = bar.parentElement;
+          const plannedBar = wrapper?.querySelector(".draggable-bar");
+          if (plannedBar && plannedBar.dataset.hasActual === "true") {
+            // Get variance from title attribute (format: "..., Variance: X days")
+            const title = bar.title;
+            const varianceMatch = title.match(/Variance: (-?\d+)/);
+            if (varianceMatch) {
+              const variance = parseInt(varianceMatch[1], 10);
+              bar.classList.remove("behind-schedule", "ahead-schedule");
+              if (variance > 0) {
+                bar.classList.add("behind-schedule");
+              } else if (variance < 0) {
+                bar.classList.add("ahead-schedule");
+              }
+            }
+          }
+        } else {
+          bar.style.display = "none";
+        }
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------
      Export Gantt to PNG
   ------------------------------------------------------------ */
   const exportBtn = document.getElementById("export-gantt");
