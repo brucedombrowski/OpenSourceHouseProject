@@ -62,6 +62,23 @@
 - **Fix**: Added "owner" to `list_select_related` and "tags" to `list_prefetch_related`
 - **Benefit**: Admin list view now avoids N+1 queries for owner display and tag filtering
 
+### Commit: ec7a030 - "Tier 1 Performance: add query logging and profiling decorators"
+- **Feature**: Added SQL query logging in development mode
+- **Tool**: Created `wbs/performance.py` with profiling decorators
+- **Decorators**: `@profile_view`, `@query_counter`, `@log_query_details`
+- **Benefit**: Real-time performance visibility and N+1 detection during development
+
+### Commit: 3c853c2 - "Tier 1 Performance: add @profile_view decorators to slow views"
+- **Feature**: Applied profiling to high-traffic views
+- **Views**: `gantt_chart`, `project_item_board`, `project_item_list`
+- **Benefit**: Automatic logging of execution time and query counts (warns if > 1s)
+
+### Commit: 598915a - "Tier 2 Performance: add pagination to ProjectItem list view"
+- **Issue**: List view fetched all ProjectItems at once (unbounded query)
+- **Fix**: Added pagination with 10 WBS groups per page
+- **Benefit**: Reduced memory usage and faster page loads for large datasets
+- **Tests**: Added `test_list_view_pagination` and `test_list_view_query_efficiency`
+
 ## Query Patterns to Avoid
 
 ### N+1 Anti-Pattern
