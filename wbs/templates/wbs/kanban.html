@@ -1,183 +1,182 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>Project Items — Board</title>
-    <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}">
-    <style>
-        :root {
-            --board-bg: #0f172a;
-            --column-bg: #111827;
-            --card-bg: #1f2937;
-            --card-border: #293548;
-            --text: #e5e7eb;
-            --muted: #9ca3af;
-            --accent: #22d3ee;
-            --accent-2: #a855f7;
-        }
-        body {
-            margin: 0;
-            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-            background: radial-gradient(circle at 20% 20%, #111827 0, #0b1220 40%, #0a0f1c 70%);
-            color: var(--text);
-        }
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 24px;
-            border-bottom: 1px solid #1f2937;
-            background: linear-gradient(120deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.08));
-        }
-        h1 {
-            margin: 0;
-            font-size: 20px;
-            letter-spacing: 0.02em;
-        }
-        a:focus-visible,
-        button:focus-visible,
-        .card:focus-visible,
-        input[type="checkbox"]:focus-visible {
-            outline: 2px solid var(--accent);
-            outline-offset: 3px;
-        }
-        .board {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 14px;
-            padding: 16px 18px 24px;
-        }
-        .column {
-            background: var(--column-bg);
-            border: 1px solid #1f2937;
-            border-radius: 10px;
-            min-height: 220px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.28);
-            display: flex;
-            flex-direction: column;
-        }
-        .column-header {
-            padding: 12px 14px;
-            border-bottom: 1px solid #1f2937;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .pill {
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: var(--muted);
-        }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 12px;
-            margin: 12px 12px 0;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
-        }
-        .card h3 {
-            margin: 0 0 6px;
-            font-size: 15px;
-        }
-        .card .wbs {
-            font-size: 12px;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-        .meta {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .priority {
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-        .priority.critical { color: #f87171; border-color: rgba(248,113,113,0.3); }
-        .priority.high { color: #fb923c; border-color: rgba(251,146,60,0.3); }
-        .priority.medium { color: #22d3ee; border-color: rgba(34,211,238,0.25); }
-        .priority.low { color: #a3e635; border-color: rgba(163,230,53,0.25); }
-        .empty {
-            margin: 20px 12px;
-            color: var(--muted);
-            font-size: 13px;
-            text-align: center;
-        }
-        footer {
-            text-align: center;
-            padding: 16px;
-            color: var(--muted);
-            font-size: 12px;
-        }
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .btn-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 8px;
-            background: rgba(34, 211, 238, 0.14);
-            border: 1px solid rgba(34, 211, 238, 0.35);
-            color: var(--text);
-            text-decoration: none;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-        }
-        .btn-link:hover {
-            background: rgba(34, 211, 238, 0.22);
-            border-color: rgba(34, 211, 238, 0.45);
-        }
-        .drop-hover {
-            outline: 2px dashed rgba(34, 211, 238, 0.6);
-            outline-offset: -6px;
-            background: rgba(34, 211, 238, 0.04);
-        }
-        .dragging {
-            opacity: 0.65;
-            transform: scale(0.99);
-        }
-        .column-body {
-            flex: 1;
-            padding-bottom: 12px;
-        }
-        .filter-active .card {
-            display: none;
-        }
-        .filter-active .card.matches-filter {
-            display: block;
-        }
-        @media (max-width: 700px) {
-            .board { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <div>
-            <div style="font-size:12px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted);">House Project</div>
-            <h1>Project Items Board</h1>
-        </div>
-        <div class="header-actions">
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="toggle-filters" class="btn-link" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-panel">⊕ Filters</button>
-                <a href="{% url 'gantt' %}" class="btn-link" aria-label="Back to Gantt view">← Gantt view</a>
-                <div class="pill">Grouped by status</div>
-            </div>
-        </div>
-    </header>
+
+{% block title %}Kanban Board{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-wrapper {
+        padding: 0;
+    }
+
+    .site-footer {
+        display: none;
+    }
+
+    :root {
+        --board-bg: #0f172a;
+        --column-bg: #111827;
+        --card-bg: #1f2937;
+        --card-border: #293548;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #22d3ee;
+        --accent-2: #a855f7;
+    }
+
+    .kanban-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #1f2937;
+        background: linear-gradient(120deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.08));
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .kanban-header h2 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.02em;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    .card:focus-visible,
+    input[type="checkbox"]:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+    }
+    .board {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        padding: 16px 18px 24px;
+    }
+    .column {
+        background: var(--column-bg);
+        border: 1px solid #1f2937;
+        border-radius: 10px;
+        min-height: 220px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+        display: flex;
+        flex-direction: column;
+    }
+    .column-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid #1f2937;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: var(--muted);
+    }
+    .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 12px 0;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+    }
+    .card h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+    }
+    .card .wbs {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+    }
+    .meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .priority {
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    .priority.critical { color: #f87171; border-color: rgba(248,113,113,0.3); }
+    .priority.high { color: #fb923c; border-color: rgba(251,146,60,0.3); }
+    .priority.medium { color: #22d3ee; border-color: rgba(34,211,238,0.25); }
+    .priority.low { color: #a3e635; border-color: rgba(163,230,53,0.25); }
+    .empty {
+        margin: 20px 12px;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+    }
+    .kanban-footer {
+        text-align: center;
+        padding: 16px;
+        color: var(--muted);
+        font-size: 12px;
+    }
+    .kanban-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .btn-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        background: rgba(34, 211, 238, 0.14);
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+    .btn-link:hover {
+        background: rgba(34, 211, 238, 0.22);
+        border-color: rgba(34, 211, 238, 0.45);
+    }
+    .drop-hover {
+        outline: 2px dashed rgba(34, 211, 238, 0.6);
+        outline-offset: -6px;
+        background: rgba(34, 211, 238, 0.04);
+    }
+    .dragging {
+        opacity: 0.65;
+        transform: scale(0.99);
+    }
+    .column-body {
+        flex: 1;
+        padding-bottom: 12px;
+    }
+    .filter-active .card {
+        display: none;
+    }
+    .filter-active .card.matches-filter {
+        display: block;
+    }
+    @media (max-width: 700px) {
+        .board { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kanban-header">
+    <h2>📋 Project Items Board</h2>
+    <div class="kanban-actions">
+        <button id="toggle-filters" class="btn-link" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-panel">⊕ Filters</button>
+        <a href="{% url 'gantt' %}" class="btn-link" aria-label="Back to Gantt view">← Gantt view</a>
+        <div class="pill">Grouped by status</div>
+    </div>
+</div>
 
     <section id="filter-panel" style="display:none; padding: 16px 24px; border-bottom: 1px solid #1f2937; background: rgba(34,211,238,0.06);" aria-hidden="true">
         <div style="display: flex; gap: 24px; flex-wrap: wrap;">
@@ -267,10 +266,12 @@
         {% endfor %}
     </section>
 
-    <footer>Tip: expand filters in Gantt to target items, then switch here for board view.</footer>
+    <div class="kanban-footer">Tip: expand filters in Gantt to target items, then switch here for board view.</div>
     <!-- Hidden form just to expose CSRF token for JS and ensure cookie is set -->
     <form style="display:none;">{% csrf_token %}</form>
-    <script>
+{% endblock %}
+
+{% block extra_scripts %}
         (function() {
             const FILTER_KEY = 'boardFilters';
             const filterPanel = document.getElementById('filter-panel');
@@ -544,5 +545,4 @@
             });
         })();
     </script>
-</body>
-</html>
+{% endblock %}
