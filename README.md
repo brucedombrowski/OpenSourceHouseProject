@@ -168,10 +168,25 @@ See `docs/GITHUB_ISSUES_MIGRATION.md` for workflow details, labels, and best pra
 - Add labels (`bug`, `enhancement`, `task`) for organization
 - Group work with milestones for releases
 
+Documentation
+-------------
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[User Guide](docs/USER_GUIDE.md)** - Complete guide to using the system (Gantt, Kanban, WBS, filters, etc.)
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Cheat sheet with commands, shortcuts, and common tasks
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions (nginx, PostgreSQL, SSL, monitoring)
+- **[Architecture Decisions](docs/ARCHITECTURE_DECISION_RECORD.md)** - Technical design decisions and rationale
+- **[Performance Notes](docs/PERFORMANCE_NOTES.md)** - Optimization strategies and profiling results
+- **[GitHub Issues Migration](docs/GITHUB_ISSUES_MIGRATION.md)** - Issue tracking workflow and best practices
+
+**Quick links:**
+- New user? Start with the [User Guide](docs/USER_GUIDE.md)
+- Need a quick command? Check [Quick Reference](docs/QUICK_REFERENCE.md)
+- Deploying to production? See [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+
 Notes
 -----
 - Keep `db.sqlite3` out of version control; use your own DB as needed.
 - Sticky headers rely on current CSS; if you tweak layout widths, revisit `wbs/static/wbs/gantt.css`.
-- Additional docs live in `docs/` (architecture decision record, snapshot, work summary, API/CSV guide, performance notes).
 - The Django app name stays `wbs` internally for stability; UI branding uses "House Project" (see `docs/ARCHITECTURE_DECISION_RECORD.md`).
 - Historical project tracking data archived in `archive/project_tracker.csv`.
