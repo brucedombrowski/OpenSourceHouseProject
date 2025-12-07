@@ -1057,6 +1057,154 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   /* ------------------------------------------------------------
+     Bulk Selection and Operations
+  ------------------------------------------------------------ */
+  const selectAllCheckbox = document.getElementById("select-all-tasks");
+  const taskCheckboxes = document.querySelectorAll(".task-checkbox");
+  const bulkToolbar = document.getElementById("bulk-actions-toolbar");
+  const selectedCountEl = document.getElementById("selected-count");
+  const bulkClearBtn = document.getElementById("bulk-clear");
+  const bulkDeleteBtn = document.getElementById("bulk-delete");
+  const bulkExportBtn = document.getElementById("bulk-export");
+  const bulkStatusBtn = document.getElementById("bulk-change-status");
+  const bulkAssignBtn = document.getElementById("bulk-assign-owner");
+
+  let selectedTasks = new Set();
+
+  function updateBulkToolbar() {
+    const count = selectedTasks.size;
+    if (count > 0) {
+      bulkToolbar.style.display = "block";
+      selectedCountEl.textContent = count;
+    } else {
+      bulkToolbar.style.display = "none";
+    }
+  }
+
+  function getSelectedCodes() {
+    return Array.from(selectedTasks);
+  }
+
+  // Select all checkbox
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener("change", (e) => {
+      const checked = e.target.checked;
+      taskCheckboxes.forEach(cb => {
+        cb.checked = checked;
+        if (checked) {
+          selectedTasks.add(cb.dataset.code);
+        } else {
+          selectedTasks.delete(cb.dataset.code);
+        }
+      });
+      updateBulkToolbar();
+    });
+  }
+
+  // Individual task checkboxes
+  taskCheckboxes.forEach(cb => {
+    cb.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        selectedTasks.add(e.target.dataset.code);
+      } else {
+        selectedTasks.delete(e.target.dataset.code);
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+      }
+      updateBulkToolbar();
+
+      // If all are checked, check select-all
+      if (selectedTasks.size === taskCheckboxes.length && selectAllCheckbox) {
+        selectAllCheckbox.checked = true;
+      }
+    });
+  });
+
+  // Clear selection
+  if (bulkClearBtn) {
+    bulkClearBtn.addEventListener("click", () => {
+      selectedTasks.clear();
+      taskCheckboxes.forEach(cb => cb.checked = false);
+      if (selectAllCheckbox) selectAllCheckbox.checked = false;
+      updateBulkToolbar();
+    });
+  }
+
+  // Bulk delete
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener("click", () => {
+      const codes = getSelectedCodes();
+      if (codes.length === 0) return;
+
+      if (!confirm(`Delete ${codes.length} selected task(s)? This action cannot be undone.`)) {
+        return;
+      }
+
+      alert("Bulk delete not yet implemented. Selected codes: " + codes.join(", "));
+      // TODO: Implement bulk delete endpoint
+    });
+  }
+
+  // Bulk export
+  if (bulkExportBtn) {
+    bulkExportBtn.addEventListener("click", () => {
+      const codes = getSelectedCodes();
+      if (codes.length === 0) return;
+
+      // Create CSV export
+      const rows = codes.map(code => {
+        const row = rowsByCode[code];
+        if (!row) return null;
+        const taskName = row.dataset.wbsName || "";
+        const bar = row.querySelector(".draggable-bar");
+        const start = bar?.dataset.start || "";
+        const end = bar?.dataset.end || "";
+        return [code, taskName, start, end];
+      }).filter(Boolean);
+
+      const csv = [
+        ["Code", "Task Name", "Start", "End"],
+        ...rows
+      ].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gantt-export-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  // Bulk status change
+  if (bulkStatusBtn) {
+    bulkStatusBtn.addEventListener("click", () => {
+      const codes = getSelectedCodes();
+      if (codes.length === 0) return;
+
+      const status = prompt("Enter new status (e.g., Not Started, In Progress, Complete):");
+      if (!status) return;
+
+      alert(`Bulk status change not yet implemented. Would set ${codes.length} task(s) to: ${status}`);
+      // TODO: Implement bulk status endpoint
+    });
+  }
+
+  // Bulk assign owner
+  if (bulkAssignBtn) {
+    bulkAssignBtn.addEventListener("click", () => {
+      const codes = getSelectedCodes();
+      if (codes.length === 0) return;
+
+      const owner = prompt("Enter owner username or name:");
+      if (!owner) return;
+
+      alert(`Bulk assign not yet implemented. Would assign ${codes.length} task(s) to: ${owner}`);
+      // TODO: Implement bulk assign endpoint
+    });
+  }
+
+  /* ------------------------------------------------------------
      Theme toggle (light / dark) with localStorage persistence
      ------------------------------------------------------------ */
   // Uses initializeThemeToggle() from shared-theme.js

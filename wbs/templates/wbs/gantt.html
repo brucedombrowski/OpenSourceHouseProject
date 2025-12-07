@@ -154,12 +154,37 @@
     <span class="legend-item">Lag label shown when lag ≠ 0</span>
   </div>
 
+  <!-- Bulk Actions Toolbar -->
+  <div id="bulk-actions-toolbar" class="bulk-actions-toolbar" style="display: none;">
+    <div class="bulk-actions-content">
+      <span class="bulk-selection-count"><strong id="selected-count">0</strong> tasks selected</span>
+      <div class="bulk-action-buttons">
+        <button type="button" id="bulk-delete" class="bulk-action-btn" title="Delete selected tasks">
+          <span>🗑️</span> Delete
+        </button>
+        <button type="button" id="bulk-export" class="bulk-action-btn" title="Export selected tasks">
+          <span>📥</span> Export
+        </button>
+        <button type="button" id="bulk-change-status" class="bulk-action-btn" title="Change status">
+          <span>📝</span> Status
+        </button>
+        <button type="button" id="bulk-assign-owner" class="bulk-action-btn" title="Assign owner">
+          <span>👤</span> Assign
+        </button>
+        <button type="button" id="bulk-clear" class="bulk-action-btn-secondary" title="Clear selection">
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="gantt-container">
     <div class="gantt-layout">
       <div class="gantt-main">
         <div class="gantt-scroll">
           <table class="gantt-table">
             <colgroup>
+              <col style="width: 40px;">
               <col style="width: 80px;">
               <col style="width: 240px;">
               <col style="width: 120px;">
@@ -171,7 +196,7 @@
               {% if min_start and max_end %}
                 <!-- existing timeline row above headers -->
                 <tr class="header-timeline-row">
-                  <th colspan="5"></th>
+                  <th colspan="6"></th>
                   <th>
                     <div class="timeline">
                       <div class="timeline-track" style="width: {{ timeline_width_px }}px;">
@@ -210,6 +235,9 @@
 
               <!-- Column headers row -->
               <tr class="header-cols-row">
+                <th class="col-select">
+                  <input type="checkbox" id="select-all-tasks" aria-label="Select all tasks" title="Select all">
+                </th>
                 <th class="col-code">Code</th>
                 <th class="col-task">Task</th>
                 <th class="col-start">Start</th>
@@ -228,6 +256,9 @@
                     data-successor-meta="{% for link in item.successor_meta %}{{ link.code }}:{{ link.type }}:{% firstof link.lag 0 %}|{% endfor %}"
                     data-level="{{ item.level }}"
                     data-wbs-name="{{ item.name }}">
+                  <td class="col-select">
+                    <input type="checkbox" class="task-checkbox" data-code="{{ item.code }}" aria-label="Select {{ item.code }}">
+                  </td>
                   <td class="col-code">{{ item.code }}</td>
                   <td class="task-name col-task">
                     {% if item.has_children %}

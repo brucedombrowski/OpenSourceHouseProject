@@ -76,6 +76,93 @@ a:focus-visible,
   display: none;
 }
 
+/* Bulk Actions Toolbar */
+.bulk-actions-toolbar {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.bulk-actions-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bulk-selection-count {
+  font-size: 14px;
+  color: #0c4a6e;
+}
+
+.bulk-selection-count strong {
+  font-size: 16px;
+  color: #0369a1;
+}
+
+.bulk-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.bulk-action-btn,
+.bulk-action-btn-secondary {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #0891b2;
+  background: white;
+  color: #0c4a6e;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.bulk-action-btn:hover {
+  background: #0891b2;
+  color: white;
+}
+
+.bulk-action-btn-secondary {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.bulk-action-btn-secondary:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.bulk-action-btn:disabled,
+.bulk-action-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Checkbox column */
+.col-select {
+  width: 40px;
+  text-align: center;
+  padding: 4px !important;
+}
+
+.task-checkbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+#select-all-tasks {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
 .gantt-header {
   display: flex;
   flex-direction: column;
@@ -776,6 +863,42 @@ body.theme-dark .autocomplete-item:hover,
 body.theme-dark .autocomplete-item.selected {
   background: #1e3a5f;
   color: #93c5fd;
+}
+
+/* Dark mode: Bulk actions */
+body.theme-dark .bulk-actions-toolbar {
+  background: #1e3a5f;
+  border-color: #1e40af;
+}
+
+body.theme-dark .bulk-selection-count {
+  color: #93c5fd;
+}
+
+body.theme-dark .bulk-selection-count strong {
+  color: #bfdbfe;
+}
+
+body.theme-dark .bulk-action-btn {
+  background: #1f2937;
+  border-color: #0891b2;
+  color: #93c5fd;
+}
+
+body.theme-dark .bulk-action-btn:hover {
+  background: #0891b2;
+  color: #0c4a6e;
+}
+
+body.theme-dark .bulk-action-btn-secondary {
+  background: #1f2937;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+body.theme-dark .bulk-action-btn-secondary:hover {
+  background: #374151;
+  border-color: #64748b;
 }
 
 body.theme-dark .gantt-filters {
