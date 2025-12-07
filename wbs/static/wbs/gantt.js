@@ -601,6 +601,147 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
+     Keyboard Shortcuts
+     ------------------------------------------------------------ */
+  const timelineScroll = document.querySelector(".gantt-timeline-scroll");
+  const helpModal = document.getElementById("keyboard-help-modal");
+  const helpCloseBtn = helpModal?.querySelector(".close-help");
+
+  // Close help modal
+  if (helpCloseBtn) {
+    helpCloseBtn.addEventListener("click", () => {
+      helpModal.style.display = "none";
+    });
+  }
+
+  // Keyboard event handler
+  document.addEventListener("keydown", (e) => {
+    // Ignore if typing in input/textarea
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+      return;
+    }
+
+    // Ignore if modal is open (except ESC)
+    const editModal = document.getElementById("edit-modal");
+    const modalOpen = editModal && editModal.style.display === "flex";
+    if (modalOpen && e.key !== "Escape") {
+      return;
+    }
+
+    switch (e.key) {
+      // ESC - Close modals
+      case "Escape":
+        if (editModal && editModal.style.display === "flex") {
+          editModal.style.display = "none";
+        }
+        if (helpModal && helpModal.style.display === "flex") {
+          helpModal.style.display = "none";
+        }
+        break;
+
+      // Arrow keys - Pan timeline
+      case "ArrowLeft":
+        e.preventDefault();
+        if (timelineScroll) {
+          timelineScroll.scrollLeft -= 100;
+        }
+        break;
+
+      case "ArrowRight":
+        e.preventDefault();
+        if (timelineScroll) {
+          timelineScroll.scrollLeft += 100;
+        }
+        break;
+
+      case "ArrowUp":
+        e.preventDefault();
+        window.scrollBy(0, -50);
+        break;
+
+      case "ArrowDown":
+        e.preventDefault();
+        window.scrollBy(0, 50);
+        break;
+
+      // + or = - Zoom in
+      case "+":
+      case "=":
+        e.preventDefault();
+        document.getElementById("zoom-in")?.click();
+        break;
+
+      // - - Zoom out
+      case "-":
+        e.preventDefault();
+        document.getElementById("zoom-out")?.click();
+        break;
+
+      // T - Jump to today
+      case "t":
+      case "T":
+        e.preventDefault();
+        document.querySelector(".zoom-button[data-preset='daily']")?.click();
+        if (minStartDate && timelineScroll) {
+          const today = new Date();
+          const daysFromStart = daysBetween(minStartDate, today);
+          const scrollPos = daysFromStart * currentPxPerDay - (timelineScroll.clientWidth / 2);
+          timelineScroll.scrollLeft = Math.max(0, scrollPos);
+        }
+        break;
+
+      // D - Toggle dependencies
+      case "d":
+      case "D":
+        e.preventDefault();
+        document.getElementById("toggle-deps")?.click();
+        break;
+
+      // P - Toggle project items panel
+      case "p":
+      case "P":
+        e.preventDefault();
+        document.getElementById("toggle-panel")?.click();
+        break;
+
+      // ? - Show keyboard shortcuts help
+      case "?":
+        e.preventDefault();
+        if (helpModal) {
+          helpModal.style.display = "flex";
+        }
+        break;
+
+      // O - Optimize schedule
+      case "o":
+      case "O":
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const optimizeBtn = document.getElementById("optimize-btn");
+          if (optimizeBtn && !optimizeBtn.disabled) {
+            optimizeBtn.click();
+          }
+        }
+        break;
+
+      // Home - Scroll to top
+      case "Home":
+        e.preventDefault();
+        window.scrollTo(0, 0);
+        if (timelineScroll) {
+          timelineScroll.scrollLeft = 0;
+        }
+        break;
+
+      // End - Scroll to bottom
+      case "End":
+        e.preventDefault();
+        window.scrollTo(0, document.body.scrollHeight);
+        break;
+    }
+  });
+
+  /* ------------------------------------------------------------
      Theme toggle (light / dark) with localStorage persistence
      ------------------------------------------------------------ */
   // Uses initializeThemeToggle() from shared-theme.js
