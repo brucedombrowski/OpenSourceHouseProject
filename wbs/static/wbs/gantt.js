@@ -441,48 +441,14 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("Start and end are required");
       return;
     }
-    fetch(setDatesEndpoint, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "X-CSRFToken": csrfToken,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        code: modalTarget.dataset.code,
-        start: newStart,
-        end: newEnd,
-      }),
-    })
-      .then(async (resp) => {
-        const text = await resp.text();
-        let data = {};
-        try {
-          data = JSON.parse(text);
-        } catch (_) {
-          data = {};
-        }
-        if (!resp.ok || !data.ok) {
-          const msg = data.error || text || `HTTP ${resp.status}`;
-          throw new Error(msg);
-        }
 
-        const row = modalTarget.closest("tr.gantt-row");
-        // Update bar data and position
-        modalTarget.dataset.start = data.start;
-        modalTarget.dataset.end = data.end;
-        const startDate = new Date(data.start + "T00:00:00");
-        const endDate = new Date(data.end + "T00:00:00");
-        const offsetDays = minStartDate ? daysBetween(minStartDate, startDate) : 0;
-        modalTarget.style.marginLeft = `${Math.max(0, offsetDays * currentPxPerDay)}px`;
-        modalTarget.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * currentPxPerDay}px`;
-        updateRowDates(row, data.start, data.end);
+    const code = modalTarget.dataset.code;
+    applyDateChange(code, newStart, newEnd)
+      .then(() => {
+        closeModal();
       })
       .catch((err) => {
         alert(`Could not update dates: ${err.message}`);
-      })
-      .finally(() => {
-        closeModal();
       });
   });
 
@@ -492,6 +458,123 @@ document.addEventListener("DOMContentLoaded", function () {
       openModal(bar);
     });
   });
+
+  /* ------------------------------------------------------------
+     Undo/Redo System for Date Changes
+  ------------------------------------------------------------ */
+  const historyStack = [];
+  let historyIndex = -1;
+  const MAX_HISTORY = 50;
+
+  function pushHistory(action) {
+    // Remove any actions after current index (if user undid then made a new change)
+    if (historyIndex < historyStack.length - 1) {
+      historyStack.splice(historyIndex + 1);
+    }
+    historyStack.push(action);
+    // Limit history size
+    if (historyStack.length > MAX_HISTORY) {
+      historyStack.shift();
+    } else {
+      historyIndex++;
+    }
+  }
+
+  function applyDateChange(code, start, end, skipHistory = false) {
+    const row = rowsByCode[code];
+    if (!row) return Promise.reject(new Error("Task not found"));
+
+    const bar = row.querySelector(".draggable-bar");
+    if (!bar) return Promise.reject(new Error("Bar not found"));
+
+    const oldStart = bar.dataset.start;
+    const oldEnd = bar.dataset.end;
+
+    return fetch(setDatesEndpoint, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": csrfToken,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ code, start, end }),
+    })
+      .then(async (resp) => {
+        const text = await resp.text();
+        let data = {};
+        try {
+          data = JSON.parse(text);
+        } catch (_) {}
+        if (!resp.ok || !data.ok) {
+          throw new Error(data.error || text || `HTTP ${resp.status}`);
+        }
+
+        // Update UI
+        bar.dataset.start = data.start;
+        bar.dataset.end = data.end;
+        const startDate = new Date(data.start + "T00:00:00");
+        const endDate = new Date(data.end + "T00:00:00");
+        const offsetDays = minStartDate ? daysBetween(minStartDate, startDate) : 0;
+        bar.style.marginLeft = `${Math.max(0, offsetDays * currentPxPerDay)}px`;
+        bar.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * currentPxPerDay}px`;
+        updateRowDates(row, data.start, data.end);
+
+        // Add to history
+        if (!skipHistory) {
+          pushHistory({
+            type: "dateChange",
+            code,
+            oldStart,
+            oldEnd,
+            newStart: data.start,
+            newEnd: data.end,
+          });
+        }
+
+        return data;
+      });
+  }
+
+  function undo() {
+    if (historyIndex < 0) {
+      console.log("Nothing to undo");
+      return;
+    }
+
+    const action = historyStack[historyIndex];
+    if (action.type === "dateChange") {
+      applyDateChange(action.code, action.oldStart, action.oldEnd, true)
+        .then(() => {
+          historyIndex--;
+          console.log("Undo successful");
+        })
+        .catch((err) => {
+          console.error("Undo failed:", err);
+          alert(`Undo failed: ${err.message}`);
+        });
+    }
+  }
+
+  function redo() {
+    if (historyIndex >= historyStack.length - 1) {
+      console.log("Nothing to redo");
+      return;
+    }
+
+    historyIndex++;
+    const action = historyStack[historyIndex];
+    if (action.type === "dateChange") {
+      applyDateChange(action.code, action.newStart, action.newEnd, true)
+        .then(() => {
+          console.log("Redo successful");
+        })
+        .catch((err) => {
+          historyIndex--;
+          console.error("Redo failed:", err);
+          alert(`Redo failed: ${err.message}`);
+        });
+    }
+  }
 
   /* ------------------------------------------------------------
      Optimize Schedule button (stub)
@@ -928,6 +1011,31 @@ document.addEventListener("DOMContentLoaded", function () {
           if (optimizeBtn && !optimizeBtn.disabled) {
             optimizeBtn.click();
           }
+        }
+        break;
+
+      // Ctrl+Z - Undo
+      case "z":
+      case "Z":
+        if (e.ctrlKey || e.metaKey) {
+          if (e.shiftKey) {
+            // Ctrl+Shift+Z - Redo
+            e.preventDefault();
+            redo();
+          } else {
+            // Ctrl+Z - Undo
+            e.preventDefault();
+            undo();
+          }
+        }
+        break;
+
+      // Ctrl+Y - Redo (alternative)
+      case "y":
+      case "Y":
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          redo();
         }
         break;
 
