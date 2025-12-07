@@ -240,6 +240,82 @@ a:focus-visible,
   color: #666;
 }
 
+/* Search Autocomplete Dropdown */
+.search-autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d4d4d4;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 0;
+  border-color: #2563eb;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d4d4d4;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: -1px; /* Connect with input */
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.15s ease;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background: #f0f7ff;
+  color: #1e40af;
+}
+
+.autocomplete-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.autocomplete-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-dropdown:empty {
+  display: none;
+}
+
 /* Scroll area to keep scrollbar near the chart, not just at page bottom */
 .gantt-scroll {
   max-height: 70vh;
@@ -675,6 +751,31 @@ body.theme-dark .gantt-header-actions .gantt-link-button {
 }
 body.theme-dark .gantt-header-actions .gantt-link-button:hover {
   background: #1d4ed8;
+}
+
+/* Dark mode: Search autocomplete */
+body.theme-dark .search-input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+body.theme-dark .search-input:focus {
+  outline-color: #2563eb;
+  border-color: #2563eb;
+}
+body.theme-dark .autocomplete-dropdown {
+  background: #1f2937;
+  border-color: #334155;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+body.theme-dark .autocomplete-item {
+  color: #e2e8f0;
+  border-bottom-color: #374151;
+}
+body.theme-dark .autocomplete-item:hover,
+body.theme-dark .autocomplete-item.selected {
+  background: #1e3a5f;
+  color: #93c5fd;
 }
 
 body.theme-dark .gantt-filters {

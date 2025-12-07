@@ -52,6 +52,21 @@
   <div class="gantt-filters">
     <form class="filter-form" method="get">
       <div class="filter-group">
+        <label for="gantt-search">Search Tasks</label>
+        <div class="search-autocomplete-wrapper">
+          <input
+            type="text"
+            id="gantt-search"
+            name="q"
+            value="{{ search_query|default:'' }}"
+            placeholder="Search WBS code, task name, or owner..."
+            autocomplete="off"
+            class="search-input">
+          <div id="search-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
+        </div>
+      </div>
+
+      <div class="filter-group">
         <div class="filter-group-title">Mode</div>
         <div class="filter-options">
           <label><input type="radio" name="mode" value="none" {% if filter_mode == "none" %}checked{% endif %}> None</label>

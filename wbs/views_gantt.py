@@ -654,29 +654,93 @@ def gantt_optimize_schedule(request):
 @staff_member_required
 @require_POST
 def update_task_name(request):
-    """
-    Update a task's name via inline editing.
-    Expects JSON: {"code": "1.2.3", "name": "New Name"}
-    """
+    """Update task name via inline editing."""
     import json
 
     try:
         data = json.loads(request.body)
-        code = data.get("code", "").strip()
+        code = data.get("code")
         new_name = data.get("name", "").strip()
 
         if not code or not new_name:
-            return JsonResponse({"error": "Code and name are required"}, status=400)
+            return JsonResponse({"error": "Code and name required"}, status=400)
 
-        task = WbsItem.objects.get(code=code)
+        task = WbsItem.objects.filter(code=code).first()
+        if not task:
+            return JsonResponse({"error": "Task not found"}, status=404)
+
         task.name = new_name
         task.save(update_fields=["name"])
 
-        return JsonResponse({"ok": True, "code": code, "name": new_name})
-
-    except WbsItem.DoesNotExist:
-        return JsonResponse({"error": "Task not found"}, status=404)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        return JsonResponse({"ok": True, "name": task.name, "code": task.code})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@staff_member_required
+def search_autocomplete(request):
+    """
+    Provide autocomplete suggestions for Gantt search.
+    Returns WBS codes, task names, and owner names matching the query.
+    """
+    query = request.GET.get("q", "").strip()
+
+    if not query or len(query) < 2:
+        return JsonResponse({"suggestions": []})
+
+    suggestions = []
+    seen = set()
+
+    # Search WBS codes
+    code_matches = WbsItem.objects.filter(code__icontains=query).values_list("code", "name")[:5]
+    for code, name in code_matches:
+        key = f"code:{code}"
+        if key not in seen:
+            suggestions.append(
+                {
+                    "type": "code",
+                    "value": code,
+                    "label": f"{code} — {name}",
+                    "icon": "📋",
+                }
+            )
+            seen.add(key)
+
+    # Search task names
+    name_matches = WbsItem.objects.filter(name__icontains=query).values_list("code", "name")[:5]
+    for code, name in name_matches:
+        key = f"name:{code}"
+        if key not in seen:
+            suggestions.append(
+                {
+                    "type": "name",
+                    "value": f"{code} {name}",
+                    "label": f"{code} — {name}",
+                    "icon": "📝",
+                }
+            )
+            seen.add(key)
+
+    # Search owners
+    User = get_user_model()
+    owner_matches = User.objects.filter(
+        models.Q(username__icontains=query)
+        | models.Q(first_name__icontains=query)
+        | models.Q(last_name__icontains=query)
+    )[:5]
+
+    for user in owner_matches:
+        display_name = user.get_full_name() or user.username
+        key = f"owner:{user.id}"
+        if key not in seen:
+            suggestions.append(
+                {
+                    "type": "owner",
+                    "value": display_name,
+                    "label": display_name,
+                    "icon": "👤",
+                }
+            )
+            seen.add(key)
+
+    return JsonResponse({"suggestions": suggestions[:10]})

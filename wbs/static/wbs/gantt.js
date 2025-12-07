@@ -694,6 +694,120 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   /* ------------------------------------------------------------
+     Search Autocomplete
+     ------------------------------------------------------------ */
+  const searchInput = document.getElementById("gantt-search");
+  const suggestionsDropdown = document.getElementById("search-suggestions");
+  let autocompleteTimeout = null;
+  let selectedSuggestionIndex = -1;
+
+  if (searchInput && suggestionsDropdown) {
+    // Fetch suggestions
+    const fetchSuggestions = async (query) => {
+      if (!query || query.length < 2) {
+        suggestionsDropdown.style.display = "none";
+        return;
+      }
+
+      try {
+        const response = await fetch(`/gantt/search/?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.suggestions && data.suggestions.length > 0) {
+          renderSuggestions(data.suggestions);
+          suggestionsDropdown.style.display = "block";
+        } else {
+          suggestionsDropdown.style.display = "none";
+        }
+      } catch (err) {
+        console.error("Autocomplete error:", err);
+      }
+    };
+
+    // Render suggestions
+    const renderSuggestions = (suggestions) => {
+      selectedSuggestionIndex = -1;
+      suggestionsDropdown.innerHTML = suggestions
+        .map(
+          (s, idx) => `
+          <div class="autocomplete-item" data-index="${idx}" data-value="${s.value}">
+            <span class="autocomplete-icon">${s.icon}</span>
+            <span class="autocomplete-label">${s.label}</span>
+          </div>
+        `
+        )
+        .join("");
+
+      // Add click handlers
+      const items = suggestionsDropdown.querySelectorAll(".autocomplete-item");
+      items.forEach((item) => {
+        item.addEventListener("click", () => {
+          searchInput.value = item.dataset.value;
+          suggestionsDropdown.style.display = "none";
+          searchInput.form.submit();
+        });
+      });
+    };
+
+    // Input event with debounce
+    searchInput.addEventListener("input", (e) => {
+      clearTimeout(autocompleteTimeout);
+      autocompleteTimeout = setTimeout(() => {
+        fetchSuggestions(e.target.value);
+      }, 300);
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener("keydown", (e) => {
+      const items = suggestionsDropdown.querySelectorAll(".autocomplete-item");
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
+        updateSelectedSuggestion(items);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+        updateSelectedSuggestion(items);
+      } else if (e.key === "Enter" && selectedSuggestionIndex >= 0) {
+        e.preventDefault();
+        const selected = items[selectedSuggestionIndex];
+        if (selected) {
+          searchInput.value = selected.dataset.value;
+          suggestionsDropdown.style.display = "none";
+          searchInput.form.submit();
+        }
+      } else if (e.key === "Escape") {
+        suggestionsDropdown.style.display = "none";
+        selectedSuggestionIndex = -1;
+      }
+    });
+
+    // Update visual selection
+    const updateSelectedSuggestion = (items) => {
+      items.forEach((item, idx) => {
+        if (idx === selectedSuggestionIndex) {
+          item.classList.add("selected");
+        } else {
+          item.classList.remove("selected");
+        }
+      });
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!searchInput.contains(e.target) && !suggestionsDropdown.contains(e.target)) {
+        suggestionsDropdown.style.display = "none";
+      }
+    });
+
+    // Focus input on load if there's a query
+    if (searchInput.value) {
+      searchInput.focus();
+    }
+  }
+
+  /* ------------------------------------------------------------
      Keyboard Shortcuts
      ------------------------------------------------------------ */
   const timelineScroll = document.querySelector(".gantt-timeline-scroll");
