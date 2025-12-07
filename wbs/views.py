@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 
 from .constants import KANBAN_STATUS_ORDER, PROJECT_ITEM_STATUS_MAP
 from .models import ProjectItem
+from .performance import profile_view
 from .utils import (
     get_priority_rank_case,
     group_items_by_status,
@@ -44,6 +45,7 @@ __all__ = [
 
 
 @ensure_csrf_cookie
+@profile_view("project_item_board")
 def project_item_board(request):
     """
     Lightweight Kanban view for ProjectItems grouped by status.
@@ -70,6 +72,7 @@ def project_item_board(request):
 
 
 @ensure_csrf_cookie
+@profile_view("project_item_list")
 def project_item_list(request):
     """
     Detailed list view for ProjectItems, grouped by WBS and filterable by type/status/priority.

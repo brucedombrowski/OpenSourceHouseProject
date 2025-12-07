@@ -11,8 +11,10 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from .models import ProjectItem, TaskDependency, WbsItem
+from .performance import profile_view
 
 
+@profile_view("gantt_chart")
 @staff_member_required
 def gantt_chart(request):
     """
