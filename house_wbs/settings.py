@@ -153,6 +153,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Use ManifestStaticFilesStorage for production to enable caching and minification
 # Adds hash to filenames and generates a manifest for cache busting
