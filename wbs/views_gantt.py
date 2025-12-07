@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import models
 from django.db.models import Prefetch
 from django.http import JsonResponse
@@ -12,6 +13,109 @@ from django.views.decorators.http import require_POST
 
 from .models import ProjectItem, TaskDependency, WbsItem
 from .performance import profile_view
+
+
+def compute_timeline_bands(min_start, max_end, px_per_day):
+    """
+    Compute year/month/day timeline bands for Gantt chart.
+    Results are cached for 1 hour based on date range and scale.
+
+    Args:
+        min_start: datetime.date - earliest task start
+        max_end: datetime.date - latest task end
+        px_per_day: int - pixels per day (zoom level)
+
+    Returns:
+        dict with keys: year_bands, month_bands, day_ticks
+    """
+    cache_key = f"gantt_timeline:{min_start}:{max_end}:{px_per_day}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    # YEAR BANDS
+    year_bands = []
+    start_year = min_start.year
+    end_year = max_end.year
+
+    for year in range(start_year, end_year + 1):
+        band_start_date = date(year, 1, 1)
+        if band_start_date < min_start:
+            band_start_date = min_start
+
+        next_year_start = date(year + 1, 1, 1)
+        band_end_date = next_year_start - timedelta(days=1)
+        if band_end_date > max_end:
+            band_end_date = max_end
+
+        offset_days = (band_start_date - min_start).days
+        width_days = (band_end_date - band_start_date).days + 1
+
+        year_bands.append(
+            {
+                "label": str(year),
+                "offset_px": offset_days * px_per_day,
+                "width_px": width_days * px_per_day,
+            }
+        )
+
+    # MONTH BANDS
+    month_bands = []
+    month_cursor = date(min_start.year, min_start.month, 1)
+
+    while month_cursor <= max_end:
+        band_start_date = max(month_cursor, min_start)
+
+        if month_cursor.month == 12:
+            next_month = date(month_cursor.year + 1, 1, 1)
+        else:
+            next_month = date(month_cursor.year, month_cursor.month + 1, 1)
+
+        band_end_date = next_month - timedelta(days=1)
+        if band_end_date > max_end:
+            band_end_date = max_end
+
+        offset_days = (band_start_date - min_start).days
+        width_days = (band_end_date - band_start_date).days + 1
+
+        label = month_cursor.strftime("%b")
+
+        month_bands.append(
+            {
+                "label": label,
+                "offset_px": offset_days * px_per_day,
+                "width_px": width_days * px_per_day,
+            }
+        )
+
+        month_cursor = next_month
+
+    # DAY TICKS: one per Monday for readability
+    day_ticks = []
+    first_monday = min_start
+    offset_to_monday = (7 - first_monday.weekday()) % 7
+    first_monday = first_monday + timedelta(days=offset_to_monday)
+
+    day_cursor = first_monday
+    while day_cursor <= max_end:
+        offset_days = (day_cursor - min_start).days
+        day_ticks.append(
+            {
+                "label": day_cursor.strftime("%d"),
+                "offset_px": offset_days * px_per_day,
+            }
+        )
+        day_cursor += timedelta(days=7)
+
+    result = {
+        "year_bands": year_bands,
+        "month_bands": month_bands,
+        "day_ticks": day_ticks,
+    }
+
+    # Cache for 1 hour
+    cache.set(cache_key, result, 3600)
+    return result
 
 
 @profile_view("gantt_chart")
@@ -246,81 +350,8 @@ def gantt_chart(request):
         t.successor_codes = outgoing.get(t.code, [])
         t.successor_meta = outgoing_meta.get(t.code, [])
 
-    # ---- Build Year, Month, Day structures for the 3-level timeline ----
-
-    # YEAR BANDS
-    year_bands = []
-    start_year = min_start.year
-    end_year = max_end.year
-
-    for year in range(start_year, end_year + 1):
-        band_start_date = date(year, 1, 1)
-        if band_start_date < min_start:
-            band_start_date = min_start
-
-        next_year_start = date(year + 1, 1, 1)
-        band_end_date = next_year_start - timedelta(days=1)
-        if band_end_date > max_end:
-            band_end_date = max_end
-
-        offset_days = (band_start_date - min_start).days
-        width_days = (band_end_date - band_start_date).days + 1
-
-        year_bands.append(
-            {
-                "label": str(year),
-                "offset_px": offset_days * px_per_day,
-                "width_px": width_days * px_per_day,
-            }
-        )
-
-    # MONTH BANDS
-    month_bands = []
-    month_cursor = date(min_start.year, min_start.month, 1)
-
-    while month_cursor <= max_end:
-        band_start_date = max(month_cursor, min_start)
-
-        if month_cursor.month == 12:
-            next_month = date(month_cursor.year + 1, 1, 1)
-        else:
-            next_month = date(month_cursor.year, month_cursor.month + 1, 1)
-
-        band_end_date = next_month - timedelta(days=1)
-        if band_end_date > max_end:
-            band_end_date = max_end
-
-        offset_days = (band_start_date - min_start).days
-        width_days = (band_end_date - band_start_date).days + 1
-
-        label = month_cursor.strftime("%b")
-
-        month_bands.append(
-            {
-                "label": label,
-                "offset_px": offset_days * px_per_day,
-                "width_px": width_days * px_per_day,
-            }
-        )
-
-        month_cursor = next_month
-
-    # DAY TICKS: one per Monday for readability
-    day_ticks = []
-    first_monday = min_start
-    offset_to_monday = (7 - first_monday.weekday()) % 7
-    first_monday = first_monday + timedelta(days=offset_to_monday)
-
-    day_cursor = first_monday
-    while day_cursor <= max_end:
-        offset_days = (day_cursor - min_start).days
-        day_ticks.append(
-            {
-                "label": day_cursor.strftime("%d"),
-                "offset_px": offset_days * px_per_day,
-            }
-        )
-        day_cursor += timedelta(days=7)
+    # ---- Build Year, Month, Day structures for the 3-level timeline (cached) ----
+    timeline_bands = compute_timeline_bands(min_start, max_end, px_per_day)
 
     context = {
         "tasks": tasks,
@@ -329,9 +360,9 @@ def gantt_chart(request):
         "total_days": total_days,
         "px_per_day": px_per_day,
         "timeline_width_px": timeline_width_px,
-        "year_bands": year_bands,
-        "month_bands": month_bands,
-        "day_ticks": day_ticks,
+        "year_bands": timeline_bands["year_bands"],
+        "month_bands": timeline_bands["month_bands"],
+        "day_ticks": timeline_bands["day_ticks"],
         # Filter UI state
         "filter_mode": filter_mode,
         "has_items_only": has_items_only,

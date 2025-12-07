@@ -103,6 +103,19 @@ DATABASES = {
 }
 
 
+# Caching
+# https://docs.djangoproject.com/en/6.0/topics/cache/
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "house-project-cache",
+        "OPTIONS": {
+            "MAX_ENTRIES": 1000,
+        },
+    }
+}
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
