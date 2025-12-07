@@ -201,11 +201,11 @@ a:focus-visible,
 .gantt-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
   margin-bottom: 8px;
-  padding: 12px;
-  background: #fff;
-  border-bottom: 1px solid #e5e5e5;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
   flex-shrink: 0;
 }
 
@@ -213,30 +213,55 @@ a:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
+}
+
+.gantt-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .gantt-header-actions button {
-  font-size: 11px;
-  padding: 3px 8px;
-  margin-left: 4px;
+  font-size: 12px;
+  padding: 6px 12px;
+  margin: 0;
   cursor: pointer;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
+
+.gantt-header-actions button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
 .gantt-header-actions .gantt-link-button {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 4px 10px;
-  margin-left: 4px;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 14px;
   background: #0ea5e9;
   color: #fff;
   border-radius: 6px;
   border: 1px solid #0284c7;
   text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
+
 .gantt-header-actions .gantt-link-button:hover {
   background: #0284c7;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3);
 }
 
 /* Resource conflict marker on timeline */
@@ -270,12 +295,16 @@ body.theme-dark .resource-conflict {
 
 .gantt-header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.025em;
 }
 
 .gantt-meta {
-  font-size: 12px;
-  color: #555;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .back-link {
@@ -992,24 +1021,33 @@ body.theme-dark .gantt-scroll {
   background: #0f172a;
 }
 
-body.theme-dark .gantt-header h1,
+body.theme-dark .gantt-header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-bottom-color: #334155;
+}
+
+body.theme-dark .gantt-header h1 {
+  color: #f1f5f9;
+}
+
 body.theme-dark .gantt-meta,
 body.theme-dark .filter-group-title,
 body.theme-dark .back-link {
-  color: #e2e8f0;
+  color: #94a3b8;
 }
 
 body.theme-dark .gantt-header-actions button,
 body.theme-dark .filter-actions button,
 body.theme-dark .filter-actions a {
-  background: #1f2937;
+  background: #1e293b;
   color: #cbd5e1;
-  border-color: #334155;
+  border-color: #475569;
 }
 body.theme-dark .gantt-header-actions button:hover,
 body.theme-dark .filter-actions button:hover,
 body.theme-dark .filter-actions a:hover {
-  background: #111827;
+  background: #334155;
+  border-color: #64748b;
 }
 body.theme-dark .gantt-header-actions .gantt-link-button {
   background: #2563eb;
