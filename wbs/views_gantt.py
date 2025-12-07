@@ -350,6 +350,11 @@ def gantt_chart(request):
         t.successor_codes = outgoing.get(t.code, [])
         t.successor_meta = outgoing_meta.get(t.code, [])
 
+    # ---- Calculate critical path ----
+    critical_path_codes = calculate_critical_path(tasks)
+    for t in tasks:
+        t.is_critical_path = t.code in critical_path_codes
+
     # ---- Build Year, Month, Day structures for the 3-level timeline (cached) ----
     timeline_bands = compute_timeline_bands(min_start, max_end, px_per_day)
 
@@ -744,3 +749,101 @@ def search_autocomplete(request):
             seen.add(key)
 
     return JsonResponse({"suggestions": suggestions[:10]})
+
+
+def calculate_critical_path(tasks):
+    """
+    Calculate critical path using forward and backward pass algorithm.
+    Returns set of task codes that are on the critical path.
+
+    Args:
+        tasks: QuerySet or list of WbsItem objects with dependencies
+
+    Returns:
+        set: Task codes on the critical path
+    """
+    from datetime import timedelta
+
+    # Early Start (ES), Early Finish (EF), Late Start (LS), Late Finish (LF)
+    es = {}
+    ef = {}
+    ls = {}
+    lf = {}
+
+    # Forward pass - calculate ES and EF
+    for task in tasks:
+        if not task.planned_start or not task.planned_end:
+            continue
+
+        # Get all predecessors
+        predecessor_links = task.predecessor_links.select_related("predecessor")
+
+        if not predecessor_links.exists():
+            # No predecessors - starts at planned start
+            es[task.code] = task.planned_start
+        else:
+            # ES = max(predecessor EF + lag) for all predecessors
+            max_ef = task.planned_start
+            for link in predecessor_links:
+                pred_code = link.predecessor.code
+                if pred_code in ef:
+                    lag = int(link.lag_days or 0)
+                    pred_finish = ef[pred_code] + timedelta(days=lag)
+                    if pred_finish > max_ef:
+                        max_ef = pred_finish
+            es[task.code] = max_ef
+
+        # EF = ES + duration
+        duration = (task.planned_end - task.planned_start).days + 1
+        ef[task.code] = es[task.code] + timedelta(days=duration - 1)
+
+    # Find project end date (maximum EF)
+    if not ef:
+        return set()
+
+    project_end = max(ef.values())
+
+    # Backward pass - calculate LS and LF
+    # Process tasks in reverse topological order
+    tasks_reversed = list(reversed(tasks))
+
+    for task in tasks_reversed:
+        if task.code not in ef:
+            continue
+
+        # Get all successors
+        successor_links = task.successor_links.select_related("successor")
+
+        if not successor_links.exists():
+            # No successors - LF = project end
+            lf[task.code] = project_end
+        else:
+            # LF = min(successor LS - lag) for all successors
+            min_ls = project_end
+            for link in successor_links:
+                succ_code = link.successor.code
+                if succ_code in ls:
+                    lag = int(link.lag_days or 0)
+                    succ_start = ls[succ_code] - timedelta(days=lag)
+                    if succ_start < min_ls:
+                        min_ls = succ_start
+            lf[task.code] = min_ls
+
+        # LS = LF - duration
+        duration = (task.planned_end - task.planned_start).days + 1
+        ls[task.code] = lf[task.code] - timedelta(days=duration - 1)
+
+    # Calculate slack/float and identify critical path
+    # Critical path tasks have zero slack (ES == LS and EF == LF)
+    critical_path = set()
+
+    for task_code in es.keys():
+        if task_code in ls:
+            es_date = es[task_code]
+            ls_date = ls[task_code]
+
+            # Tasks with zero slack are on critical path
+            if es_date == ls_date:
+                critical_path.add(task_code)
+
+    return critical_path

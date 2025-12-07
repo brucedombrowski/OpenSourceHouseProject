@@ -632,6 +632,50 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
+     Toggle Critical Path Highlighting
+  ------------------------------------------------------------ */
+  const criticalPathBtn = document.getElementById("toggle-critical-path");
+  let criticalPathVisible = false;
+
+  if (criticalPathBtn) {
+    criticalPathBtn.addEventListener("click", () => {
+      criticalPathVisible = !criticalPathVisible;
+      criticalPathBtn.style.opacity = criticalPathVisible ? "1" : "0.6";
+      criticalPathBtn.title = criticalPathVisible
+        ? "Hide critical path"
+        : "Show critical path";
+
+      // Toggle visual styles for all bars
+      document.querySelectorAll(".bar.critical-path").forEach(bar => {
+        if (criticalPathVisible) {
+          bar.style.display = "";
+        } else {
+          bar.style.opacity = "0.5";
+        }
+      });
+
+      // For hidden, make less prominent but still visible
+      if (!criticalPathVisible) {
+        document.querySelectorAll(".bar:not(.critical-path)").forEach(bar => {
+          bar.style.opacity = "0.3";
+        });
+      } else {
+        document.querySelectorAll(".bar:not(.critical-path)").forEach(bar => {
+          bar.style.opacity = "1";
+        });
+      }
+
+      // Redraw dependency arrows if they exist
+      if (typeof redrawDependencyArrows === "function") {
+        redrawDependencyArrows();
+      }
+    });
+
+    // Start with critical path visible
+    criticalPathVisible = true;
+  }
+
+  /* ------------------------------------------------------------
      Export Gantt to PNG
   ------------------------------------------------------------ */
   const exportBtn = document.getElementById("export-gantt");

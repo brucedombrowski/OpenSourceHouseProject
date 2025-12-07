@@ -31,6 +31,9 @@
             <button type="button" id="zoom-out" aria-label="Zoom out">Zoom -</button>
             <button type="button" id="zoom-in" aria-label="Zoom in">Zoom +</button>
             <button type="button" id="zoom-reset" aria-label="Reset zoom">Reset Zoom</button>
+            <button type="button" id="toggle-critical-path" aria-label="Toggle critical path" title="Highlight critical path">
+              📍 Critical Path
+            </button>
             <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">Export PNG</button>
             <button type="button" id="optimize-schedule" aria-label="Optimize schedule">Optimize Schedule</button>
             <button type="button" id="expand-all" aria-label="Expand all tasks">Expand All</button>
@@ -152,6 +155,13 @@
       <span class="legend-swatch dep-type-sf"></span> SF
     </span>
     <span class="legend-item">Lag label shown when lag ≠ 0</span>
+    <span class="legend-separator">|</span>
+    <span class="legend-item">
+      <span class="legend-swatch critical-path-swatch"></span> Critical Path
+    </span>
+    <span class="legend-item">
+      <span class="milestone-icon">◆</span> Milestone
+    </span>
   </div>
 
   <!-- Bulk Actions Toolbar -->
@@ -313,14 +323,19 @@
                   <td class="bar-cell">
                     {% if item.bar_width %}
                       <div class="bar-wrapper" style="width: {{ timeline_width_px }}px;">
-                    <div class="bar draggable-bar"
+                    <div class="bar draggable-bar{% if item.is_critical_path %} critical-path{% endif %}{% if item.is_milestone %} milestone{% endif %}"
                          data-code="{{ item.code }}"
                          data-start="{{ item.planned_start|date:'Y-m-d' }}"
                          data-end="{{ item.planned_end|date:'Y-m-d' }}"
+                         data-critical="{{ item.is_critical_path|yesno:'true,false' }}"
+                         data-milestone="{{ item.is_milestone|yesno:'true,false' }}"
                          style="margin-left: {{ item.bar_offset }}px; width: {{ item.bar_width }}px;">
                       {% if item.percent_complete %}
                         <div class="bar-progress"
                              style="width: {{ item.percent_complete|default_if_none:0 }}%;"></div>
+                      {% endif %}
+                      {% if item.is_milestone %}
+                        <div class="milestone-marker" title="Milestone: {{ item.name }}">◆</div>
                       {% endif %}
                         </div>
                       </div>
