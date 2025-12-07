@@ -932,3 +932,68 @@ class GanttShiftTests(TestCase):
         # Dates should still be correct (min start, max end)
         self.assertEqual(root.planned_start, date(2025, 1, 1))
         self.assertEqual(root.planned_end, date(2025, 1, 10))
+
+
+class TimelineCachingTests(TestCase):
+    """Test suite for Gantt timeline band caching."""
+
+    def test_timeline_caching_works(self):
+        """
+        Timeline bands should be cached and reused for same parameters.
+        """
+        from django.core.cache import cache
+
+        from wbs.views_gantt import compute_timeline_bands
+
+        # Clear cache
+        cache.clear()
+
+        min_start = date(2025, 1, 1)
+        max_end = date(2025, 12, 31)
+        px_per_day = 20
+
+        # First call should compute and cache
+        result1 = compute_timeline_bands(min_start, max_end, px_per_day)
+        self.assertIn("year_bands", result1)
+        self.assertIn("month_bands", result1)
+        self.assertIn("day_ticks", result1)
+
+        # Second call should return cached result
+        result2 = compute_timeline_bands(min_start, max_end, px_per_day)
+        self.assertEqual(result1, result2)
+
+        # Verify cache key exists
+        cache_key = f"gantt_timeline:{min_start}:{max_end}:{px_per_day}"
+        cached_value = cache.get(cache_key)
+        self.assertIsNotNone(cached_value)
+        self.assertEqual(cached_value, result1)
+
+    def test_timeline_cache_invalidation_on_zoom(self):
+        """
+        Different zoom levels should create different cache entries.
+        """
+        from django.core.cache import cache
+
+        from wbs.views_gantt import compute_timeline_bands
+
+        cache.clear()
+
+        min_start = date(2025, 1, 1)
+        max_end = date(2025, 3, 31)
+
+        # Different zoom levels
+        result_zoom_10 = compute_timeline_bands(min_start, max_end, 10)
+        result_zoom_20 = compute_timeline_bands(min_start, max_end, 20)
+
+        # Pixel widths should differ
+        self.assertNotEqual(
+            result_zoom_10["year_bands"][0]["width_px"],
+            result_zoom_20["year_bands"][0]["width_px"],
+        )
+
+        # Both should be cached separately
+        cache_key_10 = f"gantt_timeline:{min_start}:{max_end}:10"
+        cache_key_20 = f"gantt_timeline:{min_start}:{max_end}:20"
+
+        self.assertIsNotNone(cache.get(cache_key_10))
+        self.assertIsNotNone(cache.get(cache_key_20))
