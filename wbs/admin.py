@@ -66,6 +66,11 @@ class WbsItemAdmin(DraggableMPTTAdmin):
 
     actions = ["renumber_wbs_action", "rollup_dates_action"]
 
+    def get_queryset(self, request):
+        """Optimize queryset with prefetch for project items."""
+        qs = super().get_queryset(request)
+        return qs.with_project_items()
+
     # ---- Labels / display helpers ----
 
     def wbs_label(self, instance):

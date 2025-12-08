@@ -40,6 +40,72 @@ from .constants import (
 from .utils import normalize_code_for_sort
 
 
+class WbsItemQuerySet(models.QuerySet):
+    """Custom QuerySet with optimized query patterns for WbsItem."""
+
+    def with_project_items(self):
+        """Prefetch project items with their owners."""
+        return self.prefetch_related("project_items__owner")
+
+    def with_dependencies(self):
+        """Prefetch predecessor and successor task dependencies."""
+        return self.prefetch_related(
+            "predecessor_links__predecessor",
+            "successor_links__successor",
+        )
+
+    def with_parent(self):
+        """Select related parent for hierarchy queries."""
+        return self.select_related("parent")
+
+    def for_gantt_view(self):
+        """
+        Optimized queryset for Gantt chart rendering.
+        Includes parent, dependencies, and project items with owners.
+        """
+        return self.select_related("parent").prefetch_related(
+            "project_items__owner",
+            "predecessor_links__predecessor",
+            "successor_links__successor",
+        )
+
+    def for_kanban_view(self):
+        """
+        Optimized queryset for Kanban board rendering.
+        Includes parent and project items with owners.
+        """
+        return self.select_related("parent").prefetch_related("project_items__owner")
+
+    def with_full_tree(self):
+        """Load full tree structure with parent relationships."""
+        return self.select_related("parent").order_by("sort_key")
+
+
+class WbsItemManager(models.Manager):
+    """Custom manager for WbsItem with QuerySet methods."""
+
+    def get_queryset(self):
+        return WbsItemQuerySet(self.model, using=self._db)
+
+    def with_project_items(self):
+        return self.get_queryset().with_project_items()
+
+    def with_dependencies(self):
+        return self.get_queryset().with_dependencies()
+
+    def with_parent(self):
+        return self.get_queryset().with_parent()
+
+    def for_gantt_view(self):
+        return self.get_queryset().for_gantt_view()
+
+    def for_kanban_view(self):
+        return self.get_queryset().for_kanban_view()
+
+    def with_full_tree(self):
+        return self.get_queryset().with_full_tree()
+
+
 class WbsItem(MPTTModel):
     """
     Core WBS node for the house project.
@@ -92,6 +158,9 @@ class WbsItem(MPTTModel):
 
     is_milestone = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
+
+    # Custom manager with optimized query methods
+    objects = WbsItemManager()
 
     class MPTTMeta:
         # Default insertion order in the tree (numeric-friendly via sort_key)

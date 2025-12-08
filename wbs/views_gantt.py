@@ -6,7 +6,6 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import models
-from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
@@ -149,16 +148,10 @@ def gantt_chart(request):
     selected_owners = request.GET.getlist("owner")
     selected_owner_ids = {oid for oid in selected_owners if oid}
 
-    # ---- Base queryset: tasks with dates + prefetch ProjectItems ----
+    # ---- Base queryset: tasks with dates + optimized prefetch ----
     qs = (
-        WbsItem.objects.filter(planned_start__isnull=False, planned_end__isnull=False)
-        .select_related("parent")
-        .prefetch_related(
-            Prefetch(
-                "project_items",
-                queryset=ProjectItem.objects.select_related("owner").order_by("-created_at"),
-            )
-        )
+        WbsItem.objects.for_gantt_view()
+        .filter(planned_start__isnull=False, planned_end__isnull=False)
         .order_by("tree_id", "lft")  # MPTT-style ordering
     )
 
