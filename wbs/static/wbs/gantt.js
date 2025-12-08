@@ -436,6 +436,7 @@ document.addEventListener("DOMContentLoaded", function () {
     display: "none",
     alignItems: "center",
     justifyContent: "center",
+    padding: "16px",
   });
   modal.innerHTML = `
     <div class="gantt-modal-backdrop"></div>
@@ -450,6 +451,38 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   `;
   document.body.appendChild(modal);
+
+  // Force modal card styling inline to guarantee visibility
+  const modalCard = modal.querySelector(".gantt-modal-card");
+  if (modalCard) {
+    Object.assign(modalCard.style, {
+      background: "#ffffff",
+      color: "#0f172a",
+      border: "1px solid #ddd",
+      padding: "18px 20px",
+      borderRadius: "10px",
+      boxShadow: "0 18px 42px rgba(0,0,0,0.35)",
+      position: "relative",
+      minWidth: "280px",
+      maxWidth: "min(420px, 90vw)",
+      zIndex: "2",
+    });
+  }
+
+  // Force backdrop styling inline to guarantee visibility
+  const backdrop = modal.querySelector(".gantt-modal-backdrop");
+  if (backdrop) {
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0,0,0,0.55)",
+      backdropFilter: "blur(4px)",
+      zIndex: "1",
+      width: "100%",
+      height: "100%",
+    });
+  }
+
   // Hide any pre-existing gantt modals (defensive against duplicated markup)
   document.querySelectorAll(".gantt-modal").forEach((el) => {
     if (el !== modal) {

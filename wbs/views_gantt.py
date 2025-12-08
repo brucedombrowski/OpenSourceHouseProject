@@ -1,5 +1,6 @@
 # wbs/views_gantt.py
 
+import time
 from datetime import date, timedelta
 from typing import Dict, List, Set
 
@@ -436,6 +437,8 @@ def gantt_chart(request):
         # Resource leveling
         "resource_conflicts": resource_conflicts,
         "resource_calendar": resource_calendar,
+        # Build verification timestamp
+        "build_timestamp": int(time.time()),
     }
     return render(request, "wbs/gantt.html", context)
 

@@ -1,12 +1,11 @@
 {# templates/wbs/gantt.html #}
 {% extends "base.html" %}
 {% load static %}
-{% now "U" as timestamp %}
 
 {% block title %}Gantt Chart{% endblock %}
 
 {% block extra_styles %}
-<link rel="stylesheet" href="{% static 'wbs/gantt.css' %}?v={{ timestamp }}">
+<link rel="stylesheet" href="{% static 'wbs/gantt.css' %}?v={{ build_timestamp }}">
 <style>
   html, body {
     height: 100%;
@@ -886,6 +885,9 @@
     </div>
   {% endif %}
 
+  <!-- Build Verification Stamp (visible timestamp for testing verification) -->
+  <div style="position: fixed; bottom: 2px; right: 2px; font-size: 10px; color: #999; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; font-family: monospace; z-index: 100; cursor: help; user-select: all;" title="Build timestamp - copy to verify you're testing the latest version">v{{ build_timestamp }}</div>
+
   <!-- Keyboard Shortcuts Help Modal -->
   <div id="keyboard-help-modal" class="modal-overlay" style="display: none;">
     <div class="modal-content keyboard-help-content">
@@ -957,9 +959,9 @@
   </div>
 
 </div>
-<script src="{% static 'wbs/shared-theme.js' %}?v={{ timestamp }}"></script>
-<script src="{% static 'wbs/fetch-utils.js' %}?v={{ timestamp }}"></script>
+<script src="{% static 'wbs/shared-theme.js' %}?v={{ build_timestamp }}"></script>
+<script src="{% static 'wbs/fetch-utils.js' %}?v={{ build_timestamp }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script type="module" src="{% static 'wbs/gantt.js' %}?v={{ timestamp }}"></script>
+<script type="module" src="{% static 'wbs/gantt.js' %}?v={{ build_timestamp }}"></script>
 </div>
 {% endblock %}

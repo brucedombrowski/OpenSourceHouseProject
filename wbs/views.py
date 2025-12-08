@@ -8,6 +8,8 @@ imports like `from wbs.views import gantt_view` continue to work
 even as we split the codebase into smaller files.
 """
 
+import time
+
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
@@ -85,11 +87,19 @@ def project_item_board(request):
         PROJECT_ITEM_STATUS_MAP,
     )
 
+    # Get distinct owners for filter
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    owners = User.objects.filter(project_items__isnull=False).distinct().order_by("username")
+
     return render(
         request,
         "wbs/kanban.html",
         {
             "columns": columns,
+            "owners": owners,
+            "build_timestamp": int(time.time()),
         },
     )
 
