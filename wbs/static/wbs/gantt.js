@@ -398,7 +398,8 @@ document.addEventListener("DOMContentLoaded", function () {
      Inline date edit via modal
   ------------------------------------------------------------ */
   const modal = document.createElement("div");
-  modal.className = "gantt-modal hidden";
+  modal.className = "gantt-modal";
+  modal.style.display = "none"; // ensure hidden even if CSS fails to load
   modal.innerHTML = `
     <div class="gantt-modal-backdrop"></div>
     <div class="gantt-modal-card">
@@ -412,6 +413,13 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   `;
   document.body.appendChild(modal);
+  // Hide any pre-existing gantt modals (defensive against duplicated markup)
+  document.querySelectorAll(".gantt-modal").forEach((el) => {
+    if (el !== modal) {
+      el.classList.remove("show");
+      el.style.display = "none";
+    }
+  });
   const startInput = modal.querySelector("#modal-start");
   const endInput = modal.querySelector("#modal-end");
   const cancelBtn = modal.querySelector("#modal-cancel");
@@ -422,11 +430,13 @@ document.addEventListener("DOMContentLoaded", function () {
     modalTarget = bar;
     startInput.value = bar.dataset.start;
     endInput.value = bar.dataset.end;
-    modal.classList.remove("hidden");
+    modal.style.display = "block";
+    modal.classList.add("show");
   }
 
   function closeModal() {
-    modal.classList.add("hidden");
+    modal.classList.remove("show");
+    modal.style.display = "none";
     modalTarget = null;
   }
 

@@ -219,8 +219,26 @@ a:focus-visible,
 .gantt-header-actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  position: relative;
+}
+
+.button-group .group-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+  align-self: center;
 }
 
 .gantt-header-actions button {
@@ -864,13 +882,14 @@ th {
 }
 
 /* Modal */
-.gantt-modal.hidden {
-  display: none;
-}
 .gantt-modal {
   position: fixed;
   inset: 0;
   z-index: 9999;
+  display: none !important; /* hide by default; shown via .show */
+}
+.gantt-modal.show {
+  display: block !important;
 }
 .gantt-modal-backdrop {
   position: absolute;
