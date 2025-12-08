@@ -428,7 +428,6 @@ document.addEventListener("DOMContentLoaded", function () {
   ------------------------------------------------------------ */
   const modal = document.createElement("div");
   modal.className = "gantt-modal";
-  modal.style.display = "none"; // ensure hidden even if CSS fails to load
   modal.innerHTML = `
     <div class="gantt-modal-backdrop"></div>
     <div class="gantt-modal-card">
@@ -446,7 +445,6 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".gantt-modal").forEach((el) => {
     if (el !== modal) {
       el.classList.remove("show");
-      el.style.display = "none";
     }
   });
   const startInput = modal.querySelector("#modal-start");
@@ -459,13 +457,11 @@ document.addEventListener("DOMContentLoaded", function () {
     modalTarget = bar;
     startInput.value = bar.dataset.start;
     endInput.value = bar.dataset.end;
-    modal.style.display = "block";
     modal.classList.add("show");
   }
 
   function closeModal() {
     modal.classList.remove("show");
-    modal.style.display = "none";
     modalTarget = null;
   }
 
