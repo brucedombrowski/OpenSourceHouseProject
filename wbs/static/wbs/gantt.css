@@ -887,25 +887,26 @@ th {
   inset: 0;
   z-index: 9999;
   display: none !important; /* hide by default; shown via .show */
+  align-items: center;
+  justify-content: center;
 }
 .gantt-modal.show {
-  display: block !important;
+  display: flex !important;
 }
 .gantt-modal-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.4);
+  z-index: -1;
 }
 .gantt-modal-card {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  position: relative;
   background: #fff;
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   min-width: 260px;
+  z-index: 1;
 }
 .gantt-modal-card h3 {
   margin: 0 0 12px 0;
