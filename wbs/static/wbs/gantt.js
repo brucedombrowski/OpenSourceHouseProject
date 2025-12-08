@@ -19,9 +19,11 @@ import logger from "./logger.js";
 // Timeline and zoom settings
 const PIXELS_PER_DAY_DEFAULT = 4;
 const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3.0;
+const ZOOM_MAX = 10.0; // Increased to allow much more granular day-level views
 const ZOOM_STEP = 0.25;
 const ZOOM_LOCAL_STORAGE_KEY = "ganttZoom";
+const ZOOM_VERSION_KEY = "ganttZoomVersion";
+const ZOOM_VERSION = "3"; // Increment when zoom calculation logic changes
 
 // Resource conflict detection
 const RESOURCE_CONFLICT_THRESHOLD = 3;
@@ -52,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const basePxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || PIXELS_PER_DAY_DEFAULT) : PIXELS_PER_DAY_DEFAULT;
   const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
   const minStartDate = minStartStr ? new Date(minStartStr + "T00:00:00") : null;
-  const baseTimelineWidth = ganttRoot ? parseFloat(ganttRoot.dataset.timelineWidth || "0") : 0;
+  let baseTimelineWidth = ganttRoot ? parseFloat(ganttRoot.dataset.timelineWidth || "0") : 0;
   const setTimelineWidthVar = px => {
     if (!ganttRoot || Number.isNaN(px)) return;
     ganttRoot.style.setProperty("--timeline-width", `${px}px`);
@@ -68,7 +70,31 @@ document.addEventListener("DOMContentLoaded", function () {
   const setDatesEndpoint = "/gantt/set-dates/";
   const optimizeEndpoint = "/gantt/optimize/";
 
-  setTimelineWidthVar(baseTimelineWidth);
+  // Calculate optimal initial zoom to fill browser width
+  // Left column widths: 80 + 300 + 100 + 120 = 600px (Code + Task + Start + End)
+  // Also account for scrollbar (~17px) and some padding
+  const LEFT_COLUMN_WIDTH = 600;
+  const SCROLLBAR_WIDTH = 17;
+  const calculateOptimalZoom = () => {
+    const availableWidth = window.innerWidth - LEFT_COLUMN_WIDTH - SCROLLBAR_WIDTH - 4; // 4px for borders/padding
+    if (baseTimelineWidth <= 0 || availableWidth <= 0) return 1;
+
+    // baseTimelineWidth was calculated at basePxPerDay, so the optimal zoom is:
+    const optimalZoom = availableWidth / baseTimelineWidth;
+    return clamp(optimalZoom, ZOOM_MIN, ZOOM_MAX);
+  };
+
+  // Set optimal zoom on first load if no zoom was stored or version changed
+  const hasStoredZoom = localStorage.getItem(ZOOM_LOCAL_STORAGE_KEY);
+  const storedVersion = localStorage.getItem(ZOOM_VERSION_KEY);
+  if ((!hasStoredZoom || storedVersion !== ZOOM_VERSION) && baseTimelineWidth > 0) {
+    zoom = calculateOptimalZoom();
+    currentPxPerDay = basePxPerDay * zoom;
+    localStorage.setItem(ZOOM_VERSION_KEY, ZOOM_VERSION);
+  }
+
+  const newTimelineWidth = baseTimelineWidth * zoom;
+  setTimelineWidthVar(newTimelineWidth);
 
   // CSRF token from shared-theme.js
   const csrfToken = getCSRFToken();
@@ -99,6 +125,26 @@ document.addEventListener("DOMContentLoaded", function () {
     return latest;
   }
 
+  /* ------------------------------------------------------------
+     Dependency arrows and highlighting (module)
+  ------------------------------------------------------------ */
+  const depSvg = document.getElementById("dependency-svg");
+  const scrollElement = document.querySelector(".gantt-scroll");
+  const { drawDependencyArrows, clearHighlights, highlightDependencies } =
+    createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
+
+  // Throttle expensive redraws to animation frames to avoid scroll jitter
+  let arrowsQueued = false;
+  const scheduleArrowRedraw = () => {
+    if (arrowsQueued) return;
+    arrowsQueued = true;
+    requestAnimationFrame(() => {
+      arrowsQueued = false;
+      drawDependencyArrows();
+    });
+  };
+
+  // Function to refresh task positions from server updates
   function refreshTasks(updates) {
     if (!updates || !updates.length) return;
     const map = {};
@@ -122,26 +168,10 @@ document.addEventListener("DOMContentLoaded", function () {
       bar.style.width = `${Math.max(1, daysBetween(startDate, endDate) + 1) * currentPxPerDay}px`;
       updateRowDates(row, upd.start, upd.end);
     });
+
+    // Redraw dependency arrows after updating bar positions
+    scheduleArrowRedraw();
   }
-
-    /* ------------------------------------------------------------
-       Dependency arrows and highlighting (module)
-    ------------------------------------------------------------ */
-  const depSvg = document.getElementById("dependency-svg");
-  const scrollElement = document.querySelector(".gantt-scroll");
-  const { drawDependencyArrows, clearHighlights, highlightDependencies } =
-    createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg });
-
-  // Throttle expensive redraws to animation frames to avoid scroll jitter
-  let arrowsQueued = false;
-  const scheduleArrowRedraw = () => {
-    if (arrowsQueued) return;
-    arrowsQueued = true;
-    requestAnimationFrame(() => {
-      arrowsQueued = false;
-      drawDependencyArrows();
-    });
-  };
 
   initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
 
@@ -152,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const barWrappers = Array.from(document.querySelectorAll(".bar-wrapper"));
   const timelineElements = Array.from(
     document.querySelectorAll(
-      ".timeline .year-band, .timeline .month-band, .timeline .day-tick, .timeline .day-label"
+      ".timeline .year-band, .timeline .month-band, .timeline .month-tick, .timeline .day-tick, .timeline .day-label"
     )
   );
   let basePositionsCached = false;
@@ -173,23 +203,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function applyZoom(nextZoom) {
-    zoom = clamp(nextZoom, 0.5, 3);
+    zoom = clamp(nextZoom, ZOOM_MIN, ZOOM_MAX);
     localStorage.setItem(ZOOM_LOCAL_STORAGE_KEY, String(zoom));
     currentPxPerDay = basePxPerDay * zoom;
 
     cacheTimelinePositions();
 
-    const trackBaseWidth = baseTimelineWidth || (timelineTrack ? timelineTrack.getBoundingClientRect().width : 0);
+    // Get the base width from colgroup as the single source of truth
+    const timelineCol = document.querySelector('.gantt-table colgroup col:last-child');
+    const timelineTrack = document.querySelector('.timeline-track');
+    let trackBaseWidth = baseTimelineWidth;
+
+    // If we don't have baseTimelineWidth cached, read from colgroup inline style
+    if (!trackBaseWidth && timelineCol) {
+      const colgroupWidth = parseFloat(timelineCol.style.width);
+      if (!isNaN(colgroupWidth)) {
+        trackBaseWidth = colgroupWidth;
+        baseTimelineWidth = colgroupWidth;
+      }
+    }
+
     const newWidth = trackBaseWidth ? trackBaseWidth * zoom : 0;
 
+    // CRITICAL: Update ONLY the colgroup column width - it controls the entire column
+    if (timelineCol && newWidth) {
+      timelineCol.style.width = `${newWidth}px`;
+    }
+
+    // ALSO update the timeline-track div width to match colgroup exactly
     if (timelineTrack && newWidth) {
       timelineTrack.style.width = `${newWidth}px`;
     }
 
+    // Update CSS variable for any content that needs it
     if (newWidth) {
       setTimelineWidthVar(newWidth);
     }
 
+    // Update bar wrappers for content positioning
     barWrappers.forEach(wrapper => {
       if (newWidth) {
         wrapper.style.width = `${newWidth}px`;
@@ -234,14 +285,28 @@ document.addEventListener("DOMContentLoaded", function () {
     zoomOutBtn.addEventListener("click", () => applyZoom(zoom - ZOOM_STEP));
   }
   if (zoomResetBtn) {
-    zoomResetBtn.addEventListener("click", () => applyZoom(1));
+    zoomResetBtn.addEventListener("click", () => {
+      // Recalculate optimal zoom based on current browser width
+      const optimalZoom = calculateOptimalZoom();
+      applyZoom(optimalZoom);
+    });
   }
 
   setTimeout(scheduleArrowRedraw, 50);
   if (scrollElement) {
     scrollElement.addEventListener("scroll", scheduleArrowRedraw, { passive: true });
   }
-  window.addEventListener("resize", scheduleArrowRedraw);
+
+  // Handle window resize: recalculate optimal zoom and redraw arrows
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const optimalZoom = calculateOptimalZoom();
+      applyZoom(optimalZoom);
+      scheduleArrowRedraw();
+    }, 150); // Debounce resize events
+  });
 
     /* ------------------------------------------------------------
      Side panel: click row → show ProjectItems
@@ -315,6 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function updateRowDates(row, newStart, newEnd) {
     const cells = row.querySelectorAll("td");
+    // cells[0] = code, cells[1] = task name, cells[2] = start date, cells[3] = end date, cells[4] = bar-cell
     if (cells[2]) cells[2].textContent = newStart;
     if (cells[3]) cells[3].textContent = newEnd;
   }
@@ -338,7 +404,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const deltaPx = e.clientX - startX;
       const deltaDays = Math.round(deltaPx / currentPxPerDay);
       lastDeltaDays = deltaDays;
-      bar.style.transform = `translateX(${deltaDays * pxPerDay}px)`;
+      bar.style.transform = `translateX(${deltaDays * currentPxPerDay}px)`;
     };
 
     const onUp = (e) => {

@@ -126,23 +126,6 @@
         align-items: center;
         gap: 10px;
     }
-    .btn-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 8px;
-        background: rgba(34, 211, 238, 0.14);
-        border: 1px solid rgba(34, 211, 238, 0.35);
-        color: var(--text);
-        text-decoration: none;
-        font-weight: 600;
-        letter-spacing: 0.01em;
-    }
-    .btn-link:hover {
-        background: rgba(34, 211, 238, 0.22);
-        border-color: rgba(34, 211, 238, 0.45);
-    }
     .drop-hover {
         outline: 2px dashed rgba(34, 211, 238, 0.6);
         outline-offset: -6px;
@@ -172,7 +155,7 @@
 <div class="kanban-header">
     <h2>📋 Project Items Board</h2>
     <div class="kanban-actions">
-        <button id="toggle-filters" class="btn-link" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-panel">⊕ Filters</button>
+        <button id="toggle-filters" class="btn" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-panel">⊕ Filters</button>
         <div class="pill">Grouped by status</div>
     </div>
 </div>
@@ -225,7 +208,7 @@
                 </div>
             </div>
             <div>
-                <button id="clear-filters" class="btn-link" style="cursor:pointer; margin-top: 20px;" aria-label="Clear filters">Clear</button>
+                <button id="clear-filters" class="btn" style="cursor:pointer; margin-top: 20px;" aria-label="Clear filters">Clear</button>
             </div>
         </div>
     </section>

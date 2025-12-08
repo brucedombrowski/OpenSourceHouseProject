@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from .constants import (
@@ -16,7 +17,7 @@ from .constants import (
     GANTT_RESOURCE_CONFLICT_THRESHOLD,
     GANTT_TIMELINE_CACHE_SECONDS,
 )
-from .models import ProjectItem, TaskDependency, WbsItem
+from .models import TaskDependency, WbsItem
 from .performance import profile_view
 from .utils import (
     days_between,
@@ -42,6 +43,9 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
     cached = cache.get(cache_key)
     if cached:
         return cached
+
+    total_days = days_between(min_start, max_end)
+    timeline_width_px = total_days * px_per_day
 
     # YEAR BANDS
     year_bands = []
@@ -69,9 +73,14 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
             }
         )
 
-    # MONTH BANDS
+    # MONTH BANDS AND TICKS
     month_bands = []
+    month_ticks = []
     month_cursor = date(min_start.year, min_start.month, 1)
+    import sys
+
+    print("\n=== MONTH TICK DEBUG ===", file=sys.stderr)
+    print(f"min_start={min_start}, max_end={max_end}", file=sys.stderr)
 
     while month_cursor <= max_end:
         band_start_date = max(month_cursor, min_start)
@@ -98,30 +107,65 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
             }
         )
 
+        # Add tick at the START of each month ONLY if visible in timeline
+        # Only include ticks for months that overlap with visible range [min_start, max_end]
+        if month_cursor >= min_start and month_cursor <= max_end:
+            print(
+                f"  Adding tick for {month_cursor} at {(month_cursor - min_start).days * px_per_day}px",
+                file=sys.stderr,
+            )
+            tick_offset_days = (month_cursor - min_start).days
+            month_ticks.append(
+                {
+                    "offset_px": tick_offset_days * px_per_day,
+                }
+            )
+
         month_cursor = next_month
 
-    # DAY TICKS: one per Monday for readability
-    day_ticks = []
-    first_monday = min_start
-    offset_to_monday = (7 - first_monday.weekday()) % 7
-    first_monday = first_monday + timedelta(days=offset_to_monday)
+    # Add a final tick at the very end of the timeline (start of next month after max_end)
+    # to show the right boundary
+    if month_cursor <= max_end:
+        tick_offset_days = (month_cursor - min_start).days
+        if tick_offset_days * px_per_day <= timeline_width_px:
+            month_ticks.append(
+                {
+                    "offset_px": tick_offset_days * px_per_day,
+                }
+            )
 
-    day_cursor = first_monday
+    # DAY TICKS: Generate tick marks for ALL days
+    # Labels will be shown selectively based on zoom level (Mondays, or all days when zoomed in)
+    day_ticks = []
+    day_cursor = min_start
     while day_cursor <= max_end:
         offset_days = (day_cursor - min_start).days
+        is_monday = day_cursor.weekday() == 0
         day_ticks.append(
             {
                 "label": day_cursor.strftime("%d"),
+                "weekday": day_cursor.strftime("%a"),  # Mon, Tue, etc.
                 "offset_px": offset_days * px_per_day,
+                "is_monday": is_monday,  # Used to decide when to show labels
             }
         )
-        day_cursor += timedelta(days=7)
+        day_cursor += timedelta(days=1)
 
     result = {
         "year_bands": year_bands,
         "month_bands": month_bands,
+        "month_ticks": month_ticks,
         "day_ticks": day_ticks,
     }
+
+    # DEBUG: Log month_ticks generation
+    import sys
+
+    print(f"DEBUG: month_bands: {month_bands}", file=sys.stderr)
+    print(f"DEBUG: month_ticks: {month_ticks}", file=sys.stderr)
+    print(
+        f"DEBUG: min_start={min_start}, max_end={max_end}, px_per_day={px_per_day}", file=sys.stderr
+    )
 
     # Cache for 1 hour
     cache.set(cache_key, result, GANTT_TIMELINE_CACHE_SECONDS)
@@ -129,6 +173,7 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
 
 
 @profile_view("gantt_chart")
+@ensure_csrf_cookie
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 # TODO: Implement role-based access control (admin/manager/viewer roles)
 def gantt_chart(request):
@@ -138,27 +183,9 @@ def gantt_chart(request):
     Features:
       - 3-level time axis: Year (top), Month (middle), Day (bottom, weekly/Mondays)
       - Collapsible task hierarchy (driven by template JS using has_children/level_indent)
-      - ProjectItem awareness:
-          * Each WbsItem can have linked ProjectItems (issues/tasks/etc.)
-          * Server-side filter / highlight support via query params:
-              - mode: "none" | "highlight" | "filter"
-              - items_only: "1" (only tasks with any ProjectItems)
-              - type: repeated param (ProjectItem.type)
-              - status: repeated param (ProjectItem.status)
-              - priority: repeated param (ProjectItem.priority)
-              - severity: repeated param (ProjectItem.severity)
+      - Task dependency visualization and critical path highlighting
+      - Resource allocation tracking and conflict detection
     """
-
-    # ---- Filter parameters from query string ----
-    filter_mode = request.GET.get("mode", "none")  # "none", "highlight", "filter"
-    has_items_only = request.GET.get("items_only") == "1"
-
-    selected_types = request.GET.getlist("type")
-    selected_statuses = request.GET.getlist("status")
-    selected_priorities = request.GET.getlist("priority")
-    selected_severities = request.GET.getlist("severity")
-    selected_owners = request.GET.getlist("owner")
-    selected_owner_ids = {oid for oid in selected_owners if oid}
 
     # ---- Base queryset: tasks with dates + optimized prefetch ----
     qs = (
@@ -167,39 +194,7 @@ def gantt_chart(request):
         .order_by("tree_id", "lft")  # MPTT-style ordering
     )
 
-    # ---- DB-level filtering when mode = "filter" ----
-    if filter_mode == "filter":
-        if has_items_only:
-            qs = qs.filter(project_items__isnull=False)
-
-        if selected_types:
-            qs = qs.filter(project_items__type__in=selected_types)
-
-        if selected_statuses:
-            qs = qs.filter(project_items__status__in=selected_statuses)
-
-        if selected_priorities:
-            qs = qs.filter(project_items__priority__in=selected_priorities)
-
-        if selected_severities:
-            qs = qs.filter(project_items__severity__in=selected_severities)
-
-        if selected_owner_ids:
-            qs = qs.filter(project_items__owner_id__in=selected_owner_ids)
-
-        qs = qs.distinct()
-
     tasks = list(qs)
-
-    # ---- Prepare owner list for filter UI (computed once, used in both branches) ----
-    User = get_user_model()
-    all_owners = [
-        {
-            "id": str(user.id),
-            "label": get_owner_display_name(user),
-        }
-        for user in User.objects.filter(project_items__isnull=False).distinct().order_by("username")
-    ]
 
     # ---- No-data case ----
     if not tasks:
@@ -211,21 +206,8 @@ def gantt_chart(request):
             "timeline_width_px": 0,
             "year_bands": [],
             "month_bands": [],
+            "month_ticks": [],
             "day_ticks": [],
-            # Filter UI state
-            "filter_mode": filter_mode,
-            "has_items_only": has_items_only,
-            "selected_types": selected_types,
-            "selected_statuses": selected_statuses,
-            "selected_priorities": selected_priorities,
-            "selected_severities": selected_severities,
-            "selected_owners": list(selected_owner_ids),
-            # Choices for building the filter form
-            "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
-            "projectitem_status_choices": ProjectItem.STATUS_CHOICES,
-            "projectitem_priority_choices": ProjectItem.PRIORITY_CHOICES,
-            "projectitem_severity_choices": ProjectItem.SEVERITY_CHOICES,
-            "all_owners": all_owners,
         }
         return render(request, "wbs/gantt.html", context)
 
@@ -242,57 +224,6 @@ def gantt_chart(request):
     # Pixels per day (controls horizontal zoom)
     px_per_day = GANTT_PIXELS_PER_DAY
     timeline_width_px = total_days * px_per_day
-
-    # ---- Helper: does a WbsItem match the current ProjectItem filters? ----
-    def item_matches_filters(item) -> bool:
-        project_items = list(item.project_items.all())
-
-        # If we require at least one ProjectItem and there are none
-        if has_items_only and not project_items:
-            return False
-
-        # If no specific ProjectItem filters are selected:
-        if not (
-            selected_types
-            or selected_statuses
-            or selected_priorities
-            or selected_severities
-            or selected_owner_ids
-        ):
-            # Match everything (subject to has_items_only above)
-            return True
-
-        if not project_items:
-            # No items to satisfy type/status/priority/severity/owner filters
-            return False
-
-        # Type filter
-        if selected_types and not any(pi.type in selected_types for pi in project_items):
-            return False
-
-        # Status filter
-        if selected_statuses and not any(pi.status in selected_statuses for pi in project_items):
-            return False
-
-        # Priority filter
-        if selected_priorities and not any(
-            pi.priority in selected_priorities for pi in project_items
-        ):
-            return False
-
-        # Severity filter
-        if selected_severities and not any(
-            pi.severity in selected_severities for pi in project_items
-        ):
-            return False
-
-        # Owner filter (empty owner "" is treated as unassigned)
-        if selected_owner_ids and not any(
-            str(pi.owner_id) in selected_owner_ids for pi in project_items
-        ):
-            return False
-
-        return True
 
     # ---- Dependencies for highlighting ----
     task_ids = [t.id for t in tasks]
@@ -360,10 +291,6 @@ def gantt_chart(request):
                 bool(getattr(t, "children", []).all()) if hasattr(t, "children") else False
             )
 
-        # ProjectItem-related flags
-        project_items = list(t.project_items.all())
-        t.has_project_items = bool(project_items)
-        t.matches_filter = item_matches_filters(t)
         t.predecessor_codes = incoming.get(t.code, [])
         t.successor_codes = outgoing.get(t.code, [])
         t.successor_meta = outgoing_meta.get(t.code, [])
@@ -417,23 +344,10 @@ def gantt_chart(request):
         "timeline_width_px": timeline_width_px,
         "year_bands": timeline_bands["year_bands"],
         "month_bands": timeline_bands["month_bands"],
+        "month_ticks": timeline_bands["month_ticks"],
         "day_ticks": timeline_bands["day_ticks"],
         "resource_conflict_positions": resource_conflict_positions,
         "resource_conflict_details": resource_conflict_details,
-        # Filter UI state
-        "filter_mode": filter_mode,
-        "has_items_only": has_items_only,
-        "selected_types": selected_types,
-        "selected_statuses": selected_statuses,
-        "selected_priorities": selected_priorities,
-        "selected_severities": selected_severities,
-        "selected_owners": list(selected_owner_ids),
-        # Choices for building the filter form
-        "projectitem_type_choices": ProjectItem.TYPE_CHOICES,
-        "projectitem_status_choices": ProjectItem.STATUS_CHOICES,
-        "projectitem_priority_choices": ProjectItem.PRIORITY_CHOICES,
-        "projectitem_severity_choices": ProjectItem.SEVERITY_CHOICES,
-        "all_owners": all_owners,
         # Resource leveling
         "resource_conflicts": resource_conflicts,
         "resource_calendar": resource_calendar,

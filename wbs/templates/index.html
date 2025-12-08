@@ -147,32 +147,11 @@
 
     .action-button {
         padding: 12px 24px;
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
         font-size: 14px;
-        text-decoration: none;
-        display: inline-block;
     }
 
     .action-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(91, 141, 239, 0.3);
-    }
-
-    .action-button.secondary {
-        background: var(--panel-accent);
-        color: var(--text);
-        border: 1px solid var(--border);
-    }
-
-    .action-button.secondary:hover {
-        border-color: var(--accent);
-        background: rgba(91, 141, 239, 0.1);
     }
 </style>
 {% endblock %}
@@ -189,10 +168,10 @@
 <div class="quick-actions">
     <h2>Quick Navigation</h2>
     <div class="action-buttons">
-        <a href="{% url 'gantt_view' %}" class="action-button">📊 View Gantt Chart</a>
-        <a href="{% url 'project_item_board' %}" class="action-button">📋 Kanban Board</a>
-        <a href="{% url 'project_item_list' %}" class="action-button">📝 Project Items</a>
-        <a href="{% url 'admin:index' %}" class="action-button secondary">⚙️ Admin Panel</a>
+        <a href="{% url 'gantt_view' %}" class="btn btn-primary action-button">📊 View Gantt Chart</a>
+        <a href="{% url 'project_item_board' %}" class="btn btn-primary action-button">📋 Kanban Board</a>
+        <a href="{% url 'project_item_list' %}" class="btn btn-primary action-button">📝 Project Items</a>
+        <a href="{% url 'admin:index' %}" class="btn btn-secondary action-button">⚙️ Admin Panel</a>
     </div>
 </div>
 

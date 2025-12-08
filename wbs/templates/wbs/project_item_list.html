@@ -28,21 +28,7 @@
     margin-bottom: 20px;
   }
 
-  .actions a {
-    font-size: 13px;
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    text-decoration: none;
-    color: var(--text);
-    background: var(--panel);
-    transition: all 0.2s ease;
-  }
-
-  .actions a:hover {
-    background: var(--panel-accent);
-    border-color: var(--accent);
-  }
+  /* Links in actions use .btn class from base.html */
 
   .group {
     margin-bottom: 20px;
@@ -94,19 +80,11 @@
     align-items: center;
   }
 
-  .pagination a {
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    text-decoration: none;
-    color: var(--text);
-    background: var(--panel);
-    transition: all 0.2s ease;
-  }
+  /* Pagination links use .btn class from base.html */
 
-  .pagination a:hover {
-    background: var(--panel-accent);
-    border-color: var(--accent);
+  .pagination-info {
+    padding: 6px 10px;
+    color: var(--muted);
   }
 
   .pagination span {
@@ -125,8 +103,8 @@
 <div class="page-subtitle">Total: {{ total_count }} item{{ total_count|pluralize }}</div>
 
 <div class="actions">
-  <a href="{% url 'gantt_view' %}">📊 Gantt Chart</a>
-  <a href="{% url 'project_item_board' %}">📋 Kanban Board</a>
+  <a href="{% url 'gantt_view' %}" class="btn">📊 Gantt Chart</a>
+  <a href="{% url 'project_item_board' %}" class="btn">📋 Kanban Board</a>
 </div>
 
   {% for group, items in groups %}
@@ -172,29 +150,25 @@
 
   <!-- Pagination Controls -->
   {% if page_obj.has_other_pages %}
-    <div class="pagination" style="margin-top: 20px; display: flex; gap: 8px; justify-content: center;">
+    <div class="pagination">
       {% if page_obj.has_previous %}
-        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
-           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}" class="btn">
           &laquo; First
         </a>
-        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
-           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}" class="btn">
           &lsaquo; Previous
         </a>
       {% endif %}
 
-      <span style="padding: 6px 10px; color: #6b7280;">
+      <span class="pagination-info">
         Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
       </span>
 
       {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
-           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}" class="btn">
           Next &rsaquo;
         </a>
-        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}"
-           style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; color: #111827; background: #f9fafb;">
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_severity %}&severity={{ current_severity }}{% endif %}{% if current_wbs %}&wbs={{ current_wbs }}{% endif %}" class="btn">
           Last &raquo;
         </a>
       {% endif %}

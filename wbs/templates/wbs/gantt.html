@@ -28,6 +28,7 @@
     flex: 1;
     padding: 0;
     margin: 0;
+    max-width: none !important; /* Override base template's 1400px constraint */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -48,34 +49,71 @@
   .gantt-header {
     flex-shrink: 0;
     order: 1;
-    padding: 12px 12px 6px;
     margin-bottom: 12px;
   }
 
   .gantt-filters {
     flex-shrink: 0;
-    order: 3;
+    order: 2;
     max-height: 30vh;
     overflow-y: auto;
     padding: 12px;
     margin-bottom: 12px;
+    display: none;
+  }
+
+  .gantt-filters.show {
+    display: block;
   }
 
   .gantt-legend {
     flex-shrink: 0;
-    order: 4;
+    order: 3;
     padding: 8px 12px;
     margin-bottom: 12px;
   }
 
   .gantt-container {
-    order: 2;
+    order: 4;
     flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 12px;
     max-height: 65vh;
+  }
+
+  .gantt-search-section {
+    order: 5;
+    flex-shrink: 0;
+    background: var(--panel);
+    padding: 16px;
+    border-top: 2px solid var(--border);
+  }
+
+  .gantt-search-section label {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: block;
+    color: var(--text);
+  }
+
+  .gantt-search-section .search-input {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .gantt-search-section .search-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    border-color: var(--accent);
   }
 
   .gantt-layout {
@@ -182,6 +220,11 @@
     background: var(--card);
   }
 
+  /* Hide checkbox column - bulk actions not currently in use */
+  .col-select {
+    display: none;
+  }
+
   thead .col-select,
   thead .col-code,
   thead .col-task,
@@ -254,6 +297,48 @@
     border-bottom-color: var(--border);
   }
 
+  .filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-group-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .filter-options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+
   .gantt-legend {
     background: var(--panel-accent);
     color: var(--text);
@@ -318,6 +403,12 @@
     background: var(--card);
   }
 
+  .header-timeline-row th:first-child {
+    width: 600px;
+    min-width: 600px;
+    max-width: 600px;
+  }
+
   .timeline {
     color: var(--text);
   }
@@ -352,27 +443,7 @@
     border-color: var(--accent);
   }
 
-  button {
-    background: var(--panel-accent);
-    color: var(--text);
-    border-color: var(--border);
-  }
-
-  button:hover {
-    background: var(--panel);
-    border-color: var(--accent);
-  }
-
-  .gantt-link-button {
-    background: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: white !important;
-  }
-
-  .gantt-link-button:hover {
-    background: var(--accent-strong) !important;
-    border-color: var(--accent-strong) !important;
-  }
+  /* gantt-link-button uses .btn-primary from base.html */
 
   .bulk-actions-toolbar {
     background: var(--panel-accent);
@@ -432,6 +503,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-width: var(--timeline-width, 0px);
+    width: var(--timeline-width, 0px);
   }
 
   .timeline-row {
@@ -473,6 +546,15 @@
     background: var(--border);
   }
 
+  .month-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: indigo;
+    opacity: 1;
+  }
+
   .day-label {
     position: absolute;
     top: 2px;
@@ -483,11 +565,17 @@
     padding: 0 2px;
     min-width: 20px;
     text-align: center;
+    line-height: 1.2;
+  }
+
+  .day-label br {
+    display: block;
   }
 </style>
 {% endblock %}
 
 {% block content %}
+  {% csrf_token %}
   <div id="gantt-root" data-px-per-day="{{ px_per_day }}" data-min-start="{{ min_start|date:'Y-m-d' }}" data-timeline-width="{{ timeline_width_px }}" style="--timeline-width: {{ timeline_width_px }}px;">
   <div class="gantt-header">
     <div class="gantt-header-top">
@@ -569,94 +657,6 @@
     </span>
   </div>
 
-  <div class="gantt-filters">
-    <form class="filter-form" method="get">
-      <div class="filter-group">
-        <label for="gantt-search">Search Tasks</label>
-        <div class="search-autocomplete-wrapper">
-          <input
-            type="text"
-            id="gantt-search"
-            name="q"
-            value="{{ search_query|default:'' }}"
-            placeholder="Search WBS code, task name, or owner..."
-            autocomplete="off"
-            class="search-input">
-          <div id="search-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Mode</div>
-        <div class="filter-options">
-          <label><input type="radio" name="mode" value="none" {% if filter_mode == "none" %}checked{% endif %}> None</label>
-          <label><input type="radio" name="mode" value="highlight" {% if filter_mode == "highlight" %}checked{% endif %}> Highlight</label>
-          <label><input type="radio" name="mode" value="filter" {% if filter_mode == "filter" %}checked{% endif %}> Filter</label>
-        </div>
-        <div class="filter-note">Highlight dims non-matching rows; Filter removes them.</div>
-      </div>
-
-      <div class="filter-group">
-        <label><input type="checkbox" name="items_only" value="1" {% if has_items_only %}checked{% endif %}> Only tasks with Project Items</label>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Type</div>
-        <div class="filter-options">
-          {% for val,label in projectitem_type_choices %}
-            <label><input type="checkbox" name="type" value="{{ val }}" {% if val in selected_types %}checked{% endif %}> {{ label }}</label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Status</div>
-        <div class="filter-options">
-          {% for val,label in projectitem_status_choices %}
-            <label><input type="checkbox" name="status" value="{{ val }}" {% if val in selected_statuses %}checked{% endif %}> {{ label }}</label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Priority</div>
-        <div class="filter-options">
-          {% for val,label in projectitem_priority_choices %}
-            <label><input type="checkbox" name="priority" value="{{ val }}" {% if val in selected_priorities %}checked{% endif %}> {{ label }}</label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Severity</div>
-        <div class="filter-options">
-          {% for val,label in projectitem_severity_choices %}
-            <label><input type="checkbox" name="severity" value="{{ val }}" {% if val in selected_severities %}checked{% endif %}> {{ label }}</label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-group-title">Owner (Resource)</div>
-        <div class="filter-options">
-          {% for owner in all_owners %}
-            <label>
-              <input type="checkbox" name="owner" value="{{ owner.id }}" {% if owner.id|stringformat:'s' in selected_owners %}checked{% endif %}>
-              {{ owner.label }}
-            </label>
-          {% endfor %}
-          {% if not all_owners %}
-            <p style="color: #999; font-style: italic;">No owners assigned yet</p>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="filter-actions">
-        <button type="submit">Apply</button>
-        <a href="{% url 'gantt_view' %}">Clear</a>
-      </div>
-    </form>
-  </div>
 
   <!-- Bulk Actions Toolbar -->
   <div id="bulk-actions-toolbar" class="bulk-actions-toolbar" style="display: none;">
@@ -688,10 +688,9 @@
         <div class="gantt-scroll">
           <table class="gantt-table">
             <colgroup>
-              <col style="width: 40px;">
               <col style="width: 80px;">
-              <col style="width: 240px;">
-              <col style="width: 120px;">
+              <col style="width: 300px;">
+              <col style="width: 100px;">
               <col style="width: 120px;">
               <col style="width: {{ timeline_width_px }}px;">
             </colgroup>
@@ -699,7 +698,7 @@
               {% if min_start and max_end %}
                 <!-- existing timeline row above headers -->
                 <tr class="header-timeline-row">
-                  <th colspan="5"></th>
+                  <th colspan="4"></th>
                   <th>
                     <div class="timeline">
                       <div class="timeline-track" style="width: {{ timeline_width_px }}px;">
@@ -714,6 +713,9 @@
                         </div>
                         <!-- Month row -->
                         <div class="timeline-row">
+                          {% for tick in month_ticks %}
+                             <div class="month-tick" style="left: {{ tick.offset_px }}px;" title="Tick: {{ tick.offset_px }}px"></div>
+                          {% endfor %}
                           {% for band in month_bands %}
                             <div class="month-band"
                                  style="left: {{ band.offset_px }}px; width: {{ band.width_px }}px;">
@@ -724,10 +726,18 @@
                         <!-- Day row -->
                         <div class="timeline-row">
                           {% for tick in day_ticks %}
+                            {# Always show the tick mark (vertical line) for every day #}
                             <div class="day-tick" style="left: {{ tick.offset_px }}px;"></div>
-                            <div class="day-label" style="left: {{ tick.offset_px }}px;">
-                              {{ tick.label }}
-                            </div>
+                            {# Show labels only for Mondays when zoomed out, or all days when zoomed in enough #}
+                            {% if tick.is_monday or px_per_day >= 20 %}
+                              <div class="day-label" style="left: {{ tick.offset_px }}px;">
+                                {% if px_per_day >= 8 %}
+                                  {{ tick.weekday }}<br>{{ tick.label }}
+                                {% else %}
+                                  {{ tick.label }}
+                                {% endif %}
+                              </div>
+                            {% endif %}
                           {% endfor %}
                         </div>
                         <!-- Resource conflict markers -->
@@ -749,9 +759,6 @@
 
               <!-- Column headers row -->
               <tr class="header-cols-row">
-                <th class="col-select">
-                  <input type="checkbox" id="select-all-tasks" aria-label="Select all tasks" title="Select all">
-                </th>
                 <th class="col-code">Code</th>
                 <th class="col-task">Task</th>
                 <th class="col-start">Start</th>
@@ -769,9 +776,6 @@
                     data-successor-meta="{% for link in item.successor_meta %}{{ link.code }}:{{ link.type }}:{% firstof link.lag 0 %}|{% endfor %}"
                     data-level="{{ item.level }}"
                     data-wbs-name="{{ item.name }}">
-                  <td class="col-select">
-                    <input type="checkbox" class="task-checkbox" data-code="{{ item.code }}" aria-label="Select {{ item.code }}">
-                  </td>
                   <td class="col-code">{{ item.code }}</td>
                   <td class="task-name col-task">
                     {% if item.has_children %}
@@ -794,31 +798,6 @@
                     {% endif %}
                     {% for _ in item.level_indent %}&nbsp;&nbsp;&nbsp;{% endfor %}
                     <span class="task-name-text editable-name" data-code="{{ item.code }}" title="Double-click to edit">{{ item.name }}</span>
-
-                    <!-- Hidden per-row ProjectItem snippets for JS to read -->
-                    <div class="hidden-project-items">
-                      {% for pi in item.project_items.all %}
-                        <div class="project-item"
-                             data-type="{{ pi.type }}"
-                             data-status="{{ pi.status }}"
-                             data-priority="{{ pi.priority }}"
-                             data-severity="{{ pi.severity }}">
-                          <div class="title">{{ pi.title }}</div>
-                          <div class="meta">
-                            {% if pi.type %}<span class="pill">{{ pi.get_type_display }}</span>{% endif %}
-                            {% if pi.status %}<span class="pill">{{ pi.get_status_display }}</span>{% endif %}
-                            {% if pi.priority %}<span class="pill">{{ pi.get_priority_display }}</span>{% endif %}
-                          </div>
-                          {% if pi.description %}
-                            <div class="desc">
-                              {{ pi.description|truncatechars:120 }}
-                            </div>
-                          {% endif %}
-                        </div>
-                      {% empty %}
-                        <!-- no project items -->
-                      {% endfor %}
-                    </div>
                   </td>
                   <td class="col-start">{{ item.planned_start }}</td>
                   <td class="col-end">{{ item.planned_end }}</td>
@@ -883,6 +862,24 @@
       No tasks with planned dates found. Run <code>auto_schedule_wbs</code> or set dates.
     </div>
   {% endif %}
+
+  <!-- Search Section at Bottom -->
+  <div class="gantt-search-section">
+    <form method="get" action="{% url 'gantt_view' %}">
+      <label for="gantt-search">🔍 Search Tasks</label>
+      <div class="search-autocomplete-wrapper">
+        <input
+          type="text"
+          id="gantt-search"
+          name="q"
+          value="{{ search_query|default:'' }}"
+          placeholder="Search by WBS code, task name, or owner..."
+          autocomplete="off"
+          class="search-input">
+        <div id="search-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
+      </div>
+    </form>
+  </div>
 
   <!-- Build Verification Stamp (visible timestamp for testing verification) -->
   <div style="position: fixed; bottom: 2px; right: 2px; font-size: 10px; color: #999; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; font-family: monospace; z-index: 100; cursor: help; user-select: all;" title="Build timestamp - copy to verify you're testing the latest version">v{{ build_timestamp }}</div>

@@ -17,6 +17,17 @@ kill_listeners() {
         echo "Stopping processes on port ${port} with SIG${KILL_SIGNAL}: ${pids}"
         # shellcheck disable=SC2086
         kill -s "${KILL_SIGNAL}" ${pids} || true
+        # Give it a moment to exit gracefully
+        sleep 0.5
+        # If still running and TERM was used, force kill
+        if [[ "${KILL_SIGNAL}" == "TERM" ]]; then
+          remaining=$(lsof -ti tcp:"${port}" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ' || true)
+          if [[ -n "${remaining}" ]]; then
+            echo "Forcefully killing remaining processes: ${remaining}"
+            # shellcheck disable=SC2086
+            kill -9 ${remaining} || true
+          fi
+        fi
       fi
     fi
   done

@@ -206,11 +206,21 @@ a:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 8px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 12px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.gantt-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
 }
 
 .gantt-header-top {
@@ -218,19 +228,20 @@ a:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .gantt-header-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
+  gap: 12px;
+  align-items: center;
 }
 
 .button-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   position: relative;
 }
@@ -238,40 +249,21 @@ a:focus-visible,
 .button-group .group-label {
   font-size: 10px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   margin-right: 4px;
-  align-self: center;
 }
 
-.gantt-header-actions button {
-  font-size: 12px;
-  padding: 8px 16px;
-  margin: 0;
-  cursor: pointer;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  color: #334155;
-  font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+.button-group:not(:last-child)::after {
+  content: '';
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin-left: 4px;
 }
 
-.gantt-header-actions button:hover {
-  background: white;
-  border-color: #0ea5e9;
-  color: #0ea5e9;
-  box-shadow: 0 4px 12px rgba(14,165,233,0.15);
-  transform: translateY(-1px);
-}
-
-.gantt-header-actions button:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
+/* Buttons use shared styles from base.html */
 
 .gantt-header-actions .gantt-link-button {
   display: inline-flex;
@@ -330,23 +322,15 @@ body.theme-dark .resource-conflict {
   cursor: pointer;
 }
 
-.gantt-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -0.025em;
-}
-
 .gantt-meta {
   font-size: 13px;
-  color: #64748b;
+  color: #cbd5e1;
   font-weight: 500;
 }
 
 .back-link {
   font-size: 12px;
-  color: #2563eb;
+  color: #38bdf8;
   text-decoration: none;
 }
 
@@ -656,8 +640,15 @@ table {
   font-size: 12px;
 }
 .gantt-table {
+  width: 100%;
+  border-collapse: collapse;
   table-layout: fixed;
-  min-width: calc(40px + 80px + 240px + 120px + 120px + var(--timeline-width, 0px));
+  /* Removed min-width constraint to allow table to expand to fill available space */
+}
+
+/* Force colgroup to be the authoritative width source */
+.gantt-table colgroup col:last-child {
+  width: var(--timeline-width, 164px) !important;
 }
 
 tbody tr {
@@ -670,6 +661,11 @@ tbody tr {
   z-index: 50;
   background: #fff;
   will-change: transform;
+}
+.header-timeline-row th:first-child {
+  width: 520px;
+  min-width: 520px;
+  max-width: 520px;
 }
 .header-cols-row th {
   position: sticky;
@@ -756,14 +752,16 @@ th {
 
 .bar-header {
   border-left: 1px solid #ddd;
-  min-width: var(--timeline-width, 0px);
+  padding: 0 !important;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .bar-cell {
   position: relative;
-  padding-left: 8px;
+  padding: 0 !important;
   overflow: hidden;
   border-left: 1px solid #ddd;
-  min-width: var(--timeline-width, 0px);
+  box-sizing: border-box;
 }
 
 /* Expander icon for collapsible hierarchy */
@@ -1066,36 +1064,23 @@ body.theme-dark .gantt-scroll {
 }
 
 body.theme-dark .gantt-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border-bottom-color: #334155;
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 body.theme-dark .gantt-header h1 {
-  color: #f1f5f9;
+  color: var(--text);
 }
 
 body.theme-dark .gantt-meta,
 body.theme-dark .filter-group-title,
 body.theme-dark .back-link {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
-body.theme-dark .gantt-header-actions button,
-body.theme-dark .filter-actions button,
-body.theme-dark .filter-actions a {
-  background: #1e293b;
-  color: #cbd5e1;
-  border-color: #334155;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-body.theme-dark .gantt-header-actions button:hover,
-body.theme-dark .filter-actions button:hover,
-body.theme-dark .filter-actions a:hover {
-  background: #1e293b;
-  border-color: #0ea5e9;
-  color: #0ea5e9;
-  box-shadow: 0 4px 12px rgba(14,165,233,0.25);
-}
+/* Buttons use shared styles from base.html */
+
 body.theme-dark .gantt-header-actions .gantt-link-button {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border: none;

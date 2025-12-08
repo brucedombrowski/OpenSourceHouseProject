@@ -17,13 +17,13 @@ export function createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg }) {
     depTypes.forEach(({ id, fill }) => {
       const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
       marker.setAttribute("id", id);
-      marker.setAttribute("markerWidth", "8");
-      marker.setAttribute("markerHeight", "8");
-      marker.setAttribute("refX", "7");
-      marker.setAttribute("refY", "3");
+      marker.setAttribute("markerWidth", "5");
+      marker.setAttribute("markerHeight", "4");
+      marker.setAttribute("refX", "4.5");
+      marker.setAttribute("refY", "2");
       marker.setAttribute("orient", "auto");
       const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "0 0, 8 3, 0 6");
+      polygon.setAttribute("points", "0 0, 5 2, 0 4");
       polygon.setAttribute("fill", fill);
       marker.appendChild(polygon);
       defs.appendChild(marker);
