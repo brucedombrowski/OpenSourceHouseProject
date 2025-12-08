@@ -63,7 +63,10 @@ const logger = {
   isDebugEnabled: isDevelopment,
 };
 
-// Export for use in modules
+// ES module export
+export default logger;
+
+// CommonJS export for compatibility
 if (typeof module !== "undefined" && module.exports) {
   module.exports = logger;
 }

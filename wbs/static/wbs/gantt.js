@@ -174,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function applyZoom(nextZoom) {
     zoom = clamp(nextZoom, 0.5, 3);
-    localStorage.setItem(ZOOM_KEY, String(zoom));
+    localStorage.setItem(ZOOM_LOCAL_STORAGE_KEY, String(zoom));
     currentPxPerDay = basePxPerDay * zoom;
 
     cacheTimelinePositions();
