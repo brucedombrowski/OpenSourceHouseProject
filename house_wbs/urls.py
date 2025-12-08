@@ -14,10 +14,16 @@ from wbs.views import (
     project_item_status_update,
 )
 from wbs.views_gantt import search_autocomplete, update_task_name
+from wbs.views_health import health_check, health_check_detailed, readiness_check
 
 urlpatterns = [
     path("", index, name="index"),
     path("admin/", admin.site.urls),
+    # Health check endpoints (no authentication required)
+    path("health/", health_check, name="health_check"),
+    path("health/detailed/", health_check_detailed, name="health_check_detailed"),
+    path("readiness/", readiness_check, name="readiness_check"),
+    # Gantt chart endpoints
     path("gantt/", gantt_view, name="gantt_view"),
     path("gantt/", gantt_view, name="gantt"),  # alias for admin links
     path("gantt/shift/", gantt_shift_task, name="gantt_shift_task"),
@@ -25,6 +31,7 @@ urlpatterns = [
     path("gantt/optimize/", gantt_optimize_schedule, name="gantt_optimize_schedule"),
     path("gantt/update-name/", update_task_name, name="update_task_name"),
     path("gantt/search/", search_autocomplete, name="search_autocomplete"),
+    # Project items endpoints
     path("project-items/board/", project_item_board, name="project_item_board"),
     path("project-items/list/", project_item_list, name="project_item_list"),
     path(
