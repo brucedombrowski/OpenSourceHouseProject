@@ -4,7 +4,6 @@ import time
 from datetime import date, timedelta
 from typing import Dict, List, Set
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import models
@@ -130,7 +129,8 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
 
 
 @profile_view("gantt_chart")
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
+# TODO: Implement role-based access control (admin/manager/viewer roles)
 def gantt_chart(request):
     """
     Render a Gantt chart for WBS items with planned dates.
@@ -447,7 +447,7 @@ def gantt_chart(request):
 gantt_view = gantt_chart
 
 
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
 def gantt_shift_task(request):
     """
@@ -528,7 +528,7 @@ def gantt_shift_task(request):
     )
 
 
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
 def gantt_set_task_dates(request):
     """
@@ -573,7 +573,7 @@ def gantt_set_task_dates(request):
     )
 
 
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
 def gantt_optimize_schedule(request):
     """
@@ -713,7 +713,7 @@ def gantt_optimize_schedule(request):
     return JsonResponse({"ok": True, "message": "Schedule optimized", "tasks": updated})
 
 
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
 def update_task_name(request):
     """Update task name via inline editing."""
@@ -739,7 +739,7 @@ def update_task_name(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@staff_member_required
+# NOTE: @staff_member_required removed for development. Add back for production auth.
 def search_autocomplete(request):
     """
     Provide autocomplete suggestions for Gantt search.

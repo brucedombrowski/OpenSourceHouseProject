@@ -21,8 +21,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
     DEBUG=(bool, True),
     SECRET_KEY=(str, ""),
-    ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost"]),
-    CSRF_TRUSTED_ORIGINS=(list, ["http://127.0.0.1:8000", "http://localhost:8000"]),
+    ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost", "0.0.0.0"]),
+    CSRF_TRUSTED_ORIGINS=(
+        list,
+        ["http://127.0.0.1:8000", "http://localhost:8000", "http://0.0.0.0:8000"],
+    ),
     DATABASE_URL=(str, f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
     SECURE_SSL_REDIRECT=(bool, False),
     SESSION_COOKIE_SECURE=(bool, False),

@@ -184,6 +184,10 @@ a:focus-visible,
   width: 40px;
   text-align: center;
   padding: 4px !important;
+  position: sticky;
+  left: 0;
+  z-index: 31;
+  background: #fff;
 }
 
 .task-checkbox {
@@ -653,12 +657,11 @@ table {
 }
 .gantt-table {
   table-layout: fixed;
-  min-width: calc(80px + 240px + 120px + 120px + 90px + var(--timeline-width, 0px));
+  min-width: calc(40px + 80px + 240px + 120px + 120px + var(--timeline-width, 0px));
 }
 
 tbody tr {
   height: 28px;
-  background: rgba(200, 100, 100, 0.1) !important;  /* Debug: light red to show rows exist */
 }
 
 .header-timeline-row th {
@@ -692,7 +695,7 @@ th {
 
 .col-code {
   position: sticky;
-  left: 0;
+  left: 40px;
   z-index: 30;
   background: #fff;
   min-width: 80px;
@@ -702,7 +705,7 @@ th {
 }
 .col-task {
   position: sticky;
-  left: 80px;
+  left: 120px;
   z-index: 30;
   background: #fff;
   min-width: 240px;
@@ -712,7 +715,7 @@ th {
 }
 .col-start {
   position: sticky;
-  left: 320px; /* 80 + 240 */
+  left: 360px; /* 40 + 80 + 240 */
   z-index: 30;
   background: #fff;
   min-width: 120px;
@@ -723,7 +726,7 @@ th {
 }
 .col-end {
   position: sticky;
-  left: 440px; /* 80 + 240 + 120 */
+  left: 480px; /* 40 + 80 + 240 + 120 */
   z-index: 30;
   background: #fff;
   min-width: 120px;
@@ -735,7 +738,7 @@ th {
 
 .header-cols-row th:nth-child(5) {
   position: sticky;
-  left: 560px; /* 80+240+120+120 */
+  left: 600px; /* 40+80+240+120+120 */
   z-index: 25;
   background: #fff;
   min-width: 80px;
@@ -1101,10 +1104,6 @@ body.theme-dark .gantt-header-actions .gantt-link-button {
 body.theme-dark .gantt-header-actions .gantt-link-button:hover {
   background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   box-shadow: 0 4px 16px rgba(37,99,235,0.5);
-}
-}
-body.theme-dark .gantt-header-actions .gantt-link-button:hover {
-  background: #1d4ed8;
 }
 
 /* Dark mode: Search autocomplete */

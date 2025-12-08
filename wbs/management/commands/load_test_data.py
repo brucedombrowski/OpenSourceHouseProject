@@ -1,26 +1,38 @@
 import csv
+from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
-from wbs.models import ProjectItem, WbsItem
+from wbs.models import ProjectItem, TaskDependency, WbsItem
 
 
 class Command(BaseCommand):
-    help = "Load test data from CSV files"
+    help = "Load comprehensive test data (WBS, dependencies, project items) from CSV templates"
 
     def handle(self, *args, **options):
-        # Get or create admin user
-        admin_user, _ = User.objects.get_or_create(
+        data_dir = Path(__file__).resolve().parent.parent.parent / "data"
+
+        # Get or create admin user with known credentials for testing
+        admin_user, created = User.objects.get_or_create(
             username="admin",
-            defaults={"email": "admin@test.com", "is_staff": True, "is_superuser": True},
+            defaults={
+                "email": "admin@test.com",
+                "is_staff": True,
+                "is_superuser": True,
+            },
         )
+        # Ensure password is set so testers can log in
+        if created or not admin_user.has_usable_password():
+            admin_user.set_password("admin123")
+            admin_user.save(update_fields=["password"])
+            self.stdout.write(self.style.WARNING("Admin password reset to admin123 for testing."))
 
         # Load WBS items from template
-        wbs_file = "/app/data/wbs_items_template.csv"
+        wbs_file = data_dir / "wbs_items_template.csv"
         self.stdout.write(f"Loading WBS items from {wbs_file}...")
         wbs_count = 0
-        with open(wbs_file, "r") as f:
+        with wbs_file.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 code = row.get("code", "").strip()
@@ -40,11 +52,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"  Created {wbs_count} WBS items"))
 
         # Load ProjectItems from template
-        proj_file = "/app/data/project_items_template.csv"
+        proj_file = data_dir / "project_items_template.csv"
         self.stdout.write(f"Loading ProjectItems from {proj_file}...")
         proj_count = 0
         skipped = 0
-        with open(proj_file, "r") as f:
+        with proj_file.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 title = row.get("title", "").strip()
@@ -77,6 +89,38 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"  Created {proj_count} ProjectItems (skipped {skipped})")
         )
+
+        # Load Dependencies from template
+        deps_file = data_dir / "wbs_dependencies_template.csv"
+        self.stdout.write(f"Loading dependencies from {deps_file}...")
+        dep_count = 0
+        with deps_file.open("r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                pred_code = (row.get("predecessor_code") or "").strip()
+                succ_code = (row.get("successor_code") or "").strip()
+                if not pred_code or not succ_code:
+                    continue
+
+                dep_type = (row.get("dependency_type") or "FS").strip().upper() or "FS"
+                lag_days = row.get("lag_days") or 0
+
+                try:
+                    predecessor = WbsItem.objects.get(code=pred_code)
+                    successor = WbsItem.objects.get(code=succ_code)
+                except WbsItem.DoesNotExist:
+                    skipped += 1
+                    continue
+
+                obj, created_dep = TaskDependency.objects.get_or_create(
+                    predecessor=predecessor,
+                    successor=successor,
+                    defaults={"dependency_type": dep_type, "lag": lag_days},
+                )
+                if created_dep:
+                    dep_count += 1
+
+        self.stdout.write(self.style.SUCCESS(f"  Created {dep_count} dependencies"))
 
         total_projects = ProjectItem.objects.count()
         total_wbs = WbsItem.objects.count()

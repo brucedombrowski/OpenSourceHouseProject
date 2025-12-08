@@ -208,6 +208,14 @@
                 </div>
             </div>
             <div>
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Phase ({{ phases|length }} phases)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    {% for phase in phases %}
+                        <label><input type="checkbox" name="filter-phase" value="{{ phase.code }}"> {{ phase.code }} — {{ phase.name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
                 <div style="font-weight: 600; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--muted);">Owner ({{ owners|length }} users)</div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <label><input type="checkbox" name="filter-owner" value="owner-unassigned"> Unassigned</label>
@@ -235,7 +243,7 @@
                         {% for item in column.items %}
                             <div class="card" draggable="true" tabindex="0" role="article"
                                  aria-label="{{ item.title }} — {{ item.get_status_display }} — {{ item.get_priority_display }}"
-                                 data-id="{{ item.id }}" data-type="{{ item.type }}" data-priority="{{ item.priority }}" data-status="{{ item.status }}" data-owner="{{ item.owner|default:'' }}">
+                                 data-id="{{ item.id }}" data-type="{{ item.type }}" data-priority="{{ item.priority }}" data-status="{{ item.status }}" data-owner="{{ item.owner|default:'' }}" data-phase="{% if item.wbs_item %}{{ item.wbs_item.code|slice:':1' }}{% endif %}">
                                 <div class="wbs">
                                     {% if item.wbs_item %}
                                         {{ item.wbs_item.code }} — {{ item.wbs_item.name }}

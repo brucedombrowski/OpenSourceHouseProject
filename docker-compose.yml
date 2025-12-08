@@ -19,10 +19,12 @@ services:
   web:
     build: .
     container_name: house_project_web
+    # Note: Dockerfile already collects static files at build time
+    # This command runs migrations and starts gunicorn
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn house_wbs.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+             gunicorn house_wbs.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 60"
     environment:
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-me-to-a-real-secret-key}

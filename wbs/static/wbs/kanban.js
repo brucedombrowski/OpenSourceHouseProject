@@ -23,7 +23,7 @@
     }
 
     function getActiveFilters() {
-        const filters = { type: [], priority: [], status: [], owner: [] };
+        const filters = { type: [], priority: [], status: [], owner: [], phase: [] };
         document.querySelectorAll('input[name^="filter-"]:checked').forEach(cb => {
             const key = cb.name.replace('filter-', '');
             if (filters.hasOwnProperty(key)) {
@@ -34,17 +34,19 @@
     }
 
     function cardMatchesFilters(card, filters) {
-        if (!filters.type.length && !filters.priority.length && !filters.status.length && !filters.owner.length) {
+        if (!filters.type.length && !filters.priority.length && !filters.status.length && !filters.owner.length && !filters.phase.length) {
             return true;
         }
         const type = card.dataset.type || '';
         const priority = card.dataset.priority || '';
         const status = card.closest('.column')?.dataset.status || '';
         const owner = card.dataset.owner || '';
+        const phase = card.dataset.phase || '';
 
         const typeMatch = !filters.type.length || filters.type.includes(type);
         const priorityMatch = !filters.priority.length || filters.priority.includes(priority);
         const statusMatch = !filters.status.length || filters.status.includes(status);
+        const phaseMatch = !filters.phase.length || filters.phase.includes(phase);
 
         // Owner filter special handling
         let ownerMatch = true;
@@ -64,12 +66,12 @@
             }
         }
 
-        return typeMatch && priorityMatch && statusMatch && ownerMatch;
+        return typeMatch && priorityMatch && statusMatch && ownerMatch && phaseMatch;
     }
 
     function applyFilters() {
         const filters = getActiveFilters();
-        const hasFilters = filters.type.length || filters.priority.length || filters.status.length || filters.owner.length;
+        const hasFilters = filters.type.length || filters.priority.length || filters.status.length || filters.owner.length || filters.phase.length;
 
         if (hasFilters) {
             localStorage.setItem(FILTER_KEY, JSON.stringify(filters));

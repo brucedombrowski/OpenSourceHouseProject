@@ -93,12 +93,35 @@ def project_item_board(request):
     User = get_user_model()
     owners = User.objects.filter(project_items__isnull=False).distinct().order_by("username")
 
+    # Get distinct top-level phases (extract from WbsItem codes)
+    import re
+
+    from .models import WbsItem
+
+    # Get all items and extract unique phase numbers from codes
+    all_codes = list(WbsItem.objects.values_list("code", flat=True))
+    phase_codes = set()
+    for code in all_codes:
+        if code:
+            match = re.match(r"^(\d+)", code)
+            if match:
+                phase_codes.add(match.group(1))
+
+    # Sort phase codes numerically
+    sorted_phases = sorted(phase_codes, key=lambda x: int(x))
+
+    # Fetch WbsItems with codes matching the phase codes (e.g., "1", "2", "3")
+    # Preserve numeric ordering by creating a dict and re-ordering
+    phases_dict = {item.code: item for item in WbsItem.objects.filter(code__in=sorted_phases)}
+    phases = [phases_dict[code] for code in sorted_phases if code in phases_dict]
+
     return render(
         request,
         "wbs/kanban.html",
         {
             "columns": columns,
             "owners": owners,
+            "phases": phases,
             "build_timestamp": int(time.time()),
         },
     )
