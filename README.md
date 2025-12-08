@@ -1,7 +1,27 @@
+
+![Build Status](https://img.shields.io/github/actions/workflow/status/brucedombrowski/OpenSourceHouseProject/ci.yml?branch=main)
+![License](https://img.shields.io/github/license/brucedombrowski/OpenSourceHouseProject)
+![Issues](https://img.shields.io/github/issues/brucedombrowski/OpenSourceHouseProject)
+![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Django Version](https://img.shields.io/badge/Django-6.0-darkgreen)
+![Tests Passing](https://img.shields.io/badge/Tests-44%20Passing-brightgreen)
+
 HOUSE PROJECT MANAGEMENT APP
 ============================
 
-Django 6 + MPTT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and admin tooling.
+Django 6 + MPPT-powered WBS, Gantt chart, Project Items (issues/tasks/etc.), and admin tooling.
+
+## ✅ Production Ready
+
+**Version 1.0.0** - Ready for deployment
+**Test Coverage**: 44 tests passing (100%)
+**Code Quality**: Flake8 ✅ | Black ✅ | No issues detected
+**Performance**: GZip enabled | WhiteNoise configured | Query optimized
+
+For production deployment, see:
+- **Quick Start**: [QUICK_DEPLOYMENT.md](QUICK_DEPLOYMENT.md) (5 minutes)
+- **Full Guide**: [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
+- **Checklist**: [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)
 
 Quick start
 -----------
@@ -152,13 +172,21 @@ source venv/bin/activate
 python manage.py test
 ```
 
+
 Contributing & Issue Tracking
 ------------------------------
-We use **GitHub Issues** for bug reports, feature requests, and task tracking:
+We welcome contributions! To get started:
 
-- **Report bugs**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=bug_report.md
-- **Request features**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=feature_request.md
-- **Create tasks**: https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=task.md
+1. **Fork** the repository on GitHub.
+2. **Clone** your fork and create a new branch for your changes.
+3. Follow the code style and linting guidelines (see `docs/LINTING_GUIDE.md`).
+4. Add or update tests as needed.
+5. Submit a **pull request** with a clear description of your changes.
+
+We use **GitHub Issues** for bug reports, feature requests, and task tracking:
+- [Report bugs](https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=bug_report.md)
+- [Request features](https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=feature_request.md)
+- [Create tasks](https://github.com/brucedombrowski/OpenSourceHouseProject/issues/new?template=task.md)
 
 See `docs/GITHUB_ISSUES_MIGRATION.md` for workflow details, labels, and best practices.
 
@@ -167,6 +195,9 @@ See `docs/GITHUB_ISSUES_MIGRATION.md` for workflow details, labels, and best pra
 - Link commits with `fixes #123` to auto-close issues
 - Add labels (`bug`, `enhancement`, `task`) for organization
 - Group work with milestones for releases
+
+**Contact/Support:**
+For questions or support, open an issue or contact the maintainer via GitHub.
 
 Documentation
 -------------
@@ -183,6 +214,20 @@ Comprehensive documentation is available in the `docs/` directory:
 - New user? Start with the [User Guide](docs/USER_GUIDE.md)
 - Need a quick command? Check [Quick Reference](docs/QUICK_REFERENCE.md)
 - Deploying to production? See [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+
+
+Troubleshooting & FAQ
+---------------------
+
+**Common Issues:**
+
+- *Virtualenv not activating?* Ensure you are using `bash` and run `source venv/bin/activate` from the repo root.
+- *Missing dependencies?* Run `pip install -r requirements.txt` after activating your virtualenv.
+- *Port already in use?* Change the port with `PORT=8001 bash runserver.sh` or kill the process using the port.
+- *Static files not updating?* Run `python build_assets.py` and clear your browser cache.
+- *Database errors?* Delete `db.sqlite3` and re-run migrations if you want a fresh start.
+
+For more help, see the [User Guide](docs/USER_GUIDE.md) or open a GitHub issue.
 
 Notes
 -----

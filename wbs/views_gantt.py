@@ -998,16 +998,6 @@ def calculate_resource_allocation(
                         resource_calendar[date_str].get(owner, 0) + 1
                     )
 
-        # Allocate task to each owner for each day
-        current = start
-        while current <= end:
-            date_str = current.isoformat()
-            if date_str in resource_calendar:
-                for owner in owners:
-                    resource_calendar[date_str][owner] = (
-                        resource_calendar[date_str].get(owner, 0) + 1
-                    )
-
     return resource_calendar
 
 

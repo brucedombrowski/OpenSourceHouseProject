@@ -1,6 +1,15 @@
+
 # House Project Management - User Guide
 
 **Version 1.0** | December 6, 2025
+
+---
+
+## Recent Changes
+
+- **Dec 8, 2025:** Documentation updated, troubleshooting expanded, contribution process clarified
+- **Dec 6, 2025:** Kanban board UI improved, new dependency types added, performance optimizations
+- **Nov 30, 2025:** CSV import/export validation improved, admin filters expanded
 
 ---
 
@@ -14,6 +23,8 @@
 6. [Dependencies](#dependencies)
 7. [Admin Features](#admin-features)
 8. [Tips & Best Practices](#tips--best-practices)
+9. [Troubleshooting](#troubleshooting)
+10. [Glossary](#glossary)
 
 ---
 
@@ -488,12 +499,15 @@ python manage.py full_backup backups/
    - Validate CSV format
    - Check for duplicate codes
 
+
 ### Keyboard Shortcuts (Coming Soon)
 
 - `←/→` - Navigate Gantt timeline
 - `+/-` - Zoom in/out
 - `Space` - Toggle dependencies
 - `Esc` - Close modals
+
+> **Note:** Keyboard shortcuts and critical path analysis are planned for release in Q1 2026. See the [GitHub project board](https://github.com/brucedombrowski/OpenSourceHouseProject/projects) for roadmap and progress.
 
 ---
 
@@ -522,12 +536,14 @@ python manage.py full_backup backups/
 - Consider filtering or pagination
 - Verify caching is enabled in settings
 
-### Getting Help
+
+### Getting Help & Support
 
 1. Check `docs/ARCHITECTURE_DECISION_RECORD.md` for technical details
 2. Review `docs/PERFORMANCE_NOTES.md` for optimization info
 3. File issues on GitHub: https://github.com/brucedombrowski/OpenSourceHouseProject/issues
 4. Check README.md for setup instructions
+5. For direct support, contact the maintainer via GitHub or open a discussion thread.
 
 ---
 
