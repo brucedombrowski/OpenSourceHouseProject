@@ -428,6 +428,7 @@ document.addEventListener("DOMContentLoaded", function () {
   ------------------------------------------------------------ */
   const modal = document.createElement("div");
   modal.className = "gantt-modal";
+  modal.style.display = "none"; // inline fallback; CSS still controls layout
   modal.innerHTML = `
     <div class="gantt-modal-backdrop"></div>
     <div class="gantt-modal-card">
@@ -457,11 +458,13 @@ document.addEventListener("DOMContentLoaded", function () {
     modalTarget = bar;
     startInput.value = bar.dataset.start;
     endInput.value = bar.dataset.end;
+    modal.style.display = "flex"; // enforce flex centering even if CSS fails
     modal.classList.add("show");
   }
 
   function closeModal() {
     modal.classList.remove("show");
+    modal.style.display = "none";
     modalTarget = null;
   }
 
