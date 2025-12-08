@@ -428,7 +428,15 @@ document.addEventListener("DOMContentLoaded", function () {
   ------------------------------------------------------------ */
   const modal = document.createElement("div");
   modal.className = "gantt-modal";
-  modal.style.display = "none"; // inline fallback; CSS still controls layout
+  // Inline fallbacks to guarantee overlay/centering even if CSS cache misbehaves
+  Object.assign(modal.style, {
+    position: "fixed",
+    inset: "0",
+    zIndex: "9999",
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+  });
   modal.innerHTML = `
     <div class="gantt-modal-backdrop"></div>
     <div class="gantt-modal-card">
