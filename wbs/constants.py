@@ -102,3 +102,51 @@ PRIORITY_RANK_MAP = {
     PROJECT_ITEM_PRIORITY_MEDIUM: 2,
     PROJECT_ITEM_PRIORITY_LOW: 3,
 }
+
+# ============================================================================
+# Gantt Chart Display & Calculation Constants
+# ============================================================================
+
+# Timeline rendering
+GANTT_PIXELS_PER_DAY = 4  # Default zoom: pixels per day on timeline
+GANTT_TIMELINE_CACHE_SECONDS = 3600  # 1 hour cache for year/month/day bands
+
+# Resource allocation and conflict detection
+GANTT_RESOURCE_CONFLICT_THRESHOLD = 3  # Maximum concurrent tasks per owner before flagging conflict
+
+# Timeline zoom constraints
+GANTT_ZOOM_MIN = 0.5
+GANTT_ZOOM_MAX = 3.0
+GANTT_ZOOM_STEP = 0.25
+GANTT_ZOOM_LOCAL_STORAGE_KEY = "ganttZoom"
+
+# Dependency type color mapping
+GANTT_DEPENDENCY_COLORS = {
+    "FS": "#42c778",  # Finish-to-Start (green)
+    "SS": "#4da3ff",  # Start-to-Start (blue)
+    "FF": "#f39c12",  # Finish-to-Finish (orange)
+    "SF": "#e56bff",  # Start-to-Finish (purple)
+}
+
+# Critical path styling
+GANTT_CRITICAL_PATH_COLOR = "#ef4444"  # Red for critical path tasks
+GANTT_CRITICAL_PATH_BORDER_COLOR = "#dc2626"
+
+# Layout measurements (CSS-related, in pixels)
+GANTT_COL_CODE_WIDTH = 80
+GANTT_COL_TASK_WIDTH = 240
+GANTT_COL_START_WIDTH = 120
+GANTT_COL_END_WIDTH = 120
+GANTT_BAR_HEIGHT = 10
+GANTT_BAR_HEIGHT_CRITICAL = 14
+GANTT_MILESTONE_MARKER_SIZE = 16
+GANTT_DETAIL_PANEL_WIDTH = 320
+GANTT_ROW_HEIGHT = 28
+
+# Resource conflict visual
+GANTT_CONFLICT_MARKER_WIDTH = 16
+GANTT_CONFLICT_MARKER_HEIGHT = 8
+
+# Dependency drawing
+GANTT_DEPENDENCY_LINE_WIDTH = 2
+GANTT_DEPENDENCY_ARROW_SIZE = 8

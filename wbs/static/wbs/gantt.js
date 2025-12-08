@@ -11,6 +11,36 @@ import {
 import { createArrowDrawer } from "./gantt-arrows.js";
 import { initExpandCollapse } from "./gantt-expand.js";
 
+// ============================================================================
+// Gantt Chart Configuration Constants
+// ============================================================================
+
+// Timeline and zoom settings
+const PIXELS_PER_DAY_DEFAULT = 4;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3.0;
+const ZOOM_STEP = 0.25;
+const ZOOM_LOCAL_STORAGE_KEY = "ganttZoom";
+
+// Resource conflict detection
+const RESOURCE_CONFLICT_THRESHOLD = 3;
+
+// Dependency type colors
+const DEPENDENCY_COLORS = {
+  "FS": "#42c778",  // Finish-to-Start (green)
+  "SS": "#4da3ff",  // Start-to-Start (blue)
+  "FF": "#f39c12",  // Finish-to-Finish (orange)
+  "SF": "#e56bff",  // Start-to-Finish (purple)
+};
+
+// Critical path styling
+const CRITICAL_PATH_COLOR = "#ef4444";
+const CRITICAL_PATH_BORDER_COLOR = "#dc2626";
+
+// ============================================================================
+// Gantt Chart Initialization
+// ============================================================================
+
 document.addEventListener("DOMContentLoaded", function () {
   /* ------------------------------------------------------------
      Build lookup tables
@@ -18,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const rows = Array.from(document.querySelectorAll("tbody tr.gantt-row"));
   const { rowsByCode, parentByCode } = buildRowIndex(rows);
   const ganttRoot = document.getElementById("gantt-root");
-  const basePxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || "4") : 4;
+  const basePxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || PIXELS_PER_DAY_DEFAULT) : PIXELS_PER_DAY_DEFAULT;
   const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
   const minStartDate = minStartStr ? new Date(minStartStr + "T00:00:00") : null;
   const baseTimelineWidth = ganttRoot ? parseFloat(ganttRoot.dataset.timelineWidth || "0") : 0;
@@ -26,12 +56,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!ganttRoot || Number.isNaN(px)) return;
     ganttRoot.style.setProperty("--timeline-width", `${px}px`);
   };
-  const ZOOM_KEY = "ganttZoom";
   const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
   const loadZoom = () => {
-    const stored = parseFloat(localStorage.getItem(ZOOM_KEY) || "1");
+    const stored = parseFloat(localStorage.getItem(ZOOM_LOCAL_STORAGE_KEY) || "1");
     if (Number.isNaN(stored)) return 1;
-    return clamp(stored, 0.5, 3);
+    return clamp(stored, ZOOM_MIN, ZOOM_MAX);
   };
   let zoom = loadZoom();
   let currentPxPerDay = basePxPerDay * zoom;
@@ -193,16 +222,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   applyZoom(zoom);
-
   const zoomInBtn = document.getElementById("zoom-in");
   const zoomOutBtn = document.getElementById("zoom-out");
   const zoomResetBtn = document.getElementById("zoom-reset");
 
   if (zoomInBtn) {
-    zoomInBtn.addEventListener("click", () => applyZoom(zoom + 0.25));
+    zoomInBtn.addEventListener("click", () => applyZoom(zoom + ZOOM_STEP));
   }
   if (zoomOutBtn) {
-    zoomOutBtn.addEventListener("click", () => applyZoom(zoom - 0.25));
+    zoomOutBtn.addEventListener("click", () => applyZoom(zoom - ZOOM_STEP));
   }
   if (zoomResetBtn) {
     zoomResetBtn.addEventListener("click", () => applyZoom(1));

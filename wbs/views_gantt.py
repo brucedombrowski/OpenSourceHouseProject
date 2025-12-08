@@ -10,6 +10,11 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from .constants import (
+    GANTT_PIXELS_PER_DAY,
+    GANTT_RESOURCE_CONFLICT_THRESHOLD,
+    GANTT_TIMELINE_CACHE_SECONDS,
+)
 from .models import ProjectItem, TaskDependency, WbsItem
 from .performance import profile_view
 from .utils import (
@@ -118,7 +123,7 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
     }
 
     # Cache for 1 hour
-    cache.set(cache_key, result, 3600)
+    cache.set(cache_key, result, GANTT_TIMELINE_CACHE_SECONDS)
     return result
 
 
@@ -233,7 +238,7 @@ def gantt_chart(request):
     total_days = days_between(min_start, max_end)
 
     # Pixels per day (controls horizontal zoom)
-    px_per_day = 4
+    px_per_day = GANTT_PIXELS_PER_DAY
     timeline_width_px = total_days * px_per_day
 
     # ---- Helper: does a WbsItem match the current ProjectItem filters? ----
@@ -368,7 +373,9 @@ def gantt_chart(request):
 
     # ---- Calculate resource allocation and conflicts ----
     resource_calendar = calculate_resource_allocation(tasks, min_start, max_end)
-    resource_conflicts = identify_resource_conflicts(resource_calendar, max_tasks_per_owner=3)
+    resource_conflicts = identify_resource_conflicts(
+        resource_calendar, max_tasks_per_owner=GANTT_RESOURCE_CONFLICT_THRESHOLD
+    )
 
     # ---- Build Year, Month, Day structures for the 3-level timeline (cached) ----
     timeline_bands = compute_timeline_bands(min_start, max_end, px_per_day)
