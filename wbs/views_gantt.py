@@ -1,6 +1,7 @@
 # wbs/views_gantt.py
 
 from datetime import date, timedelta
+from typing import Dict, List, Set
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
@@ -804,26 +805,49 @@ def search_autocomplete(request):
     return JsonResponse({"suggestions": suggestions[:10]})
 
 
-def calculate_critical_path(tasks):
+def calculate_critical_path(tasks: List[WbsItem]) -> Set[str]:
     """
     Calculate critical path using forward and backward pass algorithm.
-    Returns set of task codes that are on the critical path.
+
+    The critical path is the longest sequence of dependent tasks that determines
+    the minimum project duration. Tasks on the critical path have zero slack
+    (ES == LS and EF == LF), meaning any delay impacts project completion.
+
+    Algorithm Steps:
+    1. Forward Pass: Calculate Earliest Start (ES) and Earliest Finish (EF)
+       - Tasks with no predecessors start at their planned_start date
+       - Other tasks: ES = max(predecessor EF + lag) for all predecessors
+       - EF = ES + duration (in days)
+
+    2. Backward Pass: Calculate Latest Start (LS) and Latest Finish (LF)
+       - Tasks with no successors: LF = project end date
+       - Other tasks: LF = min(successor LS - lag) for all successors
+       - LS = LF - duration
+
+    3. Identify Critical Tasks: Tasks where ES == LS (zero slack)
 
     Args:
-        tasks: QuerySet or list of WbsItem objects with dependencies
+        tasks: List of WbsItem objects with planned dates and dependency links
 
     Returns:
-        set: Task codes on the critical path
+        Set of task codes (strings) on the critical path
+
+    Note:
+        Requires predecessor_links and successor_links to be accessible.
+        Tasks must have planned_start and planned_end dates.
     """
-    from datetime import timedelta
+    from datetime import timedelta as td
 
     # Early Start (ES), Early Finish (EF), Late Start (LS), Late Finish (LF)
-    es = {}
-    ef = {}
-    ls = {}
-    lf = {}
+    # Maps task codes to their calculated dates
+    es: Dict[str, date] = {}
+    ef: Dict[str, date] = {}
+    ls: Dict[str, date] = {}
+    lf: Dict[str, date] = {}
 
-    # Forward pass - calculate ES and EF
+    # ========================================================================
+    # Forward Pass: Calculate ES (Earliest Start) and EF (Earliest Finish)
+    # ========================================================================
     for task in tasks:
         if not task.planned_start or not task.planned_end:
             continue
@@ -832,32 +856,35 @@ def calculate_critical_path(tasks):
         predecessor_links = task.predecessor_links.select_related("predecessor")
 
         if not predecessor_links.exists():
-            # No predecessors - starts at planned start
+            # No predecessors - task can start at its planned start date
             es[task.code] = task.planned_start
         else:
             # ES = max(predecessor EF + lag) for all predecessors
+            # Find the latest finish date among all predecessors, accounting for lag
             max_ef = task.planned_start
             for link in predecessor_links:
                 pred_code = link.predecessor.code
                 if pred_code in ef:
                     lag = int(link.lag_days or 0)
-                    pred_finish = ef[pred_code] + timedelta(days=lag)
+                    pred_finish = ef[pred_code] + td(days=lag)
                     if pred_finish > max_ef:
                         max_ef = pred_finish
             es[task.code] = max_ef
 
-        # EF = ES + duration
+        # EF = ES + duration (duration includes start and end day)
         duration = (task.planned_end - task.planned_start).days + 1
-        ef[task.code] = es[task.code] + timedelta(days=duration - 1)
+        ef[task.code] = es[task.code] + td(days=duration - 1)
 
-    # Find project end date (maximum EF)
+    # Find project end date (maximum EF across all tasks)
     if not ef:
         return set()
 
     project_end = max(ef.values())
 
-    # Backward pass - calculate LS and LF
-    # Process tasks in reverse topological order
+    # ========================================================================
+    # Backward Pass: Calculate LS (Latest Start) and LF (Latest Finish)
+    # Process tasks in reverse to propagate constraints backward
+    # ========================================================================
     tasks_reversed = list(reversed(tasks))
 
     for task in tasks_reversed:
@@ -868,75 +895,85 @@ def calculate_critical_path(tasks):
         successor_links = task.successor_links.select_related("successor")
 
         if not successor_links.exists():
-            # No successors - LF = project end
+            # No successors - task must finish by project end
             lf[task.code] = project_end
         else:
             # LF = min(successor LS - lag) for all successors
+            # Find the earliest start among all successors, accounting for lag
             min_ls = project_end
             for link in successor_links:
                 succ_code = link.successor.code
                 if succ_code in ls:
                     lag = int(link.lag_days or 0)
-                    succ_start = ls[succ_code] - timedelta(days=lag)
+                    succ_start = ls[succ_code] - td(days=lag)
                     if succ_start < min_ls:
                         min_ls = succ_start
             lf[task.code] = min_ls
 
         # LS = LF - duration
         duration = (task.planned_end - task.planned_start).days + 1
-        ls[task.code] = lf[task.code] - timedelta(days=duration - 1)
+        ls[task.code] = lf[task.code] - td(days=duration - 1)
 
-    # Calculate slack/float and identify critical path
-    # Critical path tasks have zero slack (ES == LS and EF == LF)
-    critical_path = set()
+    # ========================================================================
+    # Identify Critical Path: Tasks with zero slack (ES == LS)
+    # ========================================================================
+    critical_path: Set[str] = set()
 
     for task_code in es.keys():
         if task_code in ls:
             es_date = es[task_code]
             ls_date = ls[task_code]
 
-            # Tasks with zero slack are on critical path
+            # Tasks with zero slack are on the critical path
+            # (no flexibility in scheduling)
             if es_date == ls_date:
                 critical_path.add(task_code)
 
     return critical_path
 
 
-def calculate_resource_allocation(tasks, min_start, max_end):
+def calculate_resource_allocation(
+    tasks: List[WbsItem], min_start: date, max_end: date
+) -> Dict[str, Dict[str, int]]:
     """
-    Calculate daily resource allocation by analyzing task owners (from ProjectItems).
-    Returns dict with date as key and owner allocation data.
+    Calculate daily resource allocation by analyzing task owners.
+
+    Builds a calendar showing how many tasks each owner is assigned to on each day.
+    This is used to identify overallocation (resource conflicts) when an owner has
+    too many concurrent tasks.
 
     Args:
-        tasks: List of WbsItem objects with project_items prefetched
-        min_start: datetime.date - start of project
-        max_end: datetime.date - end of project
+        tasks: List of WbsItem objects (requires project_items prefetched)
+        min_start: Earliest task start date (datetime.date)
+        max_end: Latest task end date (datetime.date)
 
     Returns:
-        dict: {date_str: {owner_name: task_count, ...}, ...}
+        Dict mapping date strings to owner allocations:
+        {
+            "2025-12-01": {"John Smith": 2, "Jane Doe": 1, ...},
+            "2025-12-02": {"John Smith": 3, ...},
+            ...
+        }
+        Task counts represent number of concurrent tasks per owner per day.
     """
     from datetime import timedelta as td
 
-    resource_calendar = {}
+    resource_calendar: Dict[str, Dict[str, int]] = {}
     current_date = min_start
 
-    # Build calendar for each day in project
+    # Initialize calendar: create an entry for each day in the project timeline
     while current_date <= max_end:
         date_str = current_date.isoformat()
         resource_calendar[date_str] = {}
         current_date += td(days=1)
 
-    # For each task, allocate to owners for each day it's active
+    # For each task, allocate it to owners for each day it's active
     for task in tasks:
         if not task.planned_start or not task.planned_end:
             continue
 
-        start = task.planned_start
-        end = task.planned_end
-        if hasattr(start, "date"):
-            start = start.date()
-        if hasattr(end, "date"):
-            end = end.date()
+        start = ensure_date(task.planned_start)
+        end = ensure_date(task.planned_end)
 
         # Get owners from linked ProjectItems
         project_items = list(task.project_items.all())
@@ -946,9 +983,20 @@ def calculate_resource_allocation(tasks, min_start, max_end):
                 owner_name = get_owner_display_name(pi.owner)
                 owners.add(owner_name)
 
-        # If no owner from ProjectItems, skip
+        # If no owner from ProjectItems, skip this task
         if not owners:
             continue
+
+        # Allocate task to each owner for each day it's active
+        for day in range((end - start).days + 1):
+            current_date = start + td(days=day)
+            date_str = current_date.isoformat()
+
+            if date_str in resource_calendar:
+                for owner in owners:
+                    resource_calendar[date_str][owner] = (
+                        resource_calendar[date_str].get(owner, 0) + 1
+                    )
 
         # Allocate task to each owner for each day
         current = start
@@ -960,28 +1008,47 @@ def calculate_resource_allocation(tasks, min_start, max_end):
                         resource_calendar[date_str].get(owner, 0) + 1
                     )
 
-            current += td(days=1)
-
     return resource_calendar
 
 
-def identify_resource_conflicts(resource_calendar, max_tasks_per_owner=3):
+def identify_resource_conflicts(
+    resource_calendar: Dict[str, Dict[str, int]],
+    max_tasks_per_owner: int = GANTT_RESOURCE_CONFLICT_THRESHOLD,
+) -> List[str]:
     """
-    Identify dates where resource allocation exceeds normal capacity.
+    Identify dates where resource allocation exceeds safe capacity.
+
+    A resource conflict occurs when an owner is assigned to more than the
+    maximum number of concurrent tasks on a single day. These dates are flagged
+    on the Gantt chart for resource planning and load balancing.
 
     Args:
-        resource_calendar: dict from calculate_resource_allocation
-        max_tasks_per_owner: threshold for conflict detection
+        resource_calendar: Dict from calculate_resource_allocation()
+                          Maps date strings to {owner_name: task_count}
+        max_tasks_per_owner: Threshold for conflict detection (default from config).
+                            When an owner exceeds this, the day is flagged.
 
     Returns:
-        list: [date_str, ...] dates with resource conflicts
-    """
-    conflicts = []
+        List of date strings (ISO format) with resource conflicts,
+        sorted chronologically and deduplicated.
 
+    Example:
+        >>> resource_calendar = {
+        ...     "2025-12-01": {"John": 2, "Jane": 1},
+        ...     "2025-12-02": {"John": 4},  # John has 4 tasks - exceeds threshold
+        ... }
+        >>> identify_resource_conflicts(resource_calendar, max_tasks_per_owner=3)
+        ["2025-12-02"]
+    """
+    conflicts: List[str] = []
+
+    # Check each day in the calendar
     for date_str, allocations in resource_calendar.items():
+        # Check if any owner exceeds the threshold on this day
         for owner, task_count in allocations.items():
             if task_count > max_tasks_per_owner:
                 conflicts.append(date_str)
-                break
+                break  # Only flag date once, move to next date
 
+    # Return sorted, unique dates
     return sorted(set(conflicts))
