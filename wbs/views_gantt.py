@@ -12,6 +12,10 @@ from django.views.decorators.http import require_POST
 
 from .models import ProjectItem, TaskDependency, WbsItem
 from .performance import profile_view
+from .utils import (
+    days_between,
+    ensure_date,
+)
 
 
 def compute_timeline_bands(min_start, max_end, px_per_day):
@@ -222,12 +226,10 @@ def gantt_chart(request):
     max_end = max(t.planned_end for t in tasks if t.planned_end)
 
     # Ensure we are working with date objects (not datetimes)
-    if hasattr(min_start, "date"):
-        min_start = min_start.date()
-    if hasattr(max_end, "date"):
-        max_end = max_end.date()
+    min_start = ensure_date(min_start)
+    max_end = ensure_date(max_end)
 
-    total_days = (max_end - min_start).days + 1
+    total_days = days_between(min_start, max_end)
 
     # Pixels per day (controls horizontal zoom)
     px_per_day = 4
@@ -308,12 +310,8 @@ def gantt_chart(request):
 
     # ---- Annotate each task with bar offsets, indentation, flags ----
     for t in tasks:
-        start = t.planned_start
-        end = t.planned_end
-        if hasattr(start, "date"):
-            start = start.date()
-        if hasattr(end, "date"):
-            end = end.date()
+        start = ensure_date(t.planned_start)
+        end = ensure_date(t.planned_end)
 
         offset_days = (start - min_start).days
         duration_days = max(1, (end - start).days + 1)
@@ -328,12 +326,8 @@ def gantt_chart(request):
         t.variance_days = 0
 
         if t.actual_start and t.actual_end:
-            actual_start = t.actual_start
-            actual_end = t.actual_end
-            if hasattr(actual_start, "date"):
-                actual_start = actual_start.date()
-            if hasattr(actual_end, "date"):
-                actual_end = actual_end.date()
+            actual_start = ensure_date(t.actual_start)
+            actual_end = ensure_date(t.actual_end)
 
             actual_offset_days = (actual_start - min_start).days
             actual_duration_days = max(1, (actual_end - actual_start).days + 1)

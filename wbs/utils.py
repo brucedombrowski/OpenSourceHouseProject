@@ -5,8 +5,9 @@ Centralizes code that is used across models, views, and admin.
 """
 
 import re
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from django.db.models import Case, IntegerField, Q, When
 
@@ -190,3 +191,118 @@ def merge_filters(*filter_objects) -> Q:
         result |= q
 
     return result
+
+
+# ============================================================================
+# Date/Time Utilities
+# ============================================================================
+
+
+def ensure_date(value: Any) -> Optional[date]:
+    """
+    Convert datetime to date if needed, handling various input types.
+
+    Args:
+        value: datetime, date, or None
+
+    Returns:
+        date object, or None if input is None
+
+    Example:
+        >>> ensure_date(datetime.now())
+        datetime.date(2025, 12, 8)
+        >>> ensure_date(date(2025, 12, 8))
+        datetime.date(2025, 12, 8)
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    if isinstance(value, date):
+        return value
+
+    return None
+
+
+def add_days_to_date(date_val: Any, days: int) -> Optional[date]:
+    """
+    Add days to a date, handling datetime conversion.
+
+    Args:
+        date_val: datetime, date, or None
+        days: Number of days to add (can be negative)
+
+    Returns:
+        Resulting date, or None if input is None
+
+    Example:
+        >>> add_days_to_date(date(2025, 12, 8), 5)
+        datetime.date(2025, 12, 13)
+        >>> add_days_to_date(datetime.now(), -1)
+        datetime.date(2025, 12, 7)
+    """
+    date_obj = ensure_date(date_val)
+    if date_obj is None:
+        return None
+
+    return date_obj + timedelta(days=days)
+
+
+def date_range(start_date: Any, end_date: Any) -> Generator[date, None, None]:
+    """
+    Generator for iterating over a date range (inclusive).
+
+    Converts datetime to date if needed. Yields each day from
+    start_date to end_date (inclusive).
+
+    Args:
+        start_date: datetime or date to start from
+        end_date: datetime or date to end at
+
+    Yields:
+        date objects for each day in range
+
+    Example:
+        >>> for day in date_range(date(2025, 12, 1), date(2025, 12, 3)):
+        ...     print(day)
+        2025-12-01
+        2025-12-02
+        2025-12-03
+    """
+    current = ensure_date(start_date)
+    end = ensure_date(end_date)
+
+    if current is None or end is None:
+        return
+
+    while current <= end:
+        yield current
+        current += timedelta(days=1)
+
+
+def days_between(start_date: Any, end_date: Any) -> int:
+    """
+    Calculate the number of days between two dates (inclusive).
+
+    Args:
+        start_date: datetime or date
+        end_date: datetime or date
+
+    Returns:
+        Number of days (1 = same day, inclusive)
+
+    Example:
+        >>> days_between(date(2025, 12, 1), date(2025, 12, 1))
+        1
+        >>> days_between(date(2025, 12, 1), date(2025, 12, 3))
+        3
+    """
+    start = ensure_date(start_date)
+    end = ensure_date(end_date)
+
+    if start is None or end is None:
+        return 0
+
+    return (end - start).days + 1
