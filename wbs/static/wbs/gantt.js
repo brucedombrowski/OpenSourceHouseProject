@@ -1,5 +1,5 @@
 // wbs/static/wbs/gantt.js
-// Requires: shared-theme.js (for getCSRFToken)
+// Requires: shared-theme.js (for getCSRFToken), logger.js (for debug logging)
 import {
   addDays,
   buildRowIndex,
@@ -10,6 +10,7 @@ import {
 } from "./gantt-utils.js";
 import { createArrowDrawer } from "./gantt-arrows.js";
 import { initExpandCollapse } from "./gantt-expand.js";
+import logger from "./logger.js";
 
 // ============================================================================
 // Gantt Chart Configuration Constants
@@ -575,7 +576,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function undo() {
     if (historyIndex < 0) {
-      console.log("Nothing to undo");
+      logger.log("Nothing to undo");
       return;
     }
 
@@ -584,7 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
       applyDateChange(action.code, action.oldStart, action.oldEnd, true)
         .then(() => {
           historyIndex--;
-          console.log("Undo successful");
+          logger.log("Undo successful");
         })
         .catch((err) => {
           console.error("Undo failed:", err);
@@ -595,7 +596,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function redo() {
     if (historyIndex >= historyStack.length - 1) {
-      console.log("Nothing to redo");
+      logger.log("Nothing to redo");
       return;
     }
 
@@ -604,7 +605,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (action.type === "dateChange") {
       applyDateChange(action.code, action.newStart, action.newEnd, true)
         .then(() => {
-          console.log("Redo successful");
+          logger.log("Redo successful");
         })
         .catch((err) => {
           historyIndex--;
