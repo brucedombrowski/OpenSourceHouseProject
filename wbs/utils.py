@@ -306,3 +306,37 @@ def days_between(start_date: Any, end_date: Any) -> int:
         return 0
 
     return (end - start).days + 1
+
+
+# ============================================================================
+# User/Owner Utilities
+# ============================================================================
+
+
+def get_owner_display_name(user) -> str:
+    """
+    Get display name for a user/owner (full name or username fallback).
+
+    Displays user's full name if available (first_name + last_name), otherwise
+    falls back to username. This is the standard display convention across
+    the Gantt chart, search suggestions, and resource allocation views.
+
+    Args:
+        user: Django User object or None
+
+    Returns:
+        Display name string (e.g., "John Smith" or "jsmith"), or empty string if None
+
+    Example:
+        >>> user = User.objects.get(username="jsmith")
+        >>> get_owner_display_name(user)
+        'John Smith'
+        >>> user = User.objects.get(username="noname")
+        >>> get_owner_display_name(user)  # If no full name set
+        'noname'
+    """
+    if not user:
+        return ""
+
+    full_name = user.get_full_name().strip()
+    return full_name or user.get_username()

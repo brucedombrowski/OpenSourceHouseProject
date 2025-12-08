@@ -15,6 +15,7 @@ from .performance import profile_view
 from .utils import (
     days_between,
     ensure_date,
+    get_owner_display_name,
 )
 
 
@@ -188,7 +189,7 @@ def gantt_chart(request):
     all_owners = [
         {
             "id": str(user.id),
-            "label": (user.get_full_name().strip() or user.get_username()),
+            "label": get_owner_display_name(user),
         }
         for user in User.objects.filter(project_items__isnull=False).distinct().order_by("username")
     ]
@@ -780,7 +781,7 @@ def search_autocomplete(request):
     )[:5]
 
     for user in owner_matches:
-        display_name = user.get_full_name() or user.username
+        display_name = get_owner_display_name(user)
         key = f"owner:{user.id}"
         if key not in seen:
             suggestions.append(
@@ -935,7 +936,7 @@ def calculate_resource_allocation(tasks, min_start, max_end):
         owners = set()
         for pi in project_items:
             if pi.owner:
-                owner_name = pi.owner.get_full_name().strip() or pi.owner.username
+                owner_name = get_owner_display_name(pi.owner)
                 owners.add(owner_name)
 
         # If no owner from ProjectItems, skip

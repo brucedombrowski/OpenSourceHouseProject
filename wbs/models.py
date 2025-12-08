@@ -37,7 +37,7 @@ from .constants import (
     WBS_STATUS_IN_PROGRESS,
     WBS_STATUS_NOT_STARTED,
 )
-from .utils import normalize_code_for_sort
+from .utils import get_owner_display_name, normalize_code_for_sort
 
 
 class WbsItemQuerySet(models.QuerySet):
@@ -552,7 +552,4 @@ class ProjectItem(models.Model):
 
     @property
     def owner_display(self) -> str:
-        if not self.owner:
-            return ""
-        full_name = self.owner.get_full_name().strip()
-        return full_name or self.owner.get_username()
+        return get_owner_display_name(self.owner)
