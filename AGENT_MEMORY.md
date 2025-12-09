@@ -100,6 +100,12 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Commit):
   - Recorded commit `fix: align today line and remove debug logging` (hash `483a7f8`), after pre-commit hooks passed (ruff, black, trim whitespace, EOF, merge conflict check).
 
+- **Dec 9, 2025** (Gantt column cleanup):
+  - Narrowed code column and adjusted sticky offsets to keep rows on a single line.
+  - Start/End dates now render as zero-padded `YYYY-MM-DD` to avoid wrapping.
+  - Test suite rerun after changes: 45 tests passing.
+  - Committed as `ui: tighten gantt columns and zero-pad dates` (hash `224d666`).
+
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
