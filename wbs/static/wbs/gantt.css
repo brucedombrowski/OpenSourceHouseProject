@@ -727,9 +727,9 @@ tbody tr {
   will-change: transform;
 }
 .header-timeline-row th:first-child {
-  width: 550px;
-  min-width: 550px;
-  max-width: 550px;
+  width: 520px;
+  min-width: 520px;
+  max-width: 520px;
 }
 .header-cols-row th {
   position: sticky;
@@ -740,10 +740,10 @@ tbody tr {
 }
 td {
   border: 1px solid #ddd;
-  padding: 3px 6px;
+  padding: 2px 4px;
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 th {
@@ -751,6 +751,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 45;
+  padding: 2px 4px;
 }
 
 .col-code {
@@ -758,24 +759,24 @@ th {
   left: 0;
   z-index: 30;
   background: #fff;
-  min-width: 70px;
-  width: 70px;
+  min-width: 60px;
+  width: 60px;
   border-right: 1px solid #ddd;
   will-change: transform;
 }
 .col-task {
   position: sticky;
-  left: 70px;
+  left: 60px;
   z-index: 30;
   background: #fff;
-  min-width: 240px;
-  width: 240px;
+  min-width: 220px;
+  width: 220px;
   border-right: 1px solid #ddd;
   will-change: transform;
 }
 .col-start {
   position: sticky;
-  left: 310px; /* 70 + 240 */
+  left: 280px; /* 60 + 220 */
   z-index: 30;
   background: #fff;
   min-width: 120px;
@@ -786,7 +787,7 @@ th {
 }
 .col-end {
   position: sticky;
-  left: 430px; /* 70 + 240 + 120 */
+  left: 400px; /* 60 + 220 + 120 */
   z-index: 30;
   background: #fff;
   min-width: 120px;
@@ -798,7 +799,7 @@ th {
 
 .header-cols-row th:nth-child(5) {
   position: sticky;
-  left: 550px; /* 70+240+120+120 */
+  left: 520px; /* 60+220+120+120 */
   z-index: 25;
   background: #fff;
   min-width: 80px;
@@ -812,6 +813,18 @@ th {
 .col-start,
 .col-end {
   box-shadow: 2px 0 3px rgba(0, 0, 0, 0.05);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.task-name-text {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-size: 11px;
 }
 
 .bar-header {

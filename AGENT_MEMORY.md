@@ -106,6 +106,11 @@ pip install -r requirements-production.txt
   - Test suite rerun after changes: 45 tests passing.
   - Committed as `ui: tighten gantt columns and zero-pad dates` (hash `224d666`).
 
+- **Dec 9, 2025** (Gantt left pane compaction):
+  - Further narrowed code/task columns (60/220px), reduced padding, and set left columns to 11px font to prevent multi-line rows.
+  - Added ellipsis handling for task names to force single-line rendering.
+  - Test suite rerun: 45 tests passing.
+
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
