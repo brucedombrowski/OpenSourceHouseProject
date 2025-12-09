@@ -49,6 +49,7 @@ pip install -r requirements-production.txt
 4. **Be efficient** - avoid creating unnecessary documentation files unless requested
 5. **Remember context** - this project is mature and production-ready; respect existing architecture
 6. **View Management**: When adding or removing views, update all navigation and dashboard locations automatically and log changes in the session history
+7. **Bulk Feature Management**: When adding or removing bulk features (e.g., in Scheduler), update all relevant UI and backend locations, and log changes in agent memory
 
 ## Codebase Overview
 
@@ -120,3 +121,7 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Landing page sync):
   - Updated `wbs/templates/index.html` to automatically include Scheduler in dashboard quick actions and grid cards when new views are added.
   - Scheduler now appears on the landing page alongside Gantt, Kanban, and Project Items.
+
+- **Dec 9, 2025** (Scheduler rebaseline):
+  - Added bulk rebaseline feature to Scheduler view: select tasks, set new baseline date, and shift planned dates accordingly.
+  - Updated JS, template, backend view, and URL routing for `/scheduler/rebaseline/` endpoint.

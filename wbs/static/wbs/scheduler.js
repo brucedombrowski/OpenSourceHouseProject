@@ -11,6 +11,7 @@ const btnDelete = document.getElementById("bulk-delete");
 const btnStatus = document.getElementById("bulk-status");
 const btnExport = document.getElementById("bulk-export");
 const btnClear = document.getElementById("bulk-clear");
+const btnRebaseline = document.getElementById("bulk-rebaseline");
 const statusSelect = document.getElementById("status-select");
 
 function updateState() {
@@ -137,6 +138,32 @@ if (btnExport) {
     a.download = `scheduler-export-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  });
+}
+
+function promptNewBaselineDate() {
+  const date = prompt("Enter new baseline start date (YYYY-MM-DD):");
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    alert("Invalid date format. Please use YYYY-MM-DD.");
+    return null;
+  }
+  return date;
+}
+
+if (btnRebaseline) {
+  btnRebaseline.addEventListener("click", async () => {
+    const codes = getCodes();
+    if (codes.length === 0) return;
+    const newDate = promptNewBaselineDate();
+    if (!newDate) return;
+    const { ok, data } = await postJSON("/scheduler/rebaseline/", { codes, newDate });
+    if (ok) {
+      alert(data.message || "Rebaseline complete");
+      window.location.reload();
+    } else {
+      alert(data.error || "Rebaseline failed");
+      logger.error("Bulk rebaseline failed", data);
+    }
   });
 }
 
