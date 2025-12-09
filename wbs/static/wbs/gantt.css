@@ -727,9 +727,9 @@ tbody tr {
   will-change: transform;
 }
 .header-timeline-row th:first-child {
-  width: 520px;
-  min-width: 520px;
-  max-width: 520px;
+  width: 520px !important;
+  min-width: 520px !important;
+  max-width: 520px !important;
 }
 .header-cols-row th {
   position: sticky;
@@ -759,8 +759,8 @@ th {
   left: 0;
   z-index: 30;
   background: #fff;
-  min-width: 60px;
-  width: 60px;
+  min-width: 60px !important;
+  width: 60px !important;
   border-right: 1px solid #ddd;
   will-change: transform;
 }
@@ -769,8 +769,8 @@ th {
   left: 60px;
   z-index: 30;
   background: #fff;
-  min-width: 220px;
-  width: 220px;
+  min-width: 220px !important;
+  width: 220px !important;
   border-right: 1px solid #ddd;
   will-change: transform;
   overflow: hidden;
@@ -780,9 +780,9 @@ th {
   left: 280px; /* 60 + 220 */
   z-index: 30;
   background: #fff;
-  min-width: 120px;
-  width: 120px;
-  max-width: 120px;
+  min-width: 120px !important;
+  width: 120px !important;
+  max-width: 120px !important;
   border-right: 1px solid #ddd;
   will-change: transform;
 }
@@ -791,9 +791,9 @@ th {
   left: 400px; /* 60 + 220 + 120 */
   z-index: 30;
   background: #fff;
-  min-width: 120px;
-  width: 120px;
-  max-width: 120px;
+  min-width: 120px !important;
+  width: 120px !important;
+  max-width: 120px !important;
   border-right: 1px solid #ddd;
   will-change: transform;
 }
@@ -803,8 +803,8 @@ th {
   left: 520px; /* 60+220+120+120 */
   z-index: 25;
   background: #fff;
-  min-width: 80px;
-  width: 80px;
+  min-width: 80px !important;
+  width: 80px !important;
   will-change: transform;
 }
 
@@ -827,7 +827,7 @@ th {
 
 .task-name-text {
   display: inline-block;
-  width: 170px;
+  width: 170px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
