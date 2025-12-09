@@ -625,20 +625,20 @@
     content: "";
     position: absolute;
     top: 50%;
-    width: 42%;
+    width: 9999px; /* effectively infinite; we'll hide overflow on parent */
     height: 1px;
     background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 100%);
   }
 
   .view-panel .view-label::before,
   .panel-label::before {
-    left: -4px;
+    left: -8px;
     transform: translateY(-50%);
   }
 
   .view-panel .view-label::after,
   .panel-label::after {
-    right: -4px;
+    right: -8px;
     transform: translateY(-50%) scaleX(-1);
   }
 
