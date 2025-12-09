@@ -125,3 +125,8 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Scheduler rebaseline):
   - Added bulk rebaseline feature to Scheduler view: select tasks, set new baseline date, and shift planned dates accordingly.
   - Updated JS, template, backend view, and URL routing for `/scheduler/rebaseline/` endpoint.
+
+- **Dec 9, 2025** (Phase dependency cleanup):
+  - Removed 30 phase-level (level 1) dependencies from dataset—phases should not have dependencies at the WBS top level.
+  - Future consideration: Add validation/warning if user tries to create phase-level dependencies, but not implemented yet.
+  - Agent guideline: Phase-level items (level 1) should never have task dependencies; validate or warn on creation if this feature is added.
