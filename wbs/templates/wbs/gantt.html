@@ -691,9 +691,9 @@
             {% endif %}
             <table class="gantt-table">
             <colgroup>
-              <col style="width: 80px;">
-              <col style="width: 300px;">
-              <col style="width: 100px;">
+              <col style="width: 70px;">
+              <col style="width: 240px;">
+              <col style="width: 120px;">
               <col style="width: 120px;">
               <col style="width: {{ timeline_width_px }}px;">
             </colgroup>
@@ -803,8 +803,8 @@
                     {% for _ in item.level_indent %}&nbsp;&nbsp;&nbsp;{% endfor %}
                     <span class="task-name-text editable-name" data-code="{{ item.code }}" title="Double-click to edit">{{ item.name }}</span>
                   </td>
-                  <td class="col-start">{{ item.planned_start }}</td>
-                  <td class="col-end">{{ item.planned_end }}</td>
+                  <td class="col-start">{{ item.planned_start|date:"Y-m-d" }}</td>
+                  <td class="col-end">{{ item.planned_end|date:"Y-m-d" }}</td>
                   <td class="bar-cell">
                     {% if item.bar_width %}
                       <div class="bar-wrapper" style="width: {{ timeline_width_px }}px;">
