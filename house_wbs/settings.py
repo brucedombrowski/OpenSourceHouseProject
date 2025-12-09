@@ -14,6 +14,8 @@ from pathlib import Path
 
 import environ
 
+from .__version__ import __version__, __version_full__
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

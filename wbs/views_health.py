@@ -14,6 +14,8 @@ from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_http_methods
 
+from house_wbs.__version__ import __version__
+
 
 @require_http_methods(["GET", "HEAD"])
 @cache_page(60)  # Cache for 60 seconds to avoid database strain
@@ -27,13 +29,15 @@ def health_check(request):
     Response:
         {
             "status": "ok",
-            "service": "house-wbs"
+            "service": "house-wbs",
+            "version": "1.0.0"
         }
     """
     return JsonResponse(
         {
             "status": "ok",
             "service": "house-wbs",
+            "version": __version__,
         }
     )
 
