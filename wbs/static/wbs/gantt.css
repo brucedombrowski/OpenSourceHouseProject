@@ -268,6 +268,7 @@ a:focus-visible,
   padding: 10px 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .button-group .group-label {
@@ -302,29 +303,17 @@ a:focus-visible,
 
 .zoom-grid {
   display: grid;
-  grid-template-columns: auto minmax(200px, 1fr) auto auto;
+  grid-template-columns: auto minmax(160px, 220px) auto;
   grid-template-rows: auto auto;
-  gap: 6px 12px;
+  gap: 6px 10px;
   align-items: center;
 }
 
 .zoom-grid .zoom-slider {
-  min-width: 200px;
-  max-width: 260px;
+  min-width: 160px;
+  max-width: 220px;
   width: 100%;
   justify-self: stretch;
-}
-
-.zoom-grid .zoom-align-start {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: start;
-}
-
-.zoom-grid .zoom-align-end {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
 }
 
 .zoom-grid .zoom-min {
@@ -337,9 +326,13 @@ a:focus-visible,
   grid-row: 1;
 }
 
-.zoom-grid .zoom-reset {
-  grid-column: 4;
-  grid-row: 1;
+.zoom-grid .zoom-row-secondary {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
 }
 
 /* Buttons use shared styles from base.html */
