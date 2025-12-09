@@ -773,6 +773,7 @@ th {
   width: 220px;
   border-right: 1px solid #ddd;
   will-change: transform;
+  overflow: hidden;
 }
 .col-start {
   position: sticky;
@@ -819,12 +820,13 @@ th {
 
 .task-name-text {
   display: inline-block;
-  max-width: 180px;
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .bar-header {

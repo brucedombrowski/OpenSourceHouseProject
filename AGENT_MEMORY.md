@@ -111,6 +111,10 @@ pip install -r requirements-production.txt
   - Added ellipsis handling for task names to force single-line rendering.
   - Test suite rerun: 45 tests passing.
 
+- **Dec 9, 2025** (Gantt task hover + fit):
+  - Added tighter task column overflow control, reduced task text to 10px with ellipsis, and set hover tooltip to show full task name.
+  - Tests rerun: 45 tests passing.
+
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
