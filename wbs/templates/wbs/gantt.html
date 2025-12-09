@@ -593,14 +593,20 @@
             <!-- View Controls -->
             <div class="button-group">
               <span class="group-label">View</span>
-              <button type="button" id="zoom-out" aria-label="Zoom out">🔍 Zoom -</button>
-              <button type="button" id="zoom-in" aria-label="Zoom in">🔍 Zoom +</button>
-              <button type="button" id="zoom-min" aria-label="Zoom to minimum">⏮️ Min</button>
-              <button type="button" id="zoom-max" aria-label="Zoom to maximum">⏭️ Max</button>
-              <input type="range" id="zoom-slider" aria-label="Zoom slider" class="zoom-slider" />
-              <button type="button" id="zoom-reset" aria-label="Reset zoom">↺ Reset</button>
-              <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
-              <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
+              <div class="zoom-stack">
+                <div class="zoom-row">
+                  <button type="button" id="zoom-min" aria-label="Zoom to minimum">⏮️ Min</button>
+                  <input type="range" id="zoom-slider" aria-label="Zoom slider" class="zoom-slider" />
+                  <button type="button" id="zoom-max" aria-label="Zoom to maximum">⏭️ Max</button>
+                  <button type="button" id="zoom-reset" aria-label="Reset zoom">↺ Reset</button>
+                </div>
+                <div class="zoom-row">
+                  <button type="button" id="zoom-out" aria-label="Zoom out">🔍 Zoom -</button>
+                  <button type="button" id="zoom-in" aria-label="Zoom in">🔍 Zoom +</button>
+                  <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
+                  <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
+                </div>
+              </div>
             </div>
 
             <!-- Display Options -->

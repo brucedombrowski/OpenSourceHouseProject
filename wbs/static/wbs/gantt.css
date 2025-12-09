@@ -275,6 +275,24 @@ a:focus-visible,
   margin-left: 4px;
 }
 
+.zoom-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zoom-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-slider {
+  min-width: 160px;
+  max-width: 240px;
+}
+
 /* Buttons use shared styles from base.html */
 
 .gantt-header-actions .gantt-link-button {
