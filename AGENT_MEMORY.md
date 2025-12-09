@@ -124,6 +124,9 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Task font shrink):
   - Reduced task label font to 9px to further prevent wrapping; tests 45 passing.
 
+- **Dec 9, 2025** (Temporary inline override):
+  - Added inline `!important` rule in `gantt.html` forcing `.task-name-text.editable-name` to 9px to beat cached styles; visually suboptimal, logged for revisit.
+
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
