@@ -724,10 +724,13 @@ class GanttShiftTests(TestCase):
             owner=user,
         )
 
-        # Gantt view should fetch owner list once and use it for both empty/populated cases
         resp = self.client.get(reverse("gantt_view"))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Owner")
+
+        # Resource calendar should include the owner's display name (pulled once via prefetch)
+        resource_calendar = resp.context.get("resource_calendar", {})
+        owners_seen = {owner for day in resource_calendar.values() for owner in day.keys()}
+        self.assertIn("Owner", owners_seen)
 
     def test_shift_task_moves_children(self):
         """
@@ -846,6 +849,26 @@ class GanttShiftTests(TestCase):
 
         # Parent progress should be updated to reflect children (both at 0%)
         self.assertEqual(root.percent_complete, Decimal("0"))
+
+    def test_resource_calendar_handles_tasks_without_owners(self):
+        """Resource calendar should still build when tasks lack owners."""
+        root = WbsItem.objects.create(
+            code="1",
+            name="Root",
+            planned_start=date(2025, 1, 1),
+            planned_end=date(2025, 1, 3),
+        )
+        # No project items with owners attached
+
+        resp = self.client.get(reverse("gantt_view"))
+        self.assertEqual(resp.status_code, 200)
+
+        resource_calendar = resp.context.get("resource_calendar")
+        self.assertIsNotNone(resource_calendar)
+        # All days in range should be present with empty owner allocations
+        expected_dates = {"2025-01-01", "2025-01-02", "2025-01-03"}
+        self.assertEqual(set(resource_calendar.keys()), expected_dates)
+        self.assertTrue(all(not owners for owners in resource_calendar.values()))
 
     def test_board_list_view_renders(self):
         """
