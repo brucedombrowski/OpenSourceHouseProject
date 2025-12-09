@@ -4,6 +4,9 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 
 from wbs.views import (
+    gantt_bulk_assign,
+    gantt_bulk_delete,
+    gantt_bulk_update_status,
     gantt_optimize_schedule,
     gantt_set_task_dates,
     gantt_shift_task,
@@ -29,6 +32,9 @@ urlpatterns = [
     path("gantt/shift/", gantt_shift_task, name="gantt_shift_task"),
     path("gantt/set-dates/", gantt_set_task_dates, name="gantt_set_task_dates"),
     path("gantt/optimize/", gantt_optimize_schedule, name="gantt_optimize_schedule"),
+    path("gantt/bulk-delete/", gantt_bulk_delete, name="gantt_bulk_delete"),
+    path("gantt/bulk-assign/", gantt_bulk_assign, name="gantt_bulk_assign"),
+    path("gantt/bulk-update-status/", gantt_bulk_update_status, name="gantt_bulk_update_status"),
     path("gantt/update-name/", update_task_name, name="update_task_name"),
     path("gantt/search/", search_autocomplete, name="search_autocomplete"),
     # Project items endpoints

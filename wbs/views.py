@@ -28,6 +28,9 @@ from .utils import (
 
 # Gantt-related views
 from .views_gantt import (
+    gantt_bulk_assign,
+    gantt_bulk_delete,
+    gantt_bulk_update_status,
     gantt_chart,
     gantt_optimize_schedule,
     gantt_set_task_dates,
@@ -42,6 +45,9 @@ __all__ = [
     "gantt_shift_task",
     "gantt_set_task_dates",
     "gantt_optimize_schedule",
+    "gantt_bulk_delete",
+    "gantt_bulk_assign",
+    "gantt_bulk_update_status",
     "project_item_board",
     "project_item_list",
     "project_item_status_update",
