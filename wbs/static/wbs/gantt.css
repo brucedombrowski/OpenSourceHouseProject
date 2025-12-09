@@ -832,8 +832,8 @@ th {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-  font-size: 10px;
-  line-height: 1.1;
+  font-size: 9px !important;
+  line-height: 1.05;
   min-width: 0;
 }
 
