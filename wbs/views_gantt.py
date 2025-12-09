@@ -2,12 +2,12 @@
 
 import time
 from datetime import date, timedelta
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import models
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
@@ -26,7 +26,9 @@ from .utils import (
 )
 
 
-def compute_timeline_bands(min_start, max_end, px_per_day):
+def compute_timeline_bands(
+    min_start: date, max_end: date, px_per_day: int
+) -> Dict[str, Any]:
     """
     Compute year/month/day timeline bands for Gantt chart.
     Results are cached for 1 hour based on date range and scale.
@@ -168,7 +170,7 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
 @ensure_csrf_cookie
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 # TODO: Implement role-based access control (admin/manager/viewer roles)
-def gantt_chart(request):
+def gantt_chart(request: HttpRequest) -> Any:
     """
     Render a Gantt chart for WBS items with planned dates.
 
@@ -355,7 +357,7 @@ gantt_view = gantt_chart
 
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
-def gantt_shift_task(request):
+def gantt_shift_task(request: HttpRequest) -> JsonResponse:
     """
     Shift a task (and its descendants) by moving planned_start/planned_end.
     Expects POST fields: code, new_start (YYYY-MM-DD).
@@ -436,7 +438,7 @@ def gantt_shift_task(request):
 
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
-def gantt_set_task_dates(request):
+def gantt_set_task_dates(request: HttpRequest) -> JsonResponse:
     """
     Set explicit planned_start/planned_end for a task (no auto-shift of children).
     """
@@ -481,7 +483,7 @@ def gantt_set_task_dates(request):
 
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
-def gantt_optimize_schedule(request):
+def gantt_optimize_schedule(request: HttpRequest) -> JsonResponse:
     """
     Auto-adjust schedule respecting dependencies (simple ASAP forward pass).
     - Orders tasks topologically by dependencies.
@@ -621,7 +623,7 @@ def gantt_optimize_schedule(request):
 
 # NOTE: @staff_member_required removed for development. Add back for production auth.
 @require_POST
-def update_task_name(request):
+def update_task_name(request: HttpRequest) -> JsonResponse:
     """Update task name via inline editing."""
     import json
 
@@ -646,7 +648,7 @@ def update_task_name(request):
 
 
 # NOTE: @staff_member_required removed for development. Add back for production auth.
-def search_autocomplete(request):
+def search_autocomplete(request: HttpRequest) -> JsonResponse:
     """
     Provide autocomplete suggestions for Gantt search.
     Returns WBS codes, task names, and owner names matching the query.
@@ -959,7 +961,7 @@ def identify_resource_conflicts(
 
 
 @require_POST
-def gantt_bulk_delete(request):
+def gantt_bulk_delete(request: HttpRequest) -> JsonResponse:
     """
     Delete multiple WbsItem tasks.
 
@@ -1004,7 +1006,7 @@ def gantt_bulk_delete(request):
 
 
 @require_POST
-def gantt_bulk_assign(request):
+def gantt_bulk_assign(request: HttpRequest) -> JsonResponse:
     """
     Assign multiple WbsItem tasks to an owner.
 
@@ -1064,7 +1066,7 @@ def gantt_bulk_assign(request):
 
 
 @require_POST
-def gantt_bulk_update_status(request):
+def gantt_bulk_update_status(request: HttpRequest) -> JsonResponse:
     """
     Update status for multiple WbsItem tasks.
 
