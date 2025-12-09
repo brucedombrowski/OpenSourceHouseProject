@@ -1,0 +1,6 @@
+# Production-only dependencies
+# Install these only when deploying to production with PostgreSQL
+
+psycopg2-binary==2.9.9  # PostgreSQL adapter
+gunicorn==21.2.0        # Production WSGI server
+whitenoise==6.6.0       # Static file serving

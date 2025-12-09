@@ -6,7 +6,5 @@ django-mptt==0.18.0
 django-environ==0.11.2
 sqlparse==0.5.4
 
-# Production dependencies
-psycopg2-binary==2.9.9  # PostgreSQL adapter
-gunicorn==21.2.0        # Production WSGI server
-whitenoise==6.6.0       # Static file serving
+# Note: Production dependencies (PostgreSQL, Gunicorn, WhiteNoise) are in requirements-production.txt
+# Install them separately when deploying to production: pip install -r requirements-production.txt
