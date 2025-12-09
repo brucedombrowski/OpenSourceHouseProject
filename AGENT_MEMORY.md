@@ -81,6 +81,9 @@ pip install -r requirements-production.txt
   - Removed Gantt timeline debug prints from `wbs/views_gantt.py`; routed Gantt JS errors through `logger.js` instead of direct console calls
   - Working tree pending commit for agent memory update; follow preference to bundle memory updates with code changes
 
+- **Dec 9, 2025** (Docs sync):
+  - Updated README badges and test coverage counts to reflect 45 passing tests
+
 - **Dec 9, 2025** (Comprehensive Review):
   - Completed full codebase review across 30+ files
   - Assessment: Production-ready v1.0.0 with excellent architecture
