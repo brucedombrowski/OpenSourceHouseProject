@@ -97,10 +97,8 @@ pip install -r requirements-production.txt
   - Disabled pointer events on the today overlay to avoid capturing hover/drag.
   - Removed residual today-line debug logging from Python and JS.
   - Verified full test suite: 45 tests passing.
-
-- **Dec 9, 2025** (Commit blocked):
-  - Attempted to commit today-line fixes, but write access to `.git` is denied (`Operation not permitted`); unable to create `index.lock`.
-  - User needs to commit or adjust repo permissions; all file changes remain staged in working tree only.
+- **Dec 9, 2025** (Commit):
+  - Recorded commit `fix: align today line and remove debug logging` (hash `483a7f8`), after pre-commit hooks passed (ruff, black, trim whitespace, EOF, merge conflict check).
 
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
