@@ -127,6 +127,8 @@ pip install -r requirements-production.txt
   - Updated JS, template, backend view, and URL routing for `/scheduler/rebaseline/` endpoint.
 
 - **Dec 9, 2025** (Phase dependency cleanup):
-  - Removed 30 phase-level (level 1) dependencies from dataset—phases should not have dependencies at the WBS top level.
+  - Removed all phase-level (MPTT level 0) dependencies from dataset—phases should not have dependencies at the WBS top level.
+  - Current dataset structure: level 0 = phases (15 items), level 1 = tasks (45 items). Dependencies should only exist between level 1+ items.
+  - Dataset note: Current sample data in `wbs_dependencies_minimal.csv` contains only phase-level dependencies, which are now removed.
   - Future consideration: Add validation/warning if user tries to create phase-level dependencies, but not implemented yet.
-  - Agent guideline: Phase-level items (level 1) should never have task dependencies; validate or warn on creation if this feature is added.
+  - Agent guideline: Phase-level items (MPTT level 0) should never have task dependencies; validate or warn on creation if this feature is added.
