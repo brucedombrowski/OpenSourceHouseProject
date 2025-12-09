@@ -2,7 +2,7 @@
 
 import time
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -26,9 +26,7 @@ from .utils import (
 )
 
 
-def compute_timeline_bands(
-    min_start: date, max_end: date, px_per_day: int
-) -> Dict[str, Any]:
+def compute_timeline_bands(min_start: date, max_end: date, px_per_day: int) -> Dict[str, Any]:
     """
     Compute year/month/day timeline bands for Gantt chart.
     Results are cached for 1 hour based on date range and scale.
@@ -151,15 +149,6 @@ def compute_timeline_bands(
         "month_ticks": month_ticks,
         "day_ticks": day_ticks,
     }
-
-    # DEBUG: Log month_ticks generation
-    import sys
-
-    print(f"DEBUG: month_bands: {month_bands}", file=sys.stderr)
-    print(f"DEBUG: month_ticks: {month_ticks}", file=sys.stderr)
-    print(
-        f"DEBUG: min_start={min_start}, max_end={max_end}, px_per_day={px_per_day}", file=sys.stderr
-    )
 
     # Cache for 1 hour
     cache.set(cache_key, result, GANTT_TIMELINE_CACHE_SECONDS)
@@ -1124,4 +1113,3 @@ def gantt_bulk_update_status(request: HttpRequest) -> JsonResponse:
             {"success": False, "error": str(e)},
             status=500,
         )
-

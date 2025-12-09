@@ -24,7 +24,7 @@ This file preserves important context, decisions, and our working relationship f
 ## Project Context
 
 - **Project**: Open Source House Project - Django-based WBS/Gantt/Project Management tool
-- **Status**: Production-ready v1.0.0 with 44 passing tests
+- **Status**: Production-ready v1.0.0 with 45 passing tests
 - **Tech Stack**: Django 6.0, MPTT for hierarchical data, SQLite/PostgreSQL support
 - **Key Features**: WBS hierarchy, Gantt charts, Kanban boards, dependency management
 
@@ -67,10 +67,19 @@ pip install -r requirements-production.txt
 - ✅ Frontend performance (GZip, WhiteNoise, timeline caching 1hr, throttled rendering)
 - ✅ Security hardened (CSRF, SSL ready, environment-based config)
 - ✅ Well documented (deployment guides, user guides, architecture records)
-- ✅ Tested (44 unit tests, 2.3s runtime)
+- ✅ Tested (45 unit tests, ~2.6s runtime)
 - ✅ Production-ready infrastructure (Docker, nginx, PostgreSQL support)
 
 ## Session History Notes
+
+- **Dec 9, 2025** (Gantt regression guard):
+  - Added regression test ensuring resource calendar builds when tasks lack owners; updated owner assertion to read from resource calendar context
+  - Full Django suite now 45 tests, all green; commit `354b687` pushed to `main`
+  - Reminder: keep this file updated proactively after meaningful changes
+
+- **Dec 9, 2025** (Debug cleanup):
+  - Removed Gantt timeline debug prints from `wbs/views_gantt.py`; routed Gantt JS errors through `logger.js` instead of direct console calls
+  - Working tree pending commit for agent memory update; follow preference to bundle memory updates with code changes
 
 - **Dec 9, 2025** (Comprehensive Review):
   - Completed full codebase review across 30+ files
@@ -79,12 +88,12 @@ pip install -r requirements-production.txt
   - Created `NEXT_STEPS.md` with prioritized action items
   - Created `docs/CODEBASE_REVIEW_2025_12_09.md` with detailed analysis
   - Identified immediate focus areas: debug cleanup, bulk operations, version management
-  
+
 - **Dec 9, 2025** (Morning):
   - Fixed PostgreSQL dependency issue, established agent memory system
   - Split requirements into base and production files
   - Updated all deployment documentation for new requirements structure
-  
+
 - **Dec 8, 2025**: Major feature and optimization work
   - **Issue #78**: Phase-based filtering for Kanban board (158 queries → 2 queries, 98% reduction)
   - **Issue #79**: Build procedure improvements, query optimization, comprehensive documentation

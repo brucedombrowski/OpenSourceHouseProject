@@ -694,7 +694,7 @@ document.addEventListener("DOMContentLoaded", function () {
           logger.log("Undo successful");
         })
         .catch((err) => {
-          console.error("Undo failed:", err);
+          logger.error("Undo failed:", err);
           alert(`Undo failed: ${err.message}`);
         });
     }
@@ -715,7 +715,7 @@ document.addEventListener("DOMContentLoaded", function () {
         })
         .catch((err) => {
           historyIndex--;
-          console.error("Redo failed:", err);
+          logger.error("Redo failed:", err);
           alert(`Redo failed: ${err.message}`);
         });
     }
@@ -1044,7 +1044,7 @@ document.addEventListener("DOMContentLoaded", function () {
             throw new Error("Failed to update name");
           }
         } catch (err) {
-          console.error("Error updating task name:", err);
+          logger.error("Error updating task name:", err);
           alert("Failed to update task name. Please try again.");
           this.innerHTML = originalContent;
         }
@@ -1098,7 +1098,7 @@ document.addEventListener("DOMContentLoaded", function () {
           suggestionsDropdown.style.display = "none";
         }
       } catch (err) {
-        console.error("Autocomplete error:", err);
+        logger.error("Autocomplete error:", err);
       }
     };
 
