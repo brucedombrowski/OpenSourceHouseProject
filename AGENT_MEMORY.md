@@ -51,6 +51,7 @@ pip install -r requirements-production.txt
 6. **View Management**: When adding or removing views, update all navigation and dashboard locations automatically and log changes in the session history
 7. **Bulk Feature Management**: When adding or removing bulk features (e.g., in Scheduler), update all relevant UI and backend locations, and log changes in agent memory
 8. **Template Structure**: All new views must extend `base.html` to include site header and navigation (do NOT create standalone HTML files without the header)
+9. **Execution Bias**: Execute as much as possible yourself; only ask the user for actions you cannot perform, and log those requests in this file.
 
 ### Cache & Dev Process Optimization (Dec 9, 2025)
 - **JavaScript changes require server restart**: Hard refresh (Cmd+Shift+R) clears browser cache but doesn't reload server-side assets; always restart Django dev server after JS modifications
@@ -90,6 +91,16 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Debug cleanup):
   - Removed Gantt timeline debug prints from `wbs/views_gantt.py`; routed Gantt JS errors through `logger.js` instead of direct console calls
   - Working tree pending commit for agent memory update; follow preference to bundle memory updates with code changes
+
+- **Dec 9, 2025** (Today line polish):
+  - Corrected today line offset calculation to match day ticks (removed +1 day shift).
+  - Disabled pointer events on the today overlay to avoid capturing hover/drag.
+  - Removed residual today-line debug logging from Python and JS.
+  - Verified full test suite: 45 tests passing.
+
+- **Dec 9, 2025** (Commit blocked):
+  - Attempted to commit today-line fixes, but write access to `.git` is denied (`Operation not permitted`); unable to create `index.lock`.
+  - User needs to commit or adjust repo permissions; all file changes remain staged in working tree only.
 
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests

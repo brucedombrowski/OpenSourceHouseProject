@@ -131,16 +131,6 @@ document.addEventListener("DOMContentLoaded", function () {
         tickPx = Math.round(offsetDays * pxPerDay * zoom);
       }
       const offsetPx = leftColWidth + tickPx + 1;
-      // DEBUG: Log today line position calculation
-      console.log('[TODAY LINE]', {
-        leftColWidth,
-        tickPx,
-        offsetPx,
-        offsetDays,
-        pxPerDay,
-        zoom,
-        today: today.toISOString().slice(0, 10)
-      });
       const chartLine = document.getElementById("today-line-chart");
       if (chartLine) {
         chartLine.style.left = offsetPx + "px";

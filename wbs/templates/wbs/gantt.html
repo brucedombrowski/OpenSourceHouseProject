@@ -687,7 +687,7 @@
         <div class="gantt-scroll" style="position: relative;">
             <!-- Today line spanning full chart area -->
             {% if today_offset_px is not None %}
-              <div id="today-line-chart" class="today-overlay data-today-offset" style="left: {{ today_offset_px }}px; top: 0; height: 100%; z-index:101; position:absolute; background:#ffe600; width:2px; border-radius:2px; pointer-events:auto;"></div>
+              <div id="today-line-chart" class="today-overlay data-today-offset" style="left: {{ today_offset_px }}px; top: 0; height: 100%; z-index:101; position:absolute; background:#ffe600; width:2px; border-radius:2px; pointer-events:none;"></div>
             {% endif %}
             <table class="gantt-table">
             <colgroup>

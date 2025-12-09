@@ -319,19 +319,11 @@ def gantt_chart(request: HttpRequest) -> Any:
         resource_conflict_details = []
 
     # ---- Calculate today's marker position ----
-    from datetime import datetime
-
-    # Use system local date for today
-    local_today = datetime.now().date()
+    local_today = date.today()
     today_offset_px = None
     if min_start <= local_today <= max_end:
-        offset_days = (local_today - min_start).days + 1
+        offset_days = (local_today - min_start).days
         today_offset_px = offset_days * px_per_day
-
-    # DEBUG: Print today line calculation values
-    print(
-        f"[GANTT DEBUG] min_start: {min_start}, local_today: {local_today}, today_offset_px: {today_offset_px}"
-    )
 
     context = {
         "tasks": tasks,
