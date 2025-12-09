@@ -138,9 +138,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# Install production server
-pip install gunicorn psycopg2-binary
+pip install -r requirements-production.txt  # PostgreSQL, Gunicorn, WhiteNoise
 ```
 
 ### 4. Configure Environment Variables

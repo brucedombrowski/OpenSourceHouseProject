@@ -44,10 +44,12 @@
 - [x] Django 6.0 - latest stable
 - [x] django-environ - environment configuration
 - [x] django-mppt - nested set tree structure
-- [x] gunicorn - production WSGI server
-- [x] whitenoise - static file serving
-- [x] psycopg2-binary - PostgreSQL adapter
+- [x] **Production dependencies** (in requirements-production.txt):
+  - [x] gunicorn - production WSGI server
+  - [x] whitenoise - static file serving
+  - [x] psycopg2-binary - PostgreSQL adapter
 - [x] All security packages current
+- [x] Requirements split for easier development (base vs production)
 
 ## Deployment Preparation
 

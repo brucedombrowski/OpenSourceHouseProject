@@ -50,7 +50,9 @@ set -euo pipefail
 # create virtualenv and install deps
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt  # or: pip install django django-mptt
+pip install -r requirements.txt  # Core dependencies (Django, MPTT, etc.)
+# For production with PostgreSQL, also install:
+# pip install -r requirements-production.txt
 
 # initialize DB and admin (no prompts)
 python manage.py migrate
@@ -117,23 +119,31 @@ If you have your own CSVs, use the same commands with your filenames.
 
 Build & Deployment
 ------------------
+
+**Dependencies**:
+- `requirements.txt` - Core dependencies for development (Django, MPTT, SQLite)
+- `requirements-production.txt` - Production add-ons (PostgreSQL, Gunicorn, WhiteNoise)
+
 Static assets (CSS/JS) are collected and optimized for production:
 
 **Development** (default):
 ```
+pip install -r requirements.txt
 python manage.py runserver
 # Uses basic static file storage; assets auto-reload
 ```
 
 **Production build** (collectstatic with manifest + cache busting):
 ```
+pip install -r requirements.txt
+pip install -r requirements-production.txt  # PostgreSQL, Gunicorn, WhiteNoise
 python build_assets.py       # Collect and process static files
 # Generates staticfiles/ with content hashes for cache busting
 # Set DEBUG=False and SECURE_* flags in .env for full production mode
 ```
 
 For best performance in production:
-- Use WhiteNoise middleware (optional; see `requirements.txt`)
+- Use WhiteNoise middleware (included in `requirements-production.txt`)
 - Serve staticfiles/ from CDN or reverse proxy with long cache headers
 - Set `STATIC_ROOT` to a persistent location on your server
 
