@@ -604,7 +604,6 @@
             <!-- Actions -->
             <div class="button-group">
               <span class="group-label">Actions</span>
-              <button type="button" id="optimize-schedule" aria-label="Optimize schedule">⚡ Optimize</button>
               <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">💾 Export PNG</button>
             </div>
 
@@ -777,10 +776,10 @@
                       <button type="button"
                               class="expander"
                               data-has-children="true"
-                              data-expanded="true"
-                              aria-expanded="true"
+                              data-expanded="false"
+                              aria-expanded="false"
                               aria-label="Toggle children for {{ item.code }}">
-                        ▾
+                        ▸
                       </button>
                     {% else %}
                       <button type="button"

@@ -50,6 +50,14 @@ pip install -r requirements-production.txt
 5. **Remember context** - this project is mature and production-ready; respect existing architecture
 6. **View Management**: When adding or removing views, update all navigation and dashboard locations automatically and log changes in the session history
 7. **Bulk Feature Management**: When adding or removing bulk features (e.g., in Scheduler), update all relevant UI and backend locations, and log changes in agent memory
+8. **Template Structure**: All new views must extend `base.html` to include site header and navigation (do NOT create standalone HTML files without the header)
+
+### Cache & Dev Process Optimization (Dec 9, 2025)
+- **JavaScript changes require server restart**: Hard refresh (Cmd+Shift+R) clears browser cache but doesn't reload server-side assets; always restart Django dev server after JS modifications
+- **CSS/template caching**: Templates cache dynamically (no issue), but static JS modules can be cached by browser and server
+- **Solution workflow**: 1) Kill running server (`pkill -f runserver`), 2) Verify code changes, 3) Restart with `bash runserver.sh`, 4) Hard refresh browser (Cmd+Shift+R)
+- **Build timestamps**: View includes `?v={{ build_timestamp }}` on main assets to bust cache, but nested module imports don't inherit this—hard refresh is required
+- **Lesson**: For dev iterations on static assets, plan for server restart + browser cache clear in testing loop to save debugging time
 
 ## Codebase Overview
 
@@ -127,8 +135,20 @@ pip install -r requirements-production.txt
   - Updated JS, template, backend view, and URL routing for `/scheduler/rebaseline/` endpoint.
 
 - **Dec 9, 2025** (Phase dependency cleanup):
-  - Removed all phase-level (MPTT level 0) dependencies from dataset—phases should not have dependencies at the WBS top level.
+  - Removed all phase-level (MPPT level 0) dependencies from dataset—phases should not have dependencies at the WBS top level.
   - Current dataset structure: level 0 = phases (15 items), level 1 = tasks (45 items). Dependencies should only exist between level 1+ items.
   - Dataset note: Current sample data in `wbs_dependencies_minimal.csv` contains only phase-level dependencies, which are now removed.
   - Future consideration: Add validation/warning if user tries to create phase-level dependencies, but not implemented yet.
-  - Agent guideline: Phase-level items (MPTT level 0) should never have task dependencies; validate or warn on creation if this feature is added.
+  - Agent guideline: Phase-level items (MPPT level 0) should never have task dependencies; validate or warn on creation if this feature is added.
+
+- **Dec 9, 2025** (Gantt view improvements):
+  - Collapsed Gantt view by default: changed expander `data-expanded` from `true` to `false`
+  - Removed "Optimize" button from Gantt toolbar and migrated optimizer logic to Scheduler view
+  - Gantt now read-only for viewing/exporting; bulk operations moved to dedicated Scheduler view
+  - **Cache lessons learned**: Template changes alone don't apply collapsed state—must also update JavaScript initialization in `gantt-expand.js` to process initial `data-expanded="false"` and hide descendant rows on first load. Browser doesn't cache template HTML but does cache static JS files; use `?v={{ build_timestamp }}` query param to bust JS cache or manually clear browser cache (Cmd+Shift+R on Mac)
+
+- **Dec 9, 2025** (Scheduler improvements):
+  - Removed complex "Rebaseline" button (required task selection, confusing logic)
+  - Added single "Set Project Start Date" button at top of Scheduler (no selection needed)
+  - New endpoint `/scheduler/set-project-start/` calculates delta from earliest task's start and shifts ALL tasks proportionally
+  - Simpler UX: one button, one prompt, one action shifts entire project timeline forward/backward

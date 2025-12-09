@@ -94,7 +94,6 @@ class WbsItemAdmin(DraggableMPTTAdmin):
             ProjectItem.STATUS_TODO,
             ProjectItem.STATUS_IN_PROGRESS,
             ProjectItem.STATUS_BLOCKED,
-            ProjectItem.STATUS_OPEN,
         ]
         return obj.project_items.filter(status__in=open_statuses).count()
 

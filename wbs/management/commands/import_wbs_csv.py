@@ -281,7 +281,9 @@ class Command(BaseCommand):
                 )
 
         if needs_rebuild:
-            WbsItem.objects.rebuild()
+            from mptt.utils import _get_tree_model
+
+            _get_tree_model(WbsItem)._tree_manager.rebuild()
 
         if not skip_rollup and needs_rollup:
             changed_count = 0

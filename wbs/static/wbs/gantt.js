@@ -722,51 +722,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ------------------------------------------------------------
-     Optimize Schedule button (stub)
-  ------------------------------------------------------------ */
-  const optimizeBtn = document.getElementById("optimize-schedule");
-  if (optimizeBtn) {
-    optimizeBtn.addEventListener("click", () => {
-      optimizeBtn.disabled = true;
-      optimizeBtn.textContent = "Optimizing...";
-      fetch(optimizeEndpoint, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "X-CSRFToken": csrfToken,
-        },
-      })
-        .then(async (resp) => {
-          const text = await resp.text();
-          const redirectedToLogin =
-            resp.redirected || (resp.url && resp.url.includes("login"));
-          let data = {};
-          try {
-            data = JSON.parse(text);
-          } catch (_) {
-            data = {};
-          }
-          if (redirectedToLogin) {
-            throw new Error("Authentication required: log in as staff/admin and retry.");
-          }
-          if (!resp.ok || !data.ok) {
-            const msg = data.error || text || `HTTP ${resp.status}`;
-            throw new Error(msg);
-          }
-          refreshTasks(data.tasks || []);
-          alert(data.message || "Schedule optimized.");
-        })
-        .catch((err) => {
-          alert(`Optimize failed: ${err.message}`);
-        })
-        .finally(() => {
-          optimizeBtn.disabled = false;
-          optimizeBtn.textContent = "Optimize Schedule";
-        });
-    });
-  }
-
-  /* ------------------------------------------------------------
      Toggle Project Items panel
   ------------------------------------------------------------ */
   const togglePanelBtn = document.getElementById("toggle-project-panel");

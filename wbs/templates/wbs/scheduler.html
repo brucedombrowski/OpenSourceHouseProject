@@ -1,54 +1,56 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scheduler</title>
-  <link rel="stylesheet" href="{% static 'wbs/gantt.css' %}">
-  <style>
-    body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 0; }
-    .page { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    h1 { margin: 0 0 16px; }
-    .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid #1f2937; }
-    th { text-align: left; background: #0b1220; position: sticky; top: 0; z-index: 2; }
-    tr:hover { background: #0d182b; }
-    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; text-transform: capitalize; }
-    .pill-not_started { background: #1f2937; color: #cbd5e1; }
-    .pill-in_progress { background: #1d4ed8; color: #e0f2fe; }
-    .pill-done { background: #16a34a; color: #dcfce7; }
-    .pill-blocked { background: #b91c1c; color: #fee2e2; }
-    .toolbar { display: flex; align-items: center; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
-    .toolbar select, .toolbar button { height: 36px; border-radius: 8px; border: 1px solid #1f2937; background: #0f172a; color: #e2e8f0; padding: 0 12px; }
-    .toolbar button.primary { background: #2563eb; color: #fff; border-color: #1d4ed8; }
-    .toolbar button.danger { background: #b91c1c; color: #fff; border-color: #991b1b; }
-    .toolbar button.secondary { background: #1f2937; color: #e2e8f0; }
-    .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .level-indent { color: #64748b; font-size: 12px; }
-  </style>
-</head>
-<body>
+
+{% block title %}Scheduler{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'wbs/gantt.css' %}">
+<style>
+  .page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0 0 16px; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid #1f2937; }
+  th { text-align: left; background: #0b1220; position: sticky; top: 0; z-index: 2; }
+  tr:hover { background: #0d182b; }
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; text-transform: capitalize; }
+  .pill-not_started { background: #1f2937; color: #cbd5e1; }
+  .pill-in_progress { background: #1d4ed8; color: #e0f2fe; }
+  .pill-done { background: #16a34a; color: #dcfce7; }
+  .pill-blocked { background: #b91c1c; color: #fee2e2; }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
+  .toolbar select, .toolbar button { height: 36px; border-radius: 8px; border: 1px solid #1f2937; background: #0f172a; color: #e2e8f0; padding: 0 12px; }
+  .toolbar button.primary { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+  .toolbar button.danger { background: #b91c1c; color: #fff; border-color: #991b1b; }
+  .toolbar button.secondary { background: #1f2937; color: #e2e8f0; }
+  .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .level-indent { color: #64748b; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
   <div class="page">
     <h1>Scheduler</h1>
     <p style="color:#94a3b8; margin: 0 0 16px;">Bulk-manage tasks without touching the Gantt view.</p>
 
     <div class="card">
       <div class="toolbar">
-        <span><strong id="selected-count">0</strong> selected</span>
-        <button id="bulk-delete" class="danger" disabled>Delete</button>
-        <select id="status-select">
-          <option value="">Change status…</option>
-          {% for value, label in status_choices %}
-            <option value="{{ value }}">{{ label|capfirst }}</option>
-          {% endfor %}
-        </select>
-        <button id="bulk-status" class="primary" disabled>Apply Status</button>
-        <button id="bulk-export" class="secondary" disabled>Export CSV</button>
-        <button id="bulk-clear" class="secondary" disabled>Clear</button>
-        <button id="bulk-rebaseline" class="primary" disabled>Rebaseline</button>
+        <button id="set-project-start" class="primary">📅 Set Project Start Date</button>
       </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <div class="toolbar">
+          <span><strong id="selected-count">0</strong> selected</span>
+          <button id="bulk-delete" class="danger" disabled>Delete</button>
+          <select id="status-select">
+            <option value="">Change status…</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}">{{ label|capfirst }}</option>
+            {% endfor %}
+          </select>
+          <button id="bulk-status" class="primary" disabled>Apply Status</button>
+          <button id="bulk-export" class="secondary" disabled>Export CSV</button>
+          <button id="bulk-clear" class="secondary" disabled>Clear</button>
 
       <div class="table-wrapper" style="max-height: 70vh; overflow: auto;">
         <table>
@@ -84,5 +86,4 @@
 
   <script src="{% static 'wbs/shared-theme.js' %}"></script>
   <script type="module" src="{% static 'wbs/scheduler.js' %}"></script>
-</body>
-</html>
+{% endblock %}

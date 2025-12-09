@@ -11,7 +11,7 @@ const btnDelete = document.getElementById("bulk-delete");
 const btnStatus = document.getElementById("bulk-status");
 const btnExport = document.getElementById("bulk-export");
 const btnClear = document.getElementById("bulk-clear");
-const btnRebaseline = document.getElementById("bulk-rebaseline");
+const btnSetProjectStart = document.getElementById("set-project-start");
 const statusSelect = document.getElementById("status-select");
 
 function updateState() {
@@ -141,8 +141,8 @@ if (btnExport) {
   });
 }
 
-function promptNewBaselineDate() {
-  const date = prompt("Enter new baseline start date (YYYY-MM-DD):");
+function promptNewProjectStartDate() {
+  const date = prompt("Enter new project start date (YYYY-MM-DD):");
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     alert("Invalid date format. Please use YYYY-MM-DD.");
     return null;
@@ -150,19 +150,17 @@ function promptNewBaselineDate() {
   return date;
 }
 
-if (btnRebaseline) {
-  btnRebaseline.addEventListener("click", async () => {
-    const codes = getCodes();
-    if (codes.length === 0) return;
-    const newDate = promptNewBaselineDate();
+if (btnSetProjectStart) {
+  btnSetProjectStart.addEventListener("click", async () => {
+    const newDate = promptNewProjectStartDate();
     if (!newDate) return;
-    const { ok, data } = await postJSON("/scheduler/rebaseline/", { codes, newDate });
+    const { ok, data } = await postJSON("/scheduler/set-project-start/", { newDate });
     if (ok) {
-      alert(data.message || "Rebaseline complete");
+      alert(data.message || "Project start date updated");
       window.location.reload();
     } else {
-      alert(data.error || "Rebaseline failed");
-      logger.error("Bulk rebaseline failed", data);
+      alert(data.error || "Update failed");
+      logger.error("Set project start date failed", data);
     }
   });
 }

@@ -19,7 +19,7 @@ from wbs.views import (
 )
 from wbs.views_gantt import search_autocomplete, update_task_name
 from wbs.views_health import health_check, health_check_detailed, readiness_check
-from wbs.views_scheduler import scheduler_rebaseline
+from wbs.views_scheduler import scheduler_rebaseline, set_project_start
 
 urlpatterns = [
     path("", index, name="index"),
@@ -41,6 +41,7 @@ urlpatterns = [
     path("gantt/search/", search_autocomplete, name="search_autocomplete"),
     path("scheduler/", scheduler_view, name="scheduler_view"),
     path("scheduler/rebaseline/", scheduler_rebaseline, name="scheduler_rebaseline"),
+    path("scheduler/set-project-start/", set_project_start, name="set_project_start"),
     # Project items endpoints
     path("project-items/board/", project_item_board, name="project_item_board"),
     path("project-items/list/", project_item_list, name="project_item_list"),

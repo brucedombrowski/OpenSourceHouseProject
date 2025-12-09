@@ -11,6 +11,14 @@ export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDepende
       const code = row?.dataset.code;
       if (!row || !code) return;
 
+      // Initialize collapsed state if data-expanded="false"
+      if (exp.dataset.expanded === "false") {
+        const descendants = getDescendants(code, rows);
+        descendants.forEach(r => {
+          r.style.display = "none";
+        });
+      }
+
       exp.addEventListener("click", event => {
         event.stopPropagation();
 

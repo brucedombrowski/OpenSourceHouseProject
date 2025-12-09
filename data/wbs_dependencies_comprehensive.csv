@@ -1,0 +1,83 @@
+predecessor_code,successor_code,dependency_type,lag_days,notes
+1.1.1,1.1.2,FS,0,Survey must complete before schematic design
+1.1.2,1.1.3,FS,0,Schematic design feeds into design development
+1.1.3,1.2.1,FS,0,Design must be complete for permit application
+1.2.1,1.2.2,FS,0,Application must be prepared before submission
+1.2.2,1.3.1,FS,0,Permits needed before site mobilization
+1.3.1,1.3.2,FS,0,Fencing before utilities
+1.3.2,1.3.3,FS,0,Utilities before office setup
+1.3.3,2.1.1,FS,0,Mobilization complete before clearing
+2.1.1,2.1.2,FS,0,Clear before grading
+2.1.2,2.1.3,FS,0,Grade before erosion control
+2.1.3,2.2.1,FS,0,Site prep complete before excavation
+2.2.1,2.2.2,FS,0,Excavate before footing forms
+2.2.2,2.2.3,FS,0,Forms ready before pour
+2.2.3,2.2.4,FS,1,Footings cure before foundation walls
+2.2.4,2.2.5,FS,1,Foundation walls cure before waterproofing
+2.2.5,2.3.1,FS,0,Foundation complete before underground plumbing
+2.2.5,2.3.2,FS,0,Foundation complete before underground electrical
+2.3.1,3.1.1,FS,0,Underground plumbing before floor framing
+2.3.2,3.1.1,FS,0,Underground electrical before floor framing
+3.1.1,3.1.2,FS,0,Sill plates before floor joists
+3.1.2,3.1.3,FS,0,Floor joists before subfloor
+3.1.3,3.2.1,FS,0,Subfloor complete before exterior walls
+3.2.1,3.2.2,FS,0,Exterior walls before interior walls
+3.2.1,3.2.3,FS,0,Exterior walls before shear walls
+3.2.2,3.3.1,FS,0,Interior walls framed before roof trusses
+3.2.3,3.3.1,FS,0,Shear walls complete before roof trusses
+3.3.1,3.3.2,FS,0,Trusses set before roof sheathing
+3.3.2,3.3.3,FS,0,Roof sheathing complete for milestone
+3.3.3,4.1.1,FS,0,Roof framing complete before underlayment
+4.1.1,4.1.2,FS,0,Underlayment before shingles
+4.1.2,4.1.3,FS,0,Shingles before flashing and trim
+4.1.3,4.2.1,FS,0,Roof complete before wall sheathing
+3.2.1,4.2.1,FS,0,Exterior walls framed before sheathing
+4.2.1,4.2.2,FS,0,Wall sheathing before house wrap
+4.2.2,4.3.1,FS,0,House wrap complete before windows
+4.3.1,4.3.2,FS,0,Windows before exterior doors
+4.3.2,5.1.1,FS,0,Building weather-tight before plumbing rough
+4.3.2,5.2.1,FS,0,Building weather-tight before electrical rough
+4.3.2,5.3.1,FS,0,Building weather-tight before HVAC rough
+5.1.1,5.1.2,FS,0,DWV before water supply
+5.2.1,5.2.2,FS,0,Panels before branch circuits
+5.3.1,5.3.2,FS,0,HVAC equipment before ductwork
+5.1.2,6.1.1,FS,0,Plumbing rough complete before insulation
+5.2.2,6.1.1,FS,0,Electrical rough complete before insulation
+5.3.2,6.1.1,FS,0,HVAC rough complete before insulation
+6.1.1,6.1.2,FS,0,Wall insulation before ceiling insulation
+6.1.2,6.2.1,FS,0,Insulation complete before drywall hanging
+6.2.1,6.2.2,FS,0,Drywall hung before taping
+6.2.2,6.2.3,FS,1,Tape dry before finishing
+6.2.3,7.1.1,FS,0,Drywall finished before trim
+6.2.3,7.3.1,FS,0,Drywall finished before painting
+7.1.1,7.1.2,FS,0,Baseboard and casing before crown molding
+7.1.2,7.1.3,FS,0,Crown molding before interior doors
+7.1.3,7.2.1,FS,0,Interior doors before hardwood flooring
+7.2.1,7.2.2,FS,0,Hardwood before tile (tile in wet areas last)
+7.3.1,7.3.2,FS,1,Prime dry before finish paint
+7.2.2,8.1.1,FS,0,Tile complete before plumbing fixtures
+7.3.2,8.1.1,FS,0,Painting complete before plumbing fixtures
+8.1.1,8.1.2,FS,0,Fixtures installed before water heater
+7.3.2,8.2.1,FS,0,Painting complete before electrical trim
+8.2.1,8.2.2,FS,0,Outlets and switches before light fixtures
+5.3.2,8.3.1,FS,0,Ductwork complete before registers
+8.3.1,8.3.2,FS,0,Registers before thermostat
+8.3.2,8.3.3,FS,0,Thermostat installed before system testing
+8.1.2,9.1.1,FS,0,Interior MEP complete before exterior siding
+8.2.2,9.1.1,FS,0,Interior MEP complete before exterior siding
+8.3.3,9.1.1,FS,0,Interior MEP complete before exterior siding
+9.1.1,9.1.2,FS,0,Siding before exterior trim
+9.1.2,9.2.1,FS,0,Trim installed before painting
+9.2.1,9.3.1,FS,0,Exterior painting before final grading
+9.3.1,9.3.2,FS,0,Final grading before landscaping
+8.1.2,10.1.1,FS,0,Plumbing complete before final inspection
+8.2.2,10.1.2,FS,0,Electrical complete before mechanical inspection
+8.3.3,10.1.2,FS,0,HVAC complete before mechanical inspection
+8.2.2,10.1.3,FS,0,Electrical complete before electrical inspection
+9.3.2,10.1.1,FS,0,Site work complete before final inspection
+10.1.1,10.2.1,FS,0,Inspections before punch list walkthrough
+10.1.2,10.2.1,FS,0,Inspections before punch list walkthrough
+10.1.3,10.2.1,FS,0,Inspections before punch list walkthrough
+10.2.1,10.2.2,FS,0,Punch list walkthrough before completion
+10.2.2,10.3.1,FS,0,Punch list complete before CO
+10.3.1,10.3.2,FS,0,CO obtained before owner training

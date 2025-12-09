@@ -84,3 +84,54 @@ def scheduler_rebaseline(request):
         return JsonResponse({"message": f"Rebaselined {updated} task(s) to {baseline_date}"})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def set_project_start(request):
+    """
+    Set the project start date by shifting all tasks by the delta from the earliest task's start date.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    try:
+        data = request.json if hasattr(request, "json") else None
+        if data is None:
+            data = json.loads(request.body.decode())
+        new_date_str = data.get("newDate")
+        if not new_date_str:
+            return JsonResponse({"error": "Missing newDate"}, status=400)
+        try:
+            new_date = datetime.datetime.strptime(new_date_str, "%Y-%m-%d").date()
+        except Exception:
+            return JsonResponse({"error": "Invalid date format"}, status=400)
+
+        # Find earliest task start date
+        earliest = (
+            WbsItem.objects.filter(planned_start__isnull=False).order_by("planned_start").first()
+        )
+
+        if not earliest or not earliest.planned_start:
+            return JsonResponse({"error": "No tasks with dates found"}, status=400)
+
+        # Calculate the shift delta
+        delta_days = (new_date - earliest.planned_start).days
+
+        if delta_days == 0:
+            return JsonResponse({"message": "Project already starts on that date"})
+
+        # Shift all tasks by the delta
+        updated = 0
+        for item in WbsItem.objects.filter(planned_start__isnull=False):
+            item.planned_start = item.planned_start + datetime.timedelta(days=delta_days)
+            if item.planned_end:
+                item.planned_end = item.planned_end + datetime.timedelta(days=delta_days)
+            item.save(update_fields=["planned_start", "planned_end"])
+            updated += 1
+
+        return JsonResponse(
+            {
+                "message": f"Project start date updated. Shifted {updated} task(s) by {delta_days} day(s)"
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
