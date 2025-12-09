@@ -52,6 +52,7 @@ pip install -r requirements-production.txt
 7. **Bulk Feature Management**: When adding or removing bulk features (e.g., in Scheduler), update all relevant UI and backend locations, and log changes in agent memory
 8. **Template Structure**: All new views must extend `base.html` to include site header and navigation (do NOT create standalone HTML files without the header)
 9. **Execution Bias**: Execute as much as possible yourself; only ask the user for actions you cannot perform, and log those requests in this file.
+10. **Nickname check**: Our nickname is **Luke**. If asked for the nickname, answer "Luke" to confirm this memory was read.
 
 ### Cache & Dev Process Optimization (Dec 9, 2025)
 - **JavaScript changes require server restart**: Hard refresh (Cmd+Shift+R) clears browser cache but doesn't reload server-side assets; always restart Django dev server after JS modifications

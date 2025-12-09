@@ -75,6 +75,7 @@ export function createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg }) {
       succs.forEach(succCode => {
         const succRow = rowsByCode[succCode];
         if (!succRow) return;
+        if (succRow.style.display === "none") return;
         const succBar = succRow.querySelector(".bar");
         if (!succBar) return;
         const succRect = succBar.getBoundingClientRect();
