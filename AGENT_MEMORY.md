@@ -111,3 +111,7 @@ pip install -r requirements-production.txt
   - Gantt month tick alignment and zoom behavior improvements
   - Performance: Kantt load time reduced from 30+ sec (timeout) to <1 sec
   - Created BUILD_PROCEDURES.md, DEVELOPMENT.md, AUTH_STRATEGY.md
+
+- **Dec 9, 2025** (Menu update):
+  - Added Scheduler to main navigation menu in `wbs/templates/base.html`.
+  - Scheduler view now accessible directly from header navigation, alongside Gantt Chart and other views.
