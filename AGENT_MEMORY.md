@@ -118,6 +118,9 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Gantt widths hard override):
   - Forced column widths and task label width with `!important` to override inline styles; tests still 45 passing.
 
+- **Dec 9, 2025** (Inline timeline width fix):
+  - Updated `gantt.html` inline header/timeline width to 520px to match narrowed columns; tests 45 passing.
+
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
