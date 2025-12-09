@@ -383,6 +383,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const zoomInBtn = document.getElementById("zoom-in");
   const zoomOutBtn = document.getElementById("zoom-out");
   const zoomResetBtn = document.getElementById("zoom-reset");
+  const toggleFiltersBtn = document.getElementById("toggle-filters");
+  const filtersPanel = document.querySelector(".gantt-filters");
 
   if (zoomInBtn) {
     zoomInBtn.addEventListener("click", () => applyZoom(zoom + ZOOM_STEP));
@@ -395,6 +397,11 @@ document.addEventListener("DOMContentLoaded", function () {
       // Recalculate optimal zoom based on current browser width
       const optimalZoom = calculateOptimalZoom();
       applyZoom(optimalZoom);
+    });
+  }
+  if (toggleFiltersBtn && filtersPanel) {
+    toggleFiltersBtn.addEventListener("click", () => {
+      filtersPanel.classList.toggle("show");
     });
   }
   if (zoomMinBtn) {
