@@ -3,6 +3,8 @@ import { redrawAsync } from "./gantt-utils.js";
 
 // Builds arrow drawing/highlight helpers
 export function createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg }) {
+  const isHidden = el => !el || el.offsetParent === null || el.style.display === "none";
+
   // Arrowhead markers for each dependency type
   function createArrowheadDefs() {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -51,7 +53,7 @@ export function createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg }) {
     depSvg.appendChild(createArrowheadDefs());
 
     rows.forEach(row => {
-      if (row.style.display === "none") return;
+      if (isHidden(row)) return;
       const code = row.dataset.code;
       const succs = (row.dataset.successors || "").split(",").filter(Boolean);
       const succLinksRaw = (row.dataset.successorMeta || "").split("|").filter(Boolean);
@@ -75,7 +77,7 @@ export function createArrowDrawer({ rows, rowsByCode, scrollElement, depSvg }) {
       succs.forEach(succCode => {
         const succRow = rowsByCode[succCode];
         if (!succRow) return;
-        if (succRow.style.display === "none") return;
+        if (isHidden(succRow)) return;
         const succBar = succRow.querySelector(".bar");
         if (!succBar) return;
         const succRect = succBar.getBoundingClientRect();

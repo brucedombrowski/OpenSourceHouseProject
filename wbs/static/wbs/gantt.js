@@ -74,6 +74,15 @@ document.addEventListener("DOMContentLoaded", function () {
       let tickPx = null;
       let useMonthBand = false;
       if (timeline) {
+        // Ensure we use the current timeline width, not the base
+        const timelineTrack = timeline.querySelector('.timeline-track');
+        if (timelineTrack) {
+          const trackWidth = parseFloat(timelineTrack.style.width);
+          if (!Number.isNaN(trackWidth)) {
+            setTimelineWidthVar(trackWidth);
+          }
+        }
+
         const pxPerDayZoom = pxPerDay * zoom;
         // Hide day tick row if zoomed out too far
         const dayRow = timeline.querySelector('.timeline-row:nth-child(3)');
@@ -134,6 +143,13 @@ document.addEventListener("DOMContentLoaded", function () {
       const chartLine = document.getElementById("today-line-chart");
       if (chartLine) {
         chartLine.style.left = offsetPx + "px";
+        const scroll = document.querySelector(".gantt-scroll");
+        if (scroll) {
+          chartLine.style.height = `${scroll.scrollHeight}px`;
+          chartLine.style.top = "0px";
+        } else {
+          chartLine.style.height = "100%";
+        }
         chartLine.style.display = "block";
       }
     }
@@ -262,7 +278,7 @@ document.addEventListener("DOMContentLoaded", function () {
     scheduleArrowRedraw();
   }
 
-  initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows });
+  initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows, drawTodayLine });
 
   /* ------------------------------------------------------------
      Zoom controls (persisted in localStorage)

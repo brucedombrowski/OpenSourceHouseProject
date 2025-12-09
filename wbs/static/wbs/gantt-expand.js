@@ -1,8 +1,12 @@
 // wbs/static/wbs/gantt-expand.js
 import { getDescendants, isAnyAncestorCollapsed, redrawAsync } from "./gantt-utils.js";
 
-export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows }) {
-  const redraw = () => redrawAsync(drawDependencyArrows);
+export function initExpandCollapse({ rows, rowsByCode, parentByCode, drawDependencyArrows, drawTodayLine }) {
+  const redraw = () =>
+    redrawAsync(() => {
+      if (typeof drawDependencyArrows === "function") drawDependencyArrows();
+      if (typeof drawTodayLine === "function") drawTodayLine();
+    });
 
   document
     .querySelectorAll(".expander[data-has-children='true']")
