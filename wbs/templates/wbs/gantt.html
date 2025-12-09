@@ -577,6 +577,40 @@
   .day-label br {
     display: block;
   }
+
+  /* Force header controls into a single row and visible "panel" styling (inline to avoid cache issues) */
+  .gantt-header-top {
+    flex-wrap: nowrap !important;
+    gap: 12px;
+    overflow-x: auto;
+    align-items: stretch;
+  }
+
+  .gantt-header-actions {
+    display: flex;
+    flex-wrap: nowrap !important;
+    gap: 12px;
+    align-items: stretch;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+
+  .button-group.controls-panel {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    white-space: nowrap;
+  }
+
+  .button-group.controls-panel .group-label {
+    margin-right: 8px;
+  }
 </style>
 {% endblock %}
 
