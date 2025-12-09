@@ -245,9 +245,11 @@ a:focus-visible,
 
 .gantt-header-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .button-group {
@@ -264,6 +266,7 @@ a:focus-visible,
   border-radius: 8px;
   padding: 10px 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
 }
 
 .button-group .group-label {
