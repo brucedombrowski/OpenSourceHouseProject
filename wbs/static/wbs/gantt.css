@@ -322,11 +322,37 @@ body.theme-dark .resource-conflict {
   cursor: pointer;
 }
 
+/* Today marker on timeline */
+.today-marker-row {
+  position: relative;
+  height: 100%;
+  pointer-events: none;
+}
+
+.today-marker {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, #ea580c 50%, transparent 100%);
+  box-shadow: 0 0 8px rgba(234, 88, 12, 0.4);
+  transform: translateX(-50%);
+  border-left: 2px solid #ea580c;
+}
+
+/* Lighter color for dark theme */
+body.theme-dark .today-marker {
+  background: linear-gradient(90deg, transparent 0%, #f97316 50%, transparent 100%);
+  border-left-color: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+}
+
 .gantt-meta {
   font-size: 13px;
   color: #cbd5e1;
   font-weight: 500;
 }
+
 
 .back-link {
   font-size: 12px;

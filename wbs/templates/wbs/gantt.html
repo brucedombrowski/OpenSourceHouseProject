@@ -745,6 +745,15 @@
                             </div>
                           {% endfor %}
                         </div>
+                        <!-- Today marker -->
+                        {% if today_offset_px is not None %}
+                          <div class="timeline-row today-marker-row">
+                            <div class="today-marker"
+                                 style="left: {{ today_offset_px }}px;"
+                                 title="Today">
+                            </div>
+                          </div>
+                        {% endif %}
                       </div>
                     </div>
                   </th>

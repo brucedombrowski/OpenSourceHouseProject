@@ -318,6 +318,13 @@ def gantt_chart(request: HttpRequest) -> Any:
         resource_conflict_positions = []
         resource_conflict_details = []
 
+    # ---- Calculate today's marker position ----
+    today = date.today()
+    today_offset_px = None
+    if min_start <= today <= max_end:
+        offset_days = (today - min_start).days
+        today_offset_px = offset_days * px_per_day
+
     context = {
         "tasks": tasks,
         "min_start": min_start,
@@ -329,6 +336,7 @@ def gantt_chart(request: HttpRequest) -> Any:
         "month_bands": timeline_bands["month_bands"],
         "month_ticks": timeline_bands["month_ticks"],
         "day_ticks": timeline_bands["day_ticks"],
+        "today_offset_px": today_offset_px,
         "resource_conflict_positions": resource_conflict_positions,
         "resource_conflict_details": resource_conflict_details,
         # Resource leveling
