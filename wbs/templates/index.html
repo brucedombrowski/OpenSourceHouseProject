@@ -171,6 +171,7 @@
         <a href="{% url 'gantt_view' %}" class="btn btn-primary action-button">📊 View Gantt Chart</a>
         <a href="{% url 'project_item_board' %}" class="btn btn-primary action-button">📋 Kanban Board</a>
         <a href="{% url 'project_item_list' %}" class="btn btn-primary action-button">📝 Project Items</a>
+        <a href="{% url 'scheduler_view' %}" class="btn btn-primary action-button">🗓️ Scheduler</a>
         <a href="{% url 'admin:index' %}" class="btn btn-secondary action-button">⚙️ Admin Panel</a>
     </div>
 </div>
@@ -195,6 +196,13 @@
         <h3>Project Items</h3>
         <p>Detailed list view of all project items with filtering, sorting, and bulk operations capabilities.</p>
         <a href="{% url 'project_item_list' %}" class="dashboard-card-link">View Items →</a>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="dashboard-card-icon">🗓️</div>
+        <h3>Scheduler</h3>
+        <p>Bulk-manage tasks, update statuses, and run operations across WBS items without touching the Gantt view.</p>
+        <a href="{% url 'scheduler_view' %}" class="dashboard-card-link">Open Scheduler →</a>
     </div>
 
     <div class="dashboard-card">

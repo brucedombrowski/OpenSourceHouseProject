@@ -48,6 +48,7 @@ pip install -r requirements-production.txt
 3. **Preserve continuity** - treat Bruce as someone we have an ongoing relationship with
 4. **Be efficient** - avoid creating unnecessary documentation files unless requested
 5. **Remember context** - this project is mature and production-ready; respect existing architecture
+6. **View Management**: When adding or removing views, update all navigation and dashboard locations automatically and log changes in the session history
 
 ## Codebase Overview
 
@@ -115,3 +116,7 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Menu update):
   - Added Scheduler to main navigation menu in `wbs/templates/base.html`.
   - Scheduler view now accessible directly from header navigation, alongside Gantt Chart and other views.
+
+- **Dec 9, 2025** (Landing page sync):
+  - Updated `wbs/templates/index.html` to automatically include Scheduler in dashboard quick actions and grid cards when new views are added.
+  - Scheduler now appears on the landing page alongside Gantt, Kanban, and Project Items.
