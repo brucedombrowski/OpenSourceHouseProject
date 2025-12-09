@@ -84,6 +84,12 @@ pip install -r requirements-production.txt
 - **Dec 9, 2025** (Docs sync):
   - Updated README badges and test coverage counts to reflect 45 passing tests
 
+- **Dec 9, 2025** (Scheduler bulk ops):
+  - Added dedicated `scheduler` view (`/scheduler/`) with table + checkboxes to run bulk delete/status/export against WBS items; Gantt remains read-only
+  - New assets: `wbs/templates/wbs/scheduler.html`, `wbs/static/wbs/scheduler.js`; URLs updated to include scheduler route
+  - Removed hidden checkbox CSS in Gantt (no functional change to Gantt) to allow selection styling reuse
+  - Full test suite still green (45 tests)
+
 - **Dec 9, 2025** (Comprehensive Review):
   - Completed full codebase review across 30+ files
   - Assessment: Production-ready v1.0.0 with excellent architecture

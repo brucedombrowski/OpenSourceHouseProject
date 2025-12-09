@@ -15,6 +15,7 @@ from wbs.views import (
     project_item_board,
     project_item_list,
     project_item_status_update,
+    scheduler_view,
 )
 from wbs.views_gantt import search_autocomplete, update_task_name
 from wbs.views_health import health_check, health_check_detailed, readiness_check
@@ -37,6 +38,7 @@ urlpatterns = [
     path("gantt/bulk-update-status/", gantt_bulk_update_status, name="gantt_bulk_update_status"),
     path("gantt/update-name/", update_task_name, name="update_task_name"),
     path("gantt/search/", search_autocomplete, name="search_autocomplete"),
+    path("scheduler/", scheduler_view, name="scheduler_view"),
     # Project items endpoints
     path("project-items/board/", project_item_board, name="project_item_board"),
     path("project-items/list/", project_item_list, name="project_item_list"),

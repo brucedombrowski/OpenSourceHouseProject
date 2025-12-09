@@ -37,6 +37,7 @@ from .views_gantt import (
     gantt_shift_task,
     gantt_view,
 )
+from .views_scheduler import scheduler_view
 
 __all__ = [
     "index",
@@ -45,6 +46,7 @@ __all__ = [
     "gantt_shift_task",
     "gantt_set_task_dates",
     "gantt_optimize_schedule",
+    "scheduler_view",
     "gantt_bulk_delete",
     "gantt_bulk_assign",
     "gantt_bulk_update_status",
