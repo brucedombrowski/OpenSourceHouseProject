@@ -614,16 +614,14 @@
 
   /* Inline view panel overrides to force label above controls and equal row widths */
   .view-panel {
-    display: grid;
-    grid-template-rows: auto auto;
-    grid-template-columns: 1fr;
-    row-gap: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
     min-width: 320px;
     width: 100%;
     max-width: 780px;
     white-space: normal;
-    justify-items: center;
-    align-items: start;
     margin: 0 auto;
   }
 
@@ -701,15 +699,15 @@
           <div class="gantt-header-actions">
             <!-- View Controls -->
             <div class="button-group controls-panel view-panel">
-              <span class="view-label">View</span>
+              <div class="view-label">View</div>
               <div class="zoom-grid">
                 <button type="button" id="zoom-min" aria-label="Zoom to minimum" class="zoom-min">⏮️ Min</button>
                 <input type="range" id="zoom-slider" aria-label="Zoom slider" class="zoom-slider" />
                 <button type="button" id="zoom-max" aria-label="Zoom to maximum" class="zoom-max">⏭️ Max</button>
                 <div class="zoom-row-secondary">
                   <button type="button" id="zoom-out" aria-label="Zoom out">🔍 Zoom -</button>
-                  <button type="button" id="zoom-in" aria-label="Zoom in">🔍 Zoom +</button>
                   <button type="button" id="zoom-reset" aria-label="Reset zoom">↺ Reset</button>
+                  <button type="button" id="zoom-in" aria-label="Zoom in">🔍 Zoom +</button>
                 </div>
               </div>
             </div>
