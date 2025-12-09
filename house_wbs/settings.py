@@ -14,8 +14,6 @@ from pathlib import Path
 
 import environ
 
-from .__version__ import __version__, __version_full__
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -183,6 +181,15 @@ else:
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
+
+    # Disable WhiteNoise and static file caching in development
+    # Remove WhiteNoise middleware if present
+    MIDDLEWARE = [mw for mw in MIDDLEWARE if "whitenoise.middleware.WhiteNoiseMiddleware" not in mw]
+
+    # Set cache headers for static files to no-cache
+    WHITENOISE_MAX_AGE = 0
+    WHITENOISE_AUTOREFRESH = True
+    WHITENOISE_USE_FINDERS = True
 
 # CSS minification configuration (via django-compressor or similar)
 # Note: For production deployments, consider using WhiteNoise or CDN services

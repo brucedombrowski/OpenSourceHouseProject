@@ -23,15 +23,30 @@
     flex-shrink: 0;
     z-index: 1001;
   }
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .site-header {
+    flex-shrink: 0;
+    z-index: 1001;
+  }
 
   .page-wrapper {
     flex: 1;
     padding: 0;
     margin: 0;
     max-width: none !important; /* Override base template's 1400px constraint */
-    overflow: hidden;
     display: flex;
     flex-direction: column;
+    overflow: auto;
   }
 
   .site-footer {
@@ -40,7 +55,6 @@
 
   #gantt-root {
     flex: 1;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     padding: 0;
@@ -70,33 +84,24 @@
     flex-shrink: 0;
     order: 3;
     padding: 8px 12px;
-    margin-bottom: 12px;
   }
-
   .gantt-container {
     order: 4;
     flex: 1;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 12px;
     max-height: 65vh;
   }
 
-  .gantt-search-section {
-    order: 5;
-    flex-shrink: 0;
-    background: var(--panel);
-    padding: 16px;
-    border-top: 2px solid var(--border);
-  }
-
-  .gantt-search-section label {
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 8px;
-    display: block;
-    color: var(--text);
+  .gantt-scroll {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    isolation: isolate;
+    background: #fff;
+    scrollbar-gutter: stable both-edges;
+    min-height: 0;
   }
 
   .gantt-search-section .search-input {
@@ -679,8 +684,12 @@
   <div class="gantt-container">
     <div class="gantt-layout">
       <div class="gantt-main">
-        <div class="gantt-scroll">
-          <table class="gantt-table">
+        <div class="gantt-scroll" style="position: relative;">
+            <!-- Today line spanning full chart area -->
+            {% if today_offset_px is not None %}
+              <div id="today-line-chart" class="today-overlay data-today-offset" style="left: {{ today_offset_px }}px; top: 0; height: 100%; z-index:101; position:absolute; background:#ffe600; width:2px; border-radius:2px; pointer-events:auto;"></div>
+            {% endif %}
+            <table class="gantt-table">
             <colgroup>
               <col style="width: 80px;">
               <col style="width: 300px;">
@@ -695,7 +704,7 @@
                   <th colspan="4"></th>
                   <th>
                     <div class="timeline">
-                      <div class="timeline-track" style="width: {{ timeline_width_px }}px;">
+                      <div class="timeline-track" style="width: {{ timeline_width_px }}px; position: relative;">
                         <!-- Year row -->
                         <div class="timeline-row">
                           {% for band in year_bands %}
@@ -745,13 +754,7 @@
                             </div>
                           {% endfor %}
                         </div>
-                        <!-- Today marker (overlay, does not add height) -->
-                        {% if today_offset_px is not None %}
-                          <div class="today-marker"
-                               style="left: {{ today_offset_px }}px;"
-                               title="Today">
-                          </div>
-                        {% endif %}
+                          <!-- Today marker now moved above table in .gantt-scroll -->
                       </div>
                     </div>
                   </th>
@@ -837,9 +840,7 @@
               {% endfor %}
             </tbody>
           </table>
-          {% if today_offset_px is not None %}
-            <div id="today-line" class="today-overlay" style="left: {{ today_offset_px }}px;"></div>
-          {% endif %}
+          {# today-line will be moved inside .timeline-track above #}
           <svg id="dependency-svg" class="dependency-overlay"></svg>
         </div>
       </div>
@@ -963,5 +964,26 @@
 <script src="{% static 'wbs/fetch-utils.js' %}?v={{ build_timestamp }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module" src="{% static 'wbs/gantt.js' %}?v={{ build_timestamp }}"></script>
+<script>
+  (function() {
+    const todayLine = document.getElementById('today-line');
+    if (!todayLine) return;
+
+    const scroll = todayLine.closest('.gantt-scroll');
+    const barHeader = scroll?.querySelector('.bar-header');
+    const todayOffset = Number(todayLine.dataset.todayOffset || 0);
+
+    const updateTodayLineLeft = () => {
+      if (!scroll || !barHeader) return;
+      const scrollRect = scroll.getBoundingClientRect();
+      const barRect = barHeader.getBoundingClientRect();
+      const timelineStart = (barRect.left - scrollRect.left) + scroll.scrollLeft;
+      todayLine.style.left = `${timelineStart + todayOffset}px`;
+    };
+
+    updateTodayLineLeft();
+    window.addEventListener('resize', updateTodayLineLeft);
+  })();
+</script>
 </div>
 {% endblock %}

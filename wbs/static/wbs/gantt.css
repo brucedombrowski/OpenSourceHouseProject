@@ -38,6 +38,18 @@ body {
 /* Accessible focus rings for interactive controls */
 button:focus-visible,
 a:focus-visible,
+/* Today line overlay for Gantt chart */
+.today-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #ef4444;
+  border-radius: 2px;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 0 8px 2px #ef444499;
+}
 .expander:focus-visible,
 .gantt-link-button:focus-visible,
 .filter-actions button:focus-visible,
@@ -409,9 +421,9 @@ body.theme-dark .today-marker {
   display: inline-block;
   background: #42c778;
 }
-.legend-swatch.dep-type-ss { background: #4da3ff; border-bottom: 1px dashed #4da3ff; }
-.legend-swatch.dep-type-ff { background: #f39c12; border-bottom: 1px dotted #f39c12; }
-.legend-swatch.dep-type-sf { background: #e56bff; border-bottom: 1px dotted #e56bff; }
+.legend-swatch.dep-type-ss { background: #4da3ff; border-bottom: none; }
+.legend-swatch.dep-type-ff { background: #f39c12; border-bottom: none; }
+.legend-swatch.dep-type-sf { background: #e56bff; border-bottom: none; }
 
 .legend-swatch.critical-path-swatch {
   width: 16px;
@@ -615,7 +627,7 @@ body.theme-dark .today-marker {
   position: absolute;
   top: 0;
   left: 0;
-  width: 0;
+  width: 3px; /* Fallback width for visibility */
   height: 100%;
   pointer-events: none;
   z-index: 6;
@@ -657,9 +669,9 @@ body.theme-dark .today-overlay::before {
 }
 
 .dep-type-fs { stroke: #42c778; }
-.dep-type-ss { stroke: #4da3ff; stroke-dasharray: 6 4; }
-.dep-type-ff { stroke: #f39c12; stroke-dasharray: 4 3; }
-.dep-type-sf { stroke: #e56bff; stroke-dasharray: 3 3; }
+.dep-type-ss { stroke: #4da3ff; stroke-dasharray: none; }
+.dep-type-ff { stroke: #f39c12; stroke-dasharray: none; }
+.dep-type-sf { stroke: #e56bff; stroke-dasharray: none; }
 
 /* Dependency type labels on arrows */
 .dep-type-label {
@@ -919,19 +931,19 @@ th {
   position: absolute;
   height: 4px;
   background: #9ca3af;    /* Gray for baseline */
-  border-bottom: 2px dashed #6b7280;
+  border-bottom: none;
   bottom: 2px;
   opacity: 0.7;
 }
 
 .baseline-bar.behind-schedule {
   background: #fca5a5;    /* Light red for behind schedule */
-  border-bottom-color: #dc2626;
+  border-bottom: none;
 }
 
 .baseline-bar.ahead-schedule {
   background: #a7f3d0;    /* Light green for ahead of schedule */
-  border-bottom-color: #059669;
+  border-bottom: none;
 }
 
 /* Modal */
@@ -1263,9 +1275,9 @@ body.theme-dark .gantt-legend {
   border-color: #24324e;
   color: #e6edf7;
 }
-body.theme-dark .legend-swatch.dep-type-ss { border-bottom-color: #4da3ff; }
-body.theme-dark .legend-swatch.dep-type-ff { border-bottom-color: #f39c12; }
-body.theme-dark .legend-swatch.dep-type-sf { border-bottom-color: #e56bff; }
+body.theme-dark .legend-swatch.dep-type-ss { border-bottom: none; }
+body.theme-dark .legend-swatch.dep-type-ff { border-bottom: none; }
+body.theme-dark .legend-swatch.dep-type-sf { border-bottom: none; }
 body.theme-dark .legend-swatch.critical-path-swatch {
   background: #f87171;
   border-color: #ef4444;
@@ -1277,19 +1289,19 @@ body.theme-dark .legend-separator {
   color: #4b5563;
 }
 body.theme-dark .baseline-sample {
-  border-bottom-color: #6b7280;
+  border-bottom: none;
 }
 body.theme-dark .baseline-sample.baseline-default {
   background: #4b5563;
-  border-bottom-color: #6b7280;
+  border-bottom: none;
 }
 body.theme-dark .baseline-sample.baseline-behind {
   background: #7f1d1d;
-  border-bottom-color: #f87171;
+  border-bottom: none;
 }
 body.theme-dark .baseline-sample.baseline-ahead {
   background: #064e3b;
-  border-bottom-color: #6ee7b7;
+  border-bottom: none;
 }
 
 body.theme-dark .bar {
@@ -1300,15 +1312,15 @@ body.theme-dark .bar-progress {
 }
 body.theme-dark .baseline-bar {
   background: #4b5563;
-  border-bottom-color: #6b7280;
+  border-bottom: none;
 }
 body.theme-dark .baseline-bar.behind-schedule {
   background: #7f1d1d;
-  border-bottom-color: #f87171;
+  border-bottom: none;
 }
 body.theme-dark .baseline-bar.ahead-schedule {
   background: #064e3b;
-  border-bottom-color: #6ee7b7;
+  border-bottom: none;
 }
 body.theme-dark .bar.critical-path {
   background: #7f1d1d;

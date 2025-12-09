@@ -45,9 +45,108 @@ const CRITICAL_PATH_BORDER_COLOR = "#dc2626";
 // ============================================================================
 
 document.addEventListener("DOMContentLoaded", function () {
-  /* ------------------------------------------------------------
-     Build lookup tables
-  ------------------------------------------------------------ */
+    /* ------------------------------------------------------------
+      Build lookup tables
+    ------------------------------------------------------------ */
+    // Helper to draw/update today line
+    function drawTodayLine() {
+      const ganttRoot = document.getElementById("gantt-root");
+      const minStartStr = ganttRoot ? ganttRoot.dataset.minStart : null;
+      const minStartDate = minStartStr ? new Date(minStartStr + "T00:00:00") : null;
+      // Use only local date (year, month, day) for today
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const offsetDays = minStartDate ? daysBetween(minStartDate, today) : 0;
+      const pxPerDay = ganttRoot ? parseFloat(ganttRoot.dataset.pxPerDay || PIXELS_PER_DAY_DEFAULT) : PIXELS_PER_DAY_DEFAULT;
+      const zoom = parseFloat(localStorage.getItem(ZOOM_LOCAL_STORAGE_KEY) || "1");
+      // Dynamically compute left column width from colgroup
+      const ganttTable = document.querySelector('.gantt-table');
+      let leftColWidth = 0;
+      if (ganttTable) {
+        const colEls = ganttTable.querySelectorAll('colgroup col');
+        for (let i = 0; i < 4 && i < colEls.length; i++) {
+          const w = parseFloat(colEls[i].style.width);
+          if (!isNaN(w)) leftColWidth += w;
+        }
+      }
+
+      const timeline = document.querySelector('.timeline');
+      let tickPx = null;
+      let useMonthBand = false;
+      if (timeline) {
+        const pxPerDayZoom = pxPerDay * zoom;
+        // Hide day tick row if zoomed out too far
+        const dayRow = timeline.querySelector('.timeline-row:nth-child(3)');
+        if (dayRow) {
+          dayRow.style.display = (pxPerDayZoom < 8) ? 'none' : '';
+        }
+        if (pxPerDayZoom >= 8) {
+          // Snap to the .day-tick for today (offsetDays index)
+          const dayTicks = timeline.querySelectorAll('.day-tick');
+          if (dayTicks.length > offsetDays && offsetDays >= 0) {
+            const tick = dayTicks[offsetDays];
+            if (tick) {
+              tickPx = parseFloat(tick.style.left);
+            }
+          }
+        } else {
+          // Use month band proportional position
+          useMonthBand = true;
+        }
+      }
+      if (useMonthBand && timeline) {
+        // Find the month band for today
+        const monthBands = timeline.querySelectorAll('.month-band');
+        let todayMonth = today.getMonth();
+        let todayYear = today.getFullYear();
+        let found = false;
+        for (const band of monthBands) {
+          // Try to parse the label and match month/year
+          const label = band.textContent.trim();
+          const left = parseFloat(band.style.left);
+          const width = parseFloat(band.style.width);
+          // Find the band whose left is closest but not greater than tickPx
+          // Instead, match by month/year
+          // We'll use the band whose left is closest to the calculated offset
+          // For now, assume bands are in order and match todayMonth
+          if (!isNaN(left) && !isNaN(width)) {
+            // Try to match by index
+            const bandIndex = Array.from(monthBands).indexOf(band);
+            if (bandIndex === todayMonth) {
+              // Compute days into month
+              const daysInMonth = new Date(todayYear, todayMonth + 1, 0).getDate();
+              const dayOfMonth = today.getDate();
+              tickPx = left + (width * (dayOfMonth - 1) / daysInMonth);
+              found = true;
+              break;
+            }
+          }
+        }
+        if (!found) {
+          // fallback to calculated position
+          tickPx = Math.round(offsetDays * pxPerDay * zoom);
+        }
+      }
+      if (tickPx === null || isNaN(tickPx)) {
+        tickPx = Math.round(offsetDays * pxPerDay * zoom);
+      }
+      const offsetPx = leftColWidth + tickPx + 1;
+      // DEBUG: Log today line position calculation
+      console.log('[TODAY LINE]', {
+        leftColWidth,
+        tickPx,
+        offsetPx,
+        offsetDays,
+        pxPerDay,
+        zoom,
+        today: today.toISOString().slice(0, 10)
+      });
+      const chartLine = document.getElementById("today-line-chart");
+      if (chartLine) {
+        chartLine.style.left = offsetPx + "px";
+        chartLine.style.display = "block";
+      }
+    }
   const rows = Array.from(document.querySelectorAll("tbody tr.gantt-row"));
   const { rowsByCode, parentByCode } = buildRowIndex(rows);
   const ganttRoot = document.getElementById("gantt-root");
@@ -270,10 +369,13 @@ document.addEventListener("DOMContentLoaded", function () {
       bar.style.width = `${Math.max(1, widthDays * currentPxPerDay)}px`;
     });
 
+    // Always use latest pxPerDay and zoom for today line
+    drawTodayLine();
     requestAnimationFrame(drawDependencyArrows);
   }
 
   applyZoom(zoom);
+  drawTodayLine();
   const zoomInBtn = document.getElementById("zoom-in");
   const zoomOutBtn = document.getElementById("zoom-out");
   const zoomResetBtn = document.getElementById("zoom-reset");
@@ -524,7 +626,6 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.assign(modalCard.style, {
       background: "#ffffff",
       color: "#0f172a",
-      border: "1px solid #ddd",
       padding: "18px 20px",
       borderRadius: "10px",
       boxShadow: "0 18px 42px rgba(0,0,0,0.35)",

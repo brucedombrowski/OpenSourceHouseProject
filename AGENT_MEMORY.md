@@ -152,3 +152,64 @@ pip install -r requirements-production.txt
   - Added single "Set Project Start Date" button at top of Scheduler (no selection needed)
   - New endpoint `/scheduler/set-project-start/` calculates delta from earliest task's start and shifts ALL tasks proportionally
   - Simpler UX: one button, one prompt, one action shifts entire project timeline forward/backward
+
+# AGENT_MEMORY.md
+
+## Today Line Alignment Fix (2025-12-09)
+- Diagnosed misalignment: Red (header) today line was one day off, blue (chart) line was misaligned due to JS using full Date object (including time-of-day).
+- Solution: Patched JS (`drawTodayLine` in `gantt.js`) to use only the local date (year, month, day) for today, ensuring both lines align with the user's local calendar date.
+- Reason: Local date is preferred for user-facing charts unless there is a timezone-specific requirement.
+- Next steps: Validate alignment visually; remove diagnostic borders once confirmed.
+
+## Today Line Alignment Improvements (Dec 9, 2025)
+- Refined yellow today line logic for Gantt chart:
+  - At high zoom, line snaps to the exact `.day-tick` for today.
+  - At low zoom, day tick row is hidden and line is positioned proportionally within the current month band using the width of the month and the day of the month.
+  - Ensures accurate alignment at all zoom levels and adapts to column width changes.
+- User confirmed: "Hide day tick row at low zoom and use month band proportional position for today line."
+
+## Diagnostic Logging (Dec 9, 2025)
+- Added temporary debug print in `gantt_chart` view for `min_start`, `local_today`, and `today_offset_px` to diagnose today line misalignment.
+- Avoided duplicating previous logging notes; this is a targeted diagnostic step for the persistent red line issue.
+
+## Session Summary
+- User requested: "Use local date, unless there's a reason not to. Update AGENT_MEMORY.md."
+- Agent actions: Diagnosed, patched JS, updated memory log.
+
+## restartServer.sh Improvement (2025-12-09)
+- User requested: Update `restartServer.sh` to collect static files before restarting the server.
+- Agent action: Script now runs `manage.py collectstatic --noinput` (if virtualenv Python exists) before starting the server, ensuring static files are always up to date.
+
+## restartServer.sh Usability Update (Dec 9, 2025)
+- Added `clear` command to the start of `restartServer.sh` for improved terminal visibility before running server commands.
+- This change streamlines the workflow and makes debug output easier to read during development restarts.
+
+## IndentationError Fix (Dec 9, 2025)
+- Resolved persistent IndentationError in `wbs/views_gantt.py` by removing duplicate and stray lines outside the docstring in `gantt_chart`.
+- Docstring is now properly enclosed and indented, allowing the server to start successfully.
+
+## Today Line Issues & State (Dec 9, 2025)
+- Reverted attempt to make the `.day-tick` for today visually distinct; it caused more confusion and misalignment.
+- Current state:
+  - Yellow today line is visible at all zoom levels.
+  - At high zoom, it snaps to the nearest day tick (using tick's left position or fallback to calculated offset).
+  - At low zoom, it is positioned proportionally within the month band.
+- Known issues:
+  - At max zoom, the line is still slightly left of the tick (likely due to subpixel rendering or tick/label alignment).
+  - At min zoom, proportional placement is visually close but not pixel-perfect.
+  - Further refinement may require deeper integration with tick/label rendering logic.
+- User approved moving on with current solution and logging these issues for future improvement.
+
+## [2025-12-09] Gantt Today Line Alignment
+- All changes for today line alignment, zoom handling, and tick snapping are now committed and pushed.
+- The failed experiment to style the today tick directly was reverted; the yellow today line logic is restored and robust.
+- Known issues:
+  - Minor pixel misalignment at max zoom (today line slightly left of tick).
+  - Proportional placement at low zoom is visually close but not perfect.
+- Debug logging is present in JS for future diagnosis.
+- All decisions, issues, and workflow are documented here for future contributors.
+- Next steps: Further refinement of today line alignment can be addressed in a future session if needed.
+
+## [2025-12-09] Debug Border Removal
+- Removed the 1px solid #ddd border from the modal card in Gantt chart JS to eliminate visible debug/test borders from production UI.
+- Committed and pushed this change.

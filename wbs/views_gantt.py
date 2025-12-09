@@ -164,10 +164,10 @@ def gantt_chart(request: HttpRequest) -> Any:
     Render a Gantt chart for WBS items with planned dates.
 
     Features:
-      - 3-level time axis: Year (top), Month (middle), Day (bottom, weekly/Mondays)
-      - Collapsible task hierarchy (driven by template JS using has_children/level_indent)
-      - Task dependency visualization and critical path highlighting
-      - Resource allocation tracking and conflict detection
+        - 3-level time axis: Year (top), Month (middle), Day (bottom, weekly/Mondays)
+        - Collapsible task hierarchy (driven by template JS using has_children/level_indent)
+        - Task dependency visualization and critical path highlighting
+        - Resource allocation tracking and conflict detection
     """
 
     # ---- Base queryset: tasks with dates + optimized prefetch ----
@@ -319,11 +319,19 @@ def gantt_chart(request: HttpRequest) -> Any:
         resource_conflict_details = []
 
     # ---- Calculate today's marker position ----
-    today = date.today()
+    from datetime import datetime
+
+    # Use system local date for today
+    local_today = datetime.now().date()
     today_offset_px = None
-    if min_start <= today <= max_end:
-        offset_days = (today - min_start).days
+    if min_start <= local_today <= max_end:
+        offset_days = (local_today - min_start).days + 1
         today_offset_px = offset_days * px_per_day
+
+    # DEBUG: Print today line calculation values
+    print(
+        f"[GANTT DEBUG] min_start: {min_start}, local_today: {local_today}, today_offset_px: {today_offset_px}"
+    )
 
     context = {
         "tasks": tasks,
