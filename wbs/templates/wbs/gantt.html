@@ -611,6 +611,75 @@
   .button-group.controls-panel .group-label {
     margin-right: 8px;
   }
+
+  /* Inline view panel overrides to force label above controls and equal row widths */
+  .view-panel {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+    min-width: 320px;
+    white-space: normal;
+    align-items: stretch;
+  }
+
+  .view-panel .view-label {
+    position: relative;
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+    padding: 2px 8px 6px;
+  }
+
+  .view-panel .view-label::before,
+  .view-panel .view-label::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 42%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 100%);
+  }
+
+  .view-panel .view-label::before {
+    left: -4px;
+    transform: translateY(-50%);
+  }
+
+  .view-panel .view-label::after {
+    right: -4px;
+    transform: translateY(-50%) scaleX(-1);
+  }
+
+  .zoom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .zoom-grid button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .zoom-grid .zoom-min { grid-column: 1; grid-row: 1; }
+  .zoom-grid .zoom-slider { grid-column: 2; grid-row: 1; width: 100%; }
+  .zoom-grid .zoom-max { grid-column: 3; grid-row: 1; }
+
+  .zoom-grid .zoom-row-secondary {
+    grid-column: 1 / 4;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
 </style>
 {% endblock %}
 
