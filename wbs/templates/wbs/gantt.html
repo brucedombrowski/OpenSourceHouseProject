@@ -608,11 +608,7 @@
     white-space: nowrap;
   }
 
-  .button-group.controls-panel .group-label {
-    margin-right: 8px;
-  }
-
-  /* Inline view panel overrides to force label above controls and equal row widths */
+  /* Inline panel overrides to force label above controls and equal row widths */
   .view-panel {
     display: flex;
     flex-direction: column;
@@ -625,7 +621,8 @@
     margin: 0 auto;
   }
 
-  .view-panel .view-label {
+  .view-panel .view-label,
+  .panel-label {
     position: relative;
     display: block;
     width: 100%;
@@ -637,7 +634,9 @@
   }
 
   .view-panel .view-label::before,
-  .view-panel .view-label::after {
+  .view-panel .view-label::after,
+  .panel-label::before,
+  .panel-label::after {
     content: "";
     position: absolute;
     top: 50%;
@@ -646,14 +645,33 @@
     background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 100%);
   }
 
-  .view-panel .view-label::before {
+  .view-panel .view-label::before,
+  .panel-label::before {
     left: -4px;
     transform: translateY(-50%);
   }
 
-  .view-panel .view-label::after {
+  .view-panel .view-label::after,
+  .panel-label::after {
     right: -4px;
     transform: translateY(-50%) scaleX(-1);
+  }
+
+  .panel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 220px;
+    white-space: normal;
+  }
+
+  .panel-body {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
   }
 
   .zoom-grid {
@@ -713,35 +731,44 @@
             </div>
 
             <!-- Task Controls -->
-            <div class="button-group controls-panel">
-              <span class="group-label">Tasks</span>
-              <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
-              <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
+            <div class="button-group controls-panel panel-card panel-tasks">
+              <div class="panel-label">Tasks</div>
+              <div class="panel-body">
+                <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
+                <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
+              </div>
             </div>
 
             <!-- Display Options -->
-            <div class="button-group">
-              <span class="group-label">Display</span>
-              <button type="button" id="toggle-critical-path" aria-label="Toggle critical path" title="Highlight critical path">
-                📍 Critical Path
-              </button>
-              <button type="button" id="toggle-baseline" aria-label="Toggle baseline comparison" title="Show planned vs actual dates">
-                📊 Baseline
-              </button>
-              <button type="button" id="toggle-project-panel" aria-label="Toggle project items panel">📋 Project Items</button>
+            <div class="button-group controls-panel panel-card panel-display">
+              <div class="panel-label">Display</div>
+              <div class="panel-body">
+                <button type="button" id="toggle-critical-path" aria-label="Toggle critical path" title="Highlight critical path">
+                  📍 Critical Path
+                </button>
+                <button type="button" id="toggle-baseline" aria-label="Toggle baseline comparison" title="Show planned vs actual dates">
+                  📊 Baseline
+                </button>
+                <button type="button" id="toggle-project-panel" aria-label="Toggle project items panel">📋 Project Items</button>
+              </div>
             </div>
 
             <!-- Actions -->
-            <div class="button-group">
-              <span class="group-label">Actions</span>
-              <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">💾 Export PNG</button>
+            <div class="button-group controls-panel panel-card panel-actions">
+              <div class="panel-label">Actions</div>
+              <div class="panel-body">
+                <button type="button" id="export-gantt" aria-label="Export Gantt as PNG">💾 Export PNG</button>
+              </div>
             </div>
 
             <!-- Help -->
-            <div class="button-group">
-              <button type="button" id="show-keyboard-help" aria-label="Show keyboard shortcuts" onclick="document.getElementById('keyboard-help-modal').style.display='flex'">
-                ⌨️ Shortcuts
-              </button>
+            <div class="button-group controls-panel panel-card panel-help">
+              <div class="panel-label">Help</div>
+              <div class="panel-body">
+                <button type="button" id="show-keyboard-help" aria-label="Show keyboard shortcuts" onclick="document.getElementById('keyboard-help-modal').style.display='flex'">
+                  ⌨️ Shortcuts
+                </button>
+              </div>
             </div>
           </div>
         </div>
