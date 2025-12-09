@@ -104,23 +104,6 @@
     min-height: 0;
   }
 
-  .gantt-search-section .search-input {
-    width: 100%;
-    max-width: 600px;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--card);
-    color: var(--text);
-    font-size: 14px;
-  }
-
-  .gantt-search-section .search-input:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
-    border-color: var(--accent);
-  }
-
   .gantt-layout {
     display: flex;
     gap: 12px;
@@ -1022,24 +1005,6 @@
       No tasks with planned dates found. Run <code>auto_schedule_wbs</code> or set dates.
     </div>
   {% endif %}
-
-  <!-- Search Section at Bottom -->
-  <div class="gantt-search-section">
-    <form method="get" action="{% url 'gantt_view' %}">
-      <label for="gantt-search">🔍 Search Tasks</label>
-      <div class="search-autocomplete-wrapper">
-        <input
-          type="text"
-          id="gantt-search"
-          name="q"
-          value="{{ search_query|default:'' }}"
-          placeholder="Search by WBS code, task name, or owner..."
-          autocomplete="off"
-          class="search-input">
-        <div id="search-suggestions" class="autocomplete-dropdown" style="display: none;"></div>
-      </div>
-    </form>
-  </div>
 
   <!-- Build Verification Stamp (visible timestamp for testing verification) -->
   <div style="position: fixed; bottom: 2px; right: 2px; font-size: 10px; color: #999; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; font-family: monospace; z-index: 100; cursor: help; user-select: all;" title="Build timestamp - copy to verify you're testing the latest version">v{{ build_timestamp }}</div>
