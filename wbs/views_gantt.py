@@ -77,10 +77,6 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
     month_bands = []
     month_ticks = []
     month_cursor = date(min_start.year, min_start.month, 1)
-    import sys
-
-    print("\n=== MONTH TICK DEBUG ===", file=sys.stderr)
-    print(f"min_start={min_start}, max_end={max_end}", file=sys.stderr)
 
     while month_cursor <= max_end:
         band_start_date = max(month_cursor, min_start)
@@ -110,10 +106,6 @@ def compute_timeline_bands(min_start, max_end, px_per_day):
         # Add tick at the START of each month ONLY if visible in timeline
         # Only include ticks for months that overlap with visible range [min_start, max_end]
         if month_cursor >= min_start and month_cursor <= max_end:
-            print(
-                f"  Adding tick for {month_cursor} at {(month_cursor - min_start).days * px_per_day}px",
-                file=sys.stderr,
-            )
             tick_offset_days = (month_cursor - min_start).days
             month_ticks.append(
                 {
@@ -959,3 +951,175 @@ def identify_resource_conflicts(
 
     # Return sorted, unique dates
     return sorted(set(conflicts))
+
+
+# ============================================================================
+# Bulk Operations (Multiple Tasks)
+# ============================================================================
+
+
+@require_POST
+def gantt_bulk_delete(request):
+    """
+    Delete multiple WbsItem tasks.
+
+    Expected POST data:
+        {
+            "codes": ["1.1", "1.2", "2.1"]  // WbsItem codes to delete
+        }
+
+    Returns:
+        {
+            "success": true,
+            "deleted_count": 3,
+            "message": "Successfully deleted 3 tasks"
+        }
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        codes = data.get("codes", [])
+
+        if not codes:
+            return JsonResponse({"success": False, "error": "No codes provided"}, status=400)
+
+        # Delete specified items (cascade deletes dependencies and project items)
+        deleted_count, _ = WbsItem.objects.filter(code__in=codes).delete()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "deleted_count": deleted_count,
+                "message": f"Successfully deleted {deleted_count} tasks",
+            }
+        )
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": str(e)},
+            status=500,
+        )
+
+
+@require_POST
+def gantt_bulk_assign(request):
+    """
+    Assign multiple WbsItem tasks to an owner.
+
+    Expected POST data:
+        {
+            "codes": ["1.1", "1.2", "2.1"],  // WbsItem codes to assign
+            "owner_id": 5  // Django User ID
+        }
+
+    Returns:
+        {
+            "success": true,
+            "updated_count": 3,
+            "message": "Successfully assigned 3 tasks to John Doe"
+        }
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        codes = data.get("codes", [])
+        owner_id = data.get("owner_id")
+
+        if not codes or not owner_id:
+            return JsonResponse(
+                {"success": False, "error": "codes and owner_id required"},
+                status=400,
+            )
+
+        # Verify owner exists
+        User = get_user_model()
+        try:
+            owner = User.objects.get(id=owner_id)
+        except User.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "error": f"Owner {owner_id} not found"},
+                status=404,
+            )
+
+        # Update ownership
+        updated_count = WbsItem.objects.filter(code__in=codes).update(owner=owner)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "updated_count": updated_count,
+                "message": f"Successfully assigned {updated_count} tasks to {owner.get_full_name() or owner.username}",
+            }
+        )
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": str(e)},
+            status=500,
+        )
+
+
+@require_POST
+def gantt_bulk_update_status(request):
+    """
+    Update status for multiple WbsItem tasks.
+
+    Expected POST data:
+        {
+            "codes": ["1.1", "1.2", "2.1"],  // WbsItem codes to update
+            "status": "in_progress"  // Status: not_started, in_progress, done, blocked
+        }
+
+    Returns:
+        {
+            "success": true,
+            "updated_count": 3,
+            "message": "Successfully updated 3 tasks to in_progress"
+        }
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        codes = data.get("codes", [])
+        status = data.get("status")
+
+        if not codes or not status:
+            return JsonResponse(
+                {"success": False, "error": "codes and status required"},
+                status=400,
+            )
+
+        # Validate status choice
+        valid_statuses = [s[0] for s in WbsItem._meta.get_field("status").choices]
+        if status not in valid_statuses:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
+                },
+                status=400,
+            )
+
+        # Update status
+        updated_count = WbsItem.objects.filter(code__in=codes).update(status=status)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "updated_count": updated_count,
+                "message": f"Successfully updated {updated_count} tasks to {status}",
+            }
+        )
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": str(e)},
+            status=500,
+        )
+
