@@ -591,22 +591,23 @@
 
           <div class="gantt-header-actions">
             <!-- View Controls -->
-            <div class="button-group">
+            <div class="button-group controls-panel">
               <span class="group-label">View</span>
-              <div class="zoom-stack">
-                <div class="zoom-row">
-                  <button type="button" id="zoom-min" aria-label="Zoom to minimum">⏮️ Min</button>
-                  <input type="range" id="zoom-slider" aria-label="Zoom slider" class="zoom-slider" />
-                  <button type="button" id="zoom-max" aria-label="Zoom to maximum">⏭️ Max</button>
-                  <button type="button" id="zoom-reset" aria-label="Reset zoom">↺ Reset</button>
-                </div>
-                <div class="zoom-row">
-                  <button type="button" id="zoom-out" aria-label="Zoom out">🔍 Zoom -</button>
-                  <button type="button" id="zoom-in" aria-label="Zoom in">🔍 Zoom +</button>
-                  <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
-                  <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
-                </div>
+              <div class="zoom-grid">
+                <button type="button" id="zoom-min" aria-label="Zoom to minimum" class="zoom-min">⏮️ Min</button>
+                <input type="range" id="zoom-slider" aria-label="Zoom slider" class="zoom-slider" />
+                <button type="button" id="zoom-max" aria-label="Zoom to maximum" class="zoom-max">⏭️ Max</button>
+                <button type="button" id="zoom-reset" aria-label="Reset zoom" class="zoom-reset">↺ Reset</button>
+                <button type="button" id="zoom-out" aria-label="Zoom out" class="zoom-align-start">🔍 Zoom -</button>
+                <button type="button" id="zoom-in" aria-label="Zoom in" class="zoom-align-end">🔍 Zoom +</button>
               </div>
+            </div>
+
+            <!-- Task Controls -->
+            <div class="button-group controls-panel">
+              <span class="group-label">Tasks</span>
+              <button type="button" id="expand-all" aria-label="Expand all tasks">▾ Expand All</button>
+              <button type="button" id="collapse-all" aria-label="Collapse all tasks">▸ Collapse All</button>
             </div>
 
             <!-- Display Options -->
