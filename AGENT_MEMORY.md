@@ -27,6 +27,7 @@ This file preserves important context, decisions, and our working relationship f
 - **Status**: Production-ready v1.0.0 with 45 passing tests
 - **Tech Stack**: Django 6.0, MPTT for hierarchical data, SQLite/PostgreSQL support
 - **Key Features**: WBS hierarchy, Gantt charts, Kanban boards, dependency management
+- **Dedication**: Built in honor of Bruce’s brother, Luke Dombrowski (@fuchinluke), June 14, 1999 – Sep 29, 2025. Carry the work with care and remember: Stay Alive. Obituary: https://www.egizifuneral.com/obituary/luke-a-dombrowski/
 
 ## Quick Reference Commands
 
