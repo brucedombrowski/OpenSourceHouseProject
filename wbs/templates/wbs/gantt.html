@@ -615,12 +615,16 @@
   /* Inline view panel overrides to force label above controls and equal row widths */
   .view-panel {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto;
     grid-template-columns: 1fr;
-    row-gap: 6px;
+    row-gap: 8px;
     min-width: 320px;
+    width: 100%;
+    max-width: 780px;
     white-space: normal;
-    align-items: stretch;
+    justify-items: center;
+    align-items: start;
+    margin: 0 auto;
   }
 
   .view-panel .view-label {
@@ -661,6 +665,8 @@
     gap: 8px 10px;
     align-items: center;
     width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
   }
 
   .zoom-grid button {
