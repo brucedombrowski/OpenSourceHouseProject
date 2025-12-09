@@ -274,6 +274,9 @@ document.addEventListener("DOMContentLoaded", function () {
       ".timeline .year-band, .timeline .month-band, .timeline .month-tick, .timeline .day-tick, .timeline .day-label"
     )
   );
+  const zoomSlider = document.getElementById("zoom-slider");
+  const zoomMinBtn = document.getElementById("zoom-min");
+  const zoomMaxBtn = document.getElementById("zoom-max");
   let basePositionsCached = false;
 
   function cacheTimelinePositions() {
@@ -295,6 +298,10 @@ document.addEventListener("DOMContentLoaded", function () {
     zoom = clamp(nextZoom, ZOOM_MIN, ZOOM_MAX);
     localStorage.setItem(ZOOM_LOCAL_STORAGE_KEY, String(zoom));
     currentPxPerDay = basePxPerDay * zoom;
+
+    if (zoomSlider) {
+      zoomSlider.value = String(zoom);
+    }
 
     cacheTimelinePositions();
 
@@ -364,6 +371,13 @@ document.addEventListener("DOMContentLoaded", function () {
     requestAnimationFrame(drawDependencyArrows);
   }
 
+  if (zoomSlider) {
+    zoomSlider.min = String(ZOOM_MIN);
+    zoomSlider.max = String(ZOOM_MAX);
+    zoomSlider.step = String(ZOOM_STEP);
+    zoomSlider.value = String(zoom);
+  }
+
   applyZoom(zoom);
   drawTodayLine();
   const zoomInBtn = document.getElementById("zoom-in");
@@ -381,6 +395,18 @@ document.addEventListener("DOMContentLoaded", function () {
       // Recalculate optimal zoom based on current browser width
       const optimalZoom = calculateOptimalZoom();
       applyZoom(optimalZoom);
+    });
+  }
+  if (zoomMinBtn) {
+    zoomMinBtn.addEventListener("click", () => applyZoom(ZOOM_MIN));
+  }
+  if (zoomMaxBtn) {
+    zoomMaxBtn.addEventListener("click", () => applyZoom(ZOOM_MAX));
+  }
+  if (zoomSlider) {
+    zoomSlider.addEventListener("input", event => {
+      const raw = parseFloat(event.target.value);
+      applyZoom(Number.isNaN(raw) ? zoom : raw);
     });
   }
 
