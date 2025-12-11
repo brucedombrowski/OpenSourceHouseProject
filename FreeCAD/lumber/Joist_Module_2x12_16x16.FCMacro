@@ -146,6 +146,7 @@ for idx, y_pos in enumerate(positions, start=1):
 group_name = "Joist_Module_2x12_16x16"
 clear_group(doc, group_name)
 group = doc.addObject("App::DocumentObjectGroup", group_name)
+group.addObjects(created)
 group.Group = created
 
 doc.recompute()
