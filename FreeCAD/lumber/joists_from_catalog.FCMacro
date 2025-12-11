@@ -1,0 +1,90 @@
+# FreeCAD macro: build a joist assembly from the lumber_catalog.csv entries.
+# Usage: Set the params below, then run the macro. It will create rim joists and interior joists
+# spaced 16" OC (default) with a 3/4" offset for sheathing alignment. It pulls actual dimensions
+# from the catalog row whose label matches `stock_label`.
+
+import csv
+import os
+import FreeCAD as App
+import Part
+
+# -----------------------
+# Parameters (inches)
+# -----------------------
+catalog_path = os.path.join(App.ActiveDocument.FileName if App.ActiveDocument else os.getcwd(),
+                            "FreeCAD", "lumber", "lumber_catalog.csv")
+# If the above doesn't resolve (e.g., unsaved document), fallback to project root relative path:
+if not os.path.isfile(catalog_path):
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    catalog_path = os.path.join(project_root, "FreeCAD", "lumber", "lumber_catalog.csv")
+
+stock_label = "2x12x192"   # Which catalog entry to use (e.g., 2x12x192)
+joist_len   = 192.0        # Overall joist length to place (inches). Trim as needed.
+spacing_oc  = 16.0         # On-center spacing for interior joists (inches)
+offset_first_center = 0.75 # Offset for first interior joist (inches) for sheathing alignment
+make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
+
+# -----------------------
+# Helpers
+# -----------------------
+def inch(x): return x * 25.4
+
+def load_catalog(path):
+    rows = []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            rows.append(row)
+    return rows
+
+def find_stock(rows, label):
+    for r in rows:
+        if r.get("label") == label:
+            return r
+    return None
+
+# -----------------------
+# Main
+# -----------------------
+rows = load_catalog(catalog_path)
+label_to_use = stock_label + "_PT" if make_pressure_treated else stock_label
+row = find_stock(rows, label_to_use)
+if not row:
+    raise ValueError(f"Label '{label_to_use}' not found in catalog at {catalog_path}")
+
+thick = float(row["actual_thickness_in"])
+width = float(row["actual_width_in"])
+
+doc = App.ActiveDocument or App.newDocument("FloorJoists_from_catalog")
+
+def make_joist(name, x_center, length=joist_len, depth=width, thick=thick):
+    # X = length, Y = depth, Z = thickness
+    box = Part.makeBox(inch(length), inch(depth), inch(thick))
+    shape = doc.addObject("Part::Feature", name)
+    shape.Shape = box
+    shape.Placement.Base = App.Vector(inch(x_center - length/2.0), 0, 0)
+    # Attach metadata
+    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
+        if key not in shape.PropertiesList:
+            shape.addProperty("App::PropertyString", key)
+        shape.setPropertyStatus(key, ['Hidden'])
+        shape.setPropertyStatus(key, [])
+        shape.setExpression(key, None)
+        shape.setPropertyStatus(key, [])
+        shape.__setattr__(key, row.get(key, ""))
+    shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
+    shape.addProperty("App::PropertyString", "label").label = label_to_use
+    return shape
+
+# Rim joists at ends
+left_rim  = make_joist("Rim_Left", thick/2.0, joist_len)
+right_rim = make_joist("Rim_Right", joist_len - thick/2.0, joist_len)
+
+# Interior joists
+x = offset_first_center
+idx = 1
+while x < joist_len - offset_first_center:
+    make_joist(f"Joist_{idx}", x, joist_len)
+    x += spacing_oc
+    idx += 1
+
+doc.recompute()

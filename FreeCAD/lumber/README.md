@@ -44,3 +44,10 @@ Provide a macro (e.g., `export_bom.FCMacro`) that:
 ### Next Steps
 - Populate `lumber_catalog.csv` with common dimensional sizes/lengths (2x4/2x6/2x8/2x10/2x12 @ 8/10/12/16 ft, pre-cut studs 92 5/8 and 104 5/8).
 - Add `lumber_library.FCStd` scaffold and a simple BOM macro honoring the `supplier` flag.
+
+### Using project macros in FreeCAD
+- Point FreeCAD’s macro search path to this repository’s `FreeCAD/lumber/` folder:
+  - FreeCAD → Preferences → Macros → “Macro path” → set to `<repo>/FreeCAD/lumber/`
+- Or symlink/copy macros into your user macro folder (e.g., `~/.FreeCAD/Macro` on Linux/Mac):
+  - `ln -s <repo>/FreeCAD/lumber/joists_from_catalog.FCMacro ~/.FreeCAD/Macro/`
+- After setting the macro path or symlink, the macros (e.g., `joists_from_catalog.FCMacro`) should appear in the Macro dialog without manual import.
