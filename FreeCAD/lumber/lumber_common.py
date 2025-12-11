@@ -72,24 +72,29 @@ def make_hanger(
     hanger_seat_depth,
     hanger_label="hanger",
 ):
-    bw = thick + 2 * hanger_thickness  # across joist + flanges
+    # Build a simple U with seat + side flanges + back plate.
+    bw = thick + 2 * hanger_thickness  # overall width across joist + flanges
     bh = hanger_height
     bd = hanger_seat_depth
     bt = hanger_thickness
+    z0 = -bt  # drop seat below joist bottom
 
-    back = Part.makeBox(inch(bd), inch(bw), inch(bh))
-    back.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw / 2.0), 0)
+    # Back plate (thin)
+    back = Part.makeBox(inch(bt), inch(bw), inch(bh))
+    back.Placement.Base = App.Vector(inch(x_pos - bt), inch(y_center - bw / 2.0), inch(z0))
 
+    # Seat (spans joist width only)
+    seat = Part.makeBox(inch(bd), inch(thick), inch(bt))
+    seat.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - thick / 2.0), inch(z0))
+
+    # Side flanges
     sideL = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideL.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw / 2.0), 0)
+    sideL.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - thick / 2.0 - bt), inch(z0))
 
     sideR = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideR.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center + bw / 2.0 - bt), 0)
+    sideR.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center + thick / 2.0), inch(z0))
 
-    seat = Part.makeBox(inch(bd), inch(bw), inch(bt))
-    seat.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw / 2.0), 0)
-
-    u_shape = back.fuse([sideL, sideR, seat])
+    u_shape = back.fuse([seat, sideL, sideR])
     obj = doc.addObject("Part::Feature", name)
     obj.Shape = u_shape
     obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"

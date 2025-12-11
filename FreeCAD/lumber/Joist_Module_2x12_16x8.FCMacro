@@ -13,6 +13,7 @@ if _here not in sys.path:
     sys.path.append(_here)
 
 from lumber_common import ensure_macro_path, resolve_catalog, load_catalog, find_stock, attach_metadata, clear_group, make_hanger, inch
+from lumber_common import make_hanger as make_hanger_helper
 
 ensure_macro_path()
 
@@ -35,7 +36,7 @@ offset_first_center = 0.00   # Joist_1 starts flush to rim (center at 0.75), see
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 hanger_label = "hanger_LU210"
 hanger_thickness = 0.06     # approx 16ga
-hanger_height = 12.0        # fits 2x12 depth (11.25") with tolerance
+hanger_height = 7.8125      # ~7-13/16" overall height
 hanger_seat_depth = 2.0     # back plate depth
 
 # -----------------------
@@ -72,21 +73,7 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     return shape
 
 def make_hanger(name, x_pos, y_center):
-    # Simple U-shape via fused boxes
-    bw = thick + 2 * hanger_thickness  # overall width across joist + flanges
-    bh = hanger_height
-    bd = hanger_seat_depth
-    bt = hanger_thickness
-    back = Part.makeBox(inch(bd), inch(bw), inch(bh))
-    back.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw/2.0), 0)
-    sideL = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideL.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw/2.0), 0)
-    sideR = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideR.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center + bw/2.0 - bt), 0)
-    seat = Part.makeBox(inch(bd), inch(bw), inch(bt))
-    seat.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw/2.0), 0)
-    u_shape = back.fuse([sideL, sideR, seat])
-    return make_hanger(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label=hanger_label)
+    return make_hanger_helper(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label)
 
 # Rim joists at ends, running perpendicular to joists (along Y)
 def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
@@ -134,19 +121,21 @@ if positions[-1] != last_center:
 for idx, y_pos in enumerate(positions, start=1):
     created.append(make_joist(f"Joist_{idx}", y_pos, stock_length))
 
-# Add hangers at both ends of each joist
-left_face_x = thick / 2.0
-right_face_x = module_length - (thick / 2.0)
+# Add hangers on rims for interior joists only (skip first/last joist)
+# Place back plate/seat with interior face at the rim interior (seat extends -X)
+left_base_x = thick
+right_base_x = module_length - thick
 for idx, y_pos in enumerate(positions, start=1):
-    created.append(make_hanger(f"Hanger_L_{idx}", left_face_x, y_pos))
-    created.append(make_hanger(f"Hanger_R_{idx}", right_face_x, y_pos))
+    if idx == 1 or idx == len(positions):
+        continue
+    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x, y_pos))
+    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x, y_pos))
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x8"
-clear_group(doc, group_name)
-group = doc.getObject(group_name) or doc.addObject("App::DocumentObjectGroup", group_name)
-for obj in created:
-    group.addObject(obj)
+group = doc.addObject("App::DocumentObjectGroup", group_name)
+group.Label = group_name
+group.addObjects(created)
 group.Group = created
 
 doc.recompute()

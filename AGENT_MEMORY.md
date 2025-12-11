@@ -264,3 +264,9 @@ pip install -r requirements-production.txt
 ## [2025-12-09] Debug Border Removal
 - Removed the 1px solid #ddd border from the modal card in Gantt chart JS to eliminate visible debug/test borders from production UI.
 - Committed and pushed this change.
+
+## Dec 11, 2025 (FreeCAD lumber workspace refresh)
+- Added shared helper module `FreeCAD/lumber/lumber_common.py` (inch conversion, catalog helpers, grouping, and `make_hanger` U-shape builder with seat/flanges). Introduced standalone `Make_Joist_Hanger.FCMacro` for inspecting hanger geometry.
+- Joist modules use full-length 2x12x16 stock (overall X=195"). Updated 16x16 and 16x8 macros to group all parts, skip hangers on rim joists, and color hangers red for debugging; hangers pulled from catalog entry `hanger_LU210`.
+- Sheathing macro tiles 3/4" Advantech 4x8 panels (staggered seams) over 16x24 footprint; build macro assembles 16x16 and 16x8 modules under `First_Floor_Joists` and lifts sheathing +11.25". Catalog now includes panel and hanger entries; BOM macro consolidates panels and counts hangers.
+- Known follow-ups: hanger geometry still visually blocky and right-side placement needs refinement; keep using standalone hanger macro for inspection.

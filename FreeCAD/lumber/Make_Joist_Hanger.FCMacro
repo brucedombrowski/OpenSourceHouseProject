@@ -1,0 +1,44 @@
+# FreeCAD macro: generate a standalone joist hanger part using shared helpers.
+# Purpose: quick inspection of hanger geometry/placement without joists.
+
+import os
+import sys
+import FreeCAD as App
+import Part
+
+# Ensure helper module is on path
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+from lumber_common import make_hanger, inch
+
+# Parameters (adjust as needed)
+hanger_label = "hanger_LU210"
+hanger_thickness = 0.06     # ~16ga
+hanger_height = 7.8125      # 7-13/16"
+hanger_seat_depth = 2.0     # seat/back depth into rim
+joist_thick = 1.5           # 2x thickness
+joist_width = 11.25         # 2x12 depth
+color = (1.0, 0.2, 0.2)     # debug color to confirm updates
+
+doc = App.ActiveDocument or App.newDocument("Hanger_Test")
+
+# Create hanger at origin, centered on Y=0, seat below Z=0
+h = make_hanger(
+    doc,
+    hanger_label,
+    x_pos=0.0,
+    y_center=0.0,
+    thick=joist_thick,
+    hanger_thickness=hanger_thickness,
+    hanger_height=hanger_height,
+    hanger_seat_depth=hanger_seat_depth,
+    hanger_label=hanger_label,
+)
+try:
+    h.ViewObject.ShapeColor = color
+except Exception:
+    pass
+
+doc.recompute()
