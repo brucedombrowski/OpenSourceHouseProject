@@ -1,0 +1,89 @@
+# FreeCAD macro: create a dimensioned top-view snapshot of the current joist module.
+# - Computes the bounding box of all objects in the document.
+# - Adds three Draft dimensions: overall length (X), overall width (Y), and joist spacing (between two nearest joists).
+# - Sets camera to top/orthographic and exports a PNG alongside this macro.
+# - Cleans up the temporary dimensions after export.
+
+import os
+import FreeCAD as App
+import FreeCADGui as Gui
+import Draft
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("No active document.")
+
+objs = [o for o in doc.Objects if hasattr(o, "Shape") and not o.isDerivedFrom("Sketcher::SketchObject")]
+if not objs:
+    raise RuntimeError("No solids found to dimension.")
+
+# Compute combined bounding box
+bb = None
+for o in objs:
+    b = o.Shape.BoundBox
+    bb = b if bb is None else bb.united(b)
+
+def inch(val_mm):
+    return val_mm / 25.4
+
+# Helpers to make dimension between two points
+def make_dim(p1, p2, dim_dir):
+    dim = Draft.make_dimension(p1, p2, dim_dir)
+    dim.ViewObject.LineColor = (1.0, 0.0, 0.0)
+    dim.ViewObject.ArrowSize = 3
+    dim.ViewObject.FontSize = 8
+    return dim
+
+temp_dims = []
+
+# Overall length (X direction) along lower edge
+p1_len = App.Vector(bb.XMin, bb.YMin, bb.ZMin)
+p2_len = App.Vector(bb.XMax, bb.YMin, bb.ZMin)
+dim_len = make_dim(p1_len, p2_len, App.Vector((bb.XMin + bb.XMax)/2, bb.YMin - (bb.YMax - bb.YMin)*0.05, bb.ZMin))
+temp_dims.append(dim_len)
+
+# Overall width (Y direction) along left edge
+p1_w = App.Vector(bb.XMin, bb.YMin, bb.ZMin)
+p2_w = App.Vector(bb.XMin, bb.YMax, bb.ZMin)
+dim_w = make_dim(p1_w, p2_w, App.Vector(bb.XMin - (bb.XMax - bb.XMin)*0.05, (bb.YMin + bb.YMax)/2, bb.ZMin))
+temp_dims.append(dim_w)
+
+# Joist spacing: find two joists with smallest center Y difference
+joists = [o for o in objs if "Joist" in o.Name or "Joist" in o.Label]
+if len(joists) >= 2:
+    centers = []
+    for j in joists:
+        b = j.Shape.BoundBox
+        centers.append((j, (b.YMin + b.YMax) / 2.0))
+    centers.sort(key=lambda x: x[1])
+    best = None
+    for i in range(len(centers)-1):
+        dy = centers[i+1][1] - centers[i][1]
+        if best is None or dy < best[0]:
+            best = (dy, centers[i][1], centers[i+1][1], centers[i][0], centers[i+1][0])
+    if best:
+        y1, y2 = best[1], best[2]
+        x_mid = (bb.XMin + bb.XMax) / 2.0
+        p1_s = App.Vector(x_mid, y1, bb.ZMin)
+        p2_s = App.Vector(x_mid, y2, bb.ZMin)
+        dim_s = make_dim(p1_s, p2_s, App.Vector(x_mid + (bb.XMax - bb.XMin)*0.05, (y1 + y2)/2.0, bb.ZMin))
+        temp_dims.append(dim_s)
+
+doc.recompute()
+
+# Set top view orthographic and fit
+view = Gui.ActiveDocument.ActiveView
+view.viewTop()
+view.setOrthographic(True)
+view.fitAll()
+
+# Export to PNG next to the macro
+macro_dir = os.path.dirname(__file__)
+png_path = os.path.join(macro_dir, "module_snapshot.png")
+view.saveImage(png_path, 2000, 1500, "Transparent")
+App.Console.PrintMessage(f"Snapshot saved: {png_path}\n")
+
+# Cleanup temporary dimensions
+for d in temp_dims:
+    doc.removeObject(d.Name)
+doc.recompute()
