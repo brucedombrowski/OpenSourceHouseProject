@@ -100,8 +100,8 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     return shape
 
 # Place rim joists just outside the joist run so they don't overlap
-left_rim  = make_rim("Rim_Left", -thick/2.0, module_width)
-right_rim = make_rim("Rim_Right", module_length + thick/2.0, module_width)
+left_rim  = make_rim("Rim_Left", 0.0, module_width)
+right_rim = make_rim("Rim_Right", module_length + thick, module_width)
 
 # Interior joists
 y = offset_first_center
