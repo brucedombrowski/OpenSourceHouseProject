@@ -23,8 +23,8 @@ if not catalog_path:
     raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
-module_length = 192.0        # X dimension of module (inches) - along joist length
-module_width  = 192.0        # Y dimension of module (inches) - along joist span for placement
+module_length = 192.0        # Overall X dimension (outer edge to outer edge)
+module_width  = 192.0        # Overall Y dimension
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
 offset_first_center = 0.75   # Offset for first interior joist (inches) for sheathing alignment
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
@@ -71,7 +71,7 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
     # Place so joists run along X; distribute along Y (spacing_oc)
-    shape.Placement.Base = App.Vector(inch(0), inch(y_pos - thick/2.0), 0)
+    shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick/2.0), 0)
     # Attach metadata
     for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
         if key not in shape.PropertiesList:
@@ -101,13 +101,13 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
 
 # Place rim joists just outside the joist run so they don't overlap
 left_rim  = make_rim("Rim_Left", 0.0, module_width)
-right_rim = make_rim("Rim_Right", module_length + thick, module_width)
+right_rim = make_rim("Rim_Right", module_length - thick, module_width)
 
 # Interior joists
 y = offset_first_center
 idx = 1
 while y < module_width - offset_first_center:
-    make_joist(f"Joist_{idx}", y, module_length)
+    make_joist(f"Joist_{idx}", y, module_length - 2 * thick)
     y += spacing_oc
     idx += 1
 
