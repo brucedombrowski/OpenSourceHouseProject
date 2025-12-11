@@ -49,10 +49,15 @@ def attach_metadata(obj, row, label, supplier="lowes"):
 
 
 def clear_group(doc, name):
-    old = doc.getObject(name)
-    if old:
-        for c in list(old.Group):
-            doc.removeObject(c.Name)
+    # Remove any object whose Name or Label matches the desired group name
+    targets = []
+    for obj in doc.Objects:
+        if obj.Name == name or obj.Label == name:
+            targets.append(obj)
+    for old in targets:
+        if hasattr(old, "Group"):
+            for c in list(old.Group):
+                doc.removeObject(c.Name)
         doc.removeObject(old.Name)
 
 
