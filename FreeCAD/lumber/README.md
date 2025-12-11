@@ -49,5 +49,5 @@ Provide a macro (e.g., `export_bom.FCMacro`) that:
 - Point FreeCAD’s macro search path to this repository’s `FreeCAD/lumber/` folder:
   - FreeCAD → Preferences → Macros → “Macro path” → set to `<repo>/FreeCAD/lumber/`
 - Or symlink/copy macros into your user macro folder (e.g., `~/.FreeCAD/Macro` on Linux/Mac):
-  - `ln -s <repo>/FreeCAD/lumber/joists_from_catalog.FCMacro ~/.FreeCAD/Macro/`
-- After setting the macro path or symlink, the macros (e.g., `joists_from_catalog.FCMacro`) should appear in the Macro dialog without manual import.
+- `ln -s <repo>/FreeCAD/lumber/Joist_Module_2x12_16x16.FCMacro ~/.FreeCAD/Macro/`
+- After setting the macro path or symlink, the macros (e.g., `Joist_Module_2x12_16x16.FCMacro`) should appear in the Macro dialog without manual import.

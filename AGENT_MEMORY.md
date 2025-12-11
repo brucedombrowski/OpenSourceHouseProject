@@ -185,13 +185,20 @@ pip install -r requirements-production.txt
   - Collapsed Gantt view by default: changed expander `data-expanded` from `true` to `false`
   - Removed "Optimize" button from Gantt toolbar and migrated optimizer logic to Scheduler view
   - Gantt now read-only for viewing/exporting; bulk operations moved to dedicated Scheduler view
-  - **Cache lessons learned**: Template changes alone don't apply collapsed state—must also update JavaScript initialization in `gantt-expand.js` to process initial `data-expanded="false"` and hide descendant rows on first load. Browser doesn't cache template HTML but does cache static JS files; use `?v={{ build_timestamp }}` query param to bust JS cache or manually clear browser cache (Cmd+Shift+R on Mac)
+- **Cache lessons learned**: Template changes alone don't apply collapsed state—must also update JavaScript initialization in `gantt-expand.js` to process initial `data-expanded="false"` and hide descendant rows on first load. Browser doesn't cache template HTML but does cache static JS files; use `?v={{ build_timestamp }}` query param to bust JS cache or manually clear browser cache (Cmd+Shift+R on Mac)
 
 - **Dec 9, 2025** (Scheduler improvements):
   - Removed complex "Rebaseline" button (required task selection, confusing logic)
   - Added single "Set Project Start Date" button at top of Scheduler (no selection needed)
   - New endpoint `/scheduler/set-project-start/` calculates delta from earliest task's start and shifts ALL tasks proportionally
   - Simpler UX: one button, one prompt, one action shifts entire project timeline forward/backward
+
+- **Dec 9, 2025** (FreeCAD lumber workspace):
+  - Added `FreeCAD/` workspace with `lumber/lumber_catalog.csv` populated with Lowe’s/HD SKUs/URLs (note: SKUs may vary by region; documented in catalog).
+  - Macros live in `FreeCAD/lumber/`; set FreeCAD macro path to that folder. Current joist macro name: `Joist_Module_2x12_16x16.FCMacro` (defaults to supplier=`lowes`, optional `_PT` lookup).
+  - BOM macro: `export_bom.FCMacro` emits `lumber_bom.csv` using part metadata.
+  - Snapshot macro: `snapshot_with_dims.FCMacro` creates `module_snapshot.png` with key dimensions (orthographic top view, large font).
+  - Joist module uses upright boards: X=length, Y=thickness, Z=depth; origin at lower-left rim for symmetry/tiling.
 
 # AGENT_MEMORY.md
 
