@@ -99,8 +99,9 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     shape.addProperty("App::PropertyString", "label").label = label_to_use
     return shape
 
-left_rim  = make_rim("Rim_Left", thick/2.0, module_width)
-right_rim = make_rim("Rim_Right", module_length - thick/2.0, module_width)
+# Place rim joists just outside the joist run so they don't overlap
+left_rim  = make_rim("Rim_Left", -thick/2.0, module_width)
+right_rim = make_rim("Rim_Right", module_length + thick/2.0, module_width)
 
 # Interior joists
 y = offset_first_center
