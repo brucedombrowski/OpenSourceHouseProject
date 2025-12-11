@@ -1,0 +1,48 @@
+# FreeCAD macro: export a simple BOM for lumber objects.
+# It expects each object to have custom properties:
+#   - label (stock label, e.g., 2x12x192 or 2x12x192_PT)
+#   - supplier (e.g., lowes/hd)
+#   - sku_lowes, url_lowes, sku_hd, url_hd (optional)
+# It writes a CSV next to this macro (default: lumber_bom.csv).
+
+import csv
+import os
+import FreeCAD as App
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("No active document.")
+
+macro_dir = os.path.dirname(__file__)
+out_path = os.path.join(macro_dir, "lumber_bom.csv")
+
+def get(obj, attr, default=""):
+    try:
+        return getattr(obj, attr)
+    except Exception:
+        return default
+
+bom = {}
+for obj in doc.Objects:
+    if "label" not in obj.PropertiesList:
+        continue
+    key = get(obj, "label", obj.Label)
+    supplier = get(obj, "supplier", "lowes")
+    entry = bom.setdefault(key, {
+        "label": key,
+        "qty": 0,
+        "supplier": supplier,
+        "sku_lowes": get(obj, "sku_lowes"),
+        "url_lowes": get(obj, "url_lowes"),
+        "sku_hd": get(obj, "sku_hd"),
+        "url_hd": get(obj, "url_hd"),
+    })
+    entry["qty"] += 1
+
+with open(out_path, "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=["label", "qty", "supplier", "sku_lowes", "url_lowes", "sku_hd", "url_hd"])
+    writer.writeheader()
+    for row in bom.values():
+        writer.writerow(row)
+
+App.Console.PrintMessage(f"BOM written to {out_path}\n")
