@@ -33,6 +33,10 @@ make_pressure_treated = False  # If True, append "_PT" to label when looking up 
 # -----------------------
 def inch(x): return x * 25.4
 
+# Board orientation: X = length, Y = thickness, Z = depth (so boards stand upright)
+def make_box(length, thickness, depth):
+    return Part.makeBox(inch(length), inch(thickness), inch(depth))
+
 def load_catalog(path):
     rows = []
     with open(path, newline="") as f:
@@ -61,10 +65,11 @@ width = float(row["actual_width_in"])
 doc = App.ActiveDocument or App.newDocument("FloorJoists_from_catalog")
 
 def make_joist(name, x_center, length=joist_len, depth=width, thick=thick):
-    # X = length, Y = depth, Z = thickness
-    box = Part.makeBox(inch(length), inch(depth), inch(thick))
+    # X = length, Y = thickness, Z = depth (standing upright)
+    box = make_box(length, thick, depth)
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
+    # Place so length runs along X, thickness along Y, depth along Z
     shape.Placement.Base = App.Vector(inch(x_center - length/2.0), 0, 0)
     # Attach metadata
     for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
