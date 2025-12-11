@@ -101,7 +101,7 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
 
 # Place rim joists with 3/4" offsets: left rim starts at +0.75, right rim ends at module_length + 0.75
 left_rim  = make_rim("Rim_Left", 0.75, module_width)
-right_rim = make_rim("Rim_Right", module_length + 0.75, module_width)
+right_rim = make_rim("Rim_Right", module_length - 2 * thick + 0.75, module_width)
 
 # Interior joists
 y = offset_first_center
