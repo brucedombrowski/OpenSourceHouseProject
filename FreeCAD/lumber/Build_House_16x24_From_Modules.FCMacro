@@ -1,0 +1,72 @@
+# FreeCAD macro: assemble a 16x24 joist layout from existing modules.
+# Places a 16x16 module at (0, 0) and a 16x8 module at (0, 16') using the
+# existing joist macros in this folder. Keeps things DRY by reusing those macros.
+
+import os
+import csv
+import FreeCAD as App
+import Part
+
+
+def inch(x): return x * 25.4
+
+
+macro_dir = os.path.dirname(__file__)
+macro_16x16 = os.path.join(macro_dir, "Joist_Module_2x12_16x16.FCMacro")
+macro_16x8  = os.path.join(macro_dir, "Joist_Module_2x12_16x8.FCMacro")
+
+if not os.path.isfile(macro_16x16) or not os.path.isfile(macro_16x8):
+    raise FileNotFoundError("Required joist module macros not found in macro directory.")
+
+# Work in active doc or create a new one
+doc = App.ActiveDocument or App.newDocument("House_16x24_from_modules")
+
+
+def run_macro(path):
+    """Execute another macro file in the current document context with a populated globals dict."""
+    env = {
+        "__file__": path,
+        "__name__": "__main__",
+        "__builtins__": __builtins__,
+        "App": App,
+        "FreeCAD": App,
+        "Part": Part,
+        "os": os,
+        "csv": csv,
+    }
+    with open(path, "r") as f:
+        code = f.read()
+    exec(compile(code, path, "exec"), env, env)
+
+
+# Clean any previous assembly
+root_group_name = "First_Floor_Joists"
+old_root = doc.getObject(root_group_name)
+if old_root:
+    for child in list(old_root.Group):
+        doc.removeObject(child.Name)
+    doc.removeObject(old_root.Name)
+
+# Build first module (16x16) at origin
+run_macro(macro_16x16)
+mod16 = doc.getObject("Joist_Module_2x12_16x16")
+if not mod16:
+    raise RuntimeError("16x16 module group not created by macro.")
+
+# Build second module (16x8) and shift it +16' in Y
+run_macro(macro_16x8)
+mod8 = doc.getObject("Joist_Module_2x12_16x8")
+if not mod8:
+    raise RuntimeError("16x8 module group not created by macro.")
+
+offset_y = inch(16 * 12)  # 16 feet in Y
+for obj in mod8.Group:
+    pl = obj.Placement
+    pl.Base.y += offset_y
+    obj.Placement = pl
+
+# Create top-level assembly group
+root = doc.addObject("App::DocumentObjectGroup", root_group_name)
+root.Group = [mod16, mod8]
+
+doc.recompute()
