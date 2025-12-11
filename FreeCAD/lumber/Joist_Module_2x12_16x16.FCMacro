@@ -48,19 +48,6 @@ hanger_seat_depth = 2.0     # back plate depth
 def make_box(length, thickness, depth):
     return Part.makeBox(inch(length), inch(thickness), inch(depth))
 
-def load_catalog(path):
-    rows = []
-    with open(path, newline="") as f:
-        for row in csv.DictReader(f):
-            rows.append(row)
-    return rows
-
-def find_stock(rows, label):
-    for r in rows:
-        if r.get("label") == label:
-            return r
-    return None
-
 # -----------------------
 # Main
 # -----------------------
