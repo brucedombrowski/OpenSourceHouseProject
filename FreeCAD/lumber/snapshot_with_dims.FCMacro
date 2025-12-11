@@ -33,7 +33,11 @@ def make_dim(p1, p2, dim_dir):
     dim.ViewObject.ArrowSize = 3
     dim.ViewObject.FontSize = 24
     dim.ViewObject.ShowUnit = True
-    dim.ViewObject.DisplayMode = "3D"
+    # Some builds don't expose a "3D" display mode; fall back silently
+    try:
+        dim.ViewObject.DisplayMode = "3D"
+    except Exception:
+        pass
     return dim
 
 temp_dims = []
