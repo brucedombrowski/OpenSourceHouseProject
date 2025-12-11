@@ -28,6 +28,7 @@ This file preserves important context, decisions, and our working relationship f
 - **Tech Stack**: Django 6.0, MPTT for hierarchical data, SQLite/PostgreSQL support
 - **Key Features**: WBS hierarchy, Gantt charts, Kanban boards, dependency management
 - **Dedication**: Built in honor of Bruce’s brother, Luke Dombrowski (@fuchinluke), June 14, 1999 – Sep 29, 2025. Carry the work with care and remember: Stay Alive. Obituary: https://www.egizifuneral.com/obituary/luke-a-dombrowski/
+- **FreeCAD workspace**: A `FreeCAD/` directory now exists; it will contain the parametric model of the house. Keep models, macros, and exports organized with subfolders and document workflows there.
 
 ## Quick Reference Commands
 
