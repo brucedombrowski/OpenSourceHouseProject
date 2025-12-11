@@ -11,12 +11,16 @@ import Part
 # -----------------------
 # Parameters (inches)
 # -----------------------
-catalog_path = os.path.join(App.ActiveDocument.FileName if App.ActiveDocument else os.getcwd(),
-                            "FreeCAD", "lumber", "lumber_catalog.csv")
-# If the above doesn't resolve (e.g., unsaved document), fallback to project root relative path:
-if not os.path.isfile(catalog_path):
-    project_root = os.path.dirname(os.path.dirname(__file__))
-    catalog_path = os.path.join(project_root, "FreeCAD", "lumber", "lumber_catalog.csv")
+# Resolve catalog path robustly: first next to this macro, then parent project FreeCAD/lumber.
+_macro_dir = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_macro_dir))
+catalog_candidates = [
+    os.path.join(_macro_dir, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = next((p for p in catalog_candidates if os.path.isfile(p)), None)
+if not catalog_path:
+    raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
 
 stock_label = "2x12x192"   # Which catalog entry to use (e.g., 2x12x192)
 joist_len   = 192.0        # Overall joist length to place (inches). Trim as needed.
