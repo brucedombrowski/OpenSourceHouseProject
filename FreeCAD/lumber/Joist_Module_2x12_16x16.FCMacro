@@ -133,7 +133,14 @@ for idx, y_pos in enumerate(positions, start=1):
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x16"
-group = doc.getObject(group_name) or doc.addObject("App::DocumentObjectGroup", group_name)
+# Clean any prior group + children so reruns don't leave stale geometry
+old_group = doc.getObject(group_name)
+if old_group:
+    for obj in list(old_group.Group):
+        doc.removeObject(obj.Name)
+    doc.removeObject(old_group.Name)
+
+group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Group = created
 
 doc.recompute()
