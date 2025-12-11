@@ -198,8 +198,9 @@ pip install -r requirements-production.txt
   - Macros live in `FreeCAD/lumber/`; set FreeCAD macro path to that folder. Current joist macros: `Joist_Module_2x12_16x16.FCMacro` and `Joist_Module_2x12_16x8.FCMacro` (defaults supplier=`lowes`, optional `_PT` lookup).
   - Sheathing macro: `Sheathing_Advantech_4x8_16x24.FCMacro` tiles 3/4" Advantech panels (4x8, 8' along Y, staggered seams) over a 16x24 footprint. Added `panel_advantech_4x8` to the lumber catalog.
   - House assembly macro: `Build_House_16x24_From_Modules.FCMacro` reuses the 16x16 and 16x8 modules to create a 16x24 layout (16x16 at origin, 16x8 shifted +16' in Y) and adds sheathing; grouped under `First_Floor_Joists` + `First_Floor_Sheathing`.
+  - Joist modules now use full-length 2x12x16 stock (overall X = 16'3" including rims) and auto-add hanger_LU210 objects at both ends of each joist; hanger entry added to catalog.
   - BOM macro: `export_bom.FCMacro` emits `lumber_bom.csv` using part metadata.
-    - BOM now consolidates panel pieces by area (catalog-driven) and rounds up to whole sheets, so cut strips don’t overcount full panels.
+    - BOM consolidates panel pieces by area (catalog-driven) and rounds up to whole sheets, so cut strips don’t overcount full panels. Hangers counted individually via `hardware_lu210` nominal.
   - Snapshot macro: `snapshot_with_dims.FCMacro` creates `module_snapshot.png` with key dimensions (orthographic top view, large font).
   - Joist module uses upright boards: X=length, Y=thickness, Z=depth; origin at lower-left rim for symmetry/tiling. Macros group all created parts into a single module assembly; 16x8 module uses a 0.75" first-center offset to align rims/joists.
 

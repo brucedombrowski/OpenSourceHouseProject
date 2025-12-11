@@ -50,7 +50,8 @@ for obj in doc.Objects:
 
     # If catalog has dimensions, use area-based consolidation for panels.
     cat_row = catalog.get(key)
-    if cat_row and cat_row.get("nominal", "").startswith("4x8_panel"):
+    nominal = cat_row.get("nominal", "") if cat_row else ""
+    if nominal.startswith("4x8_panel"):
         try:
             panel_w = float(cat_row["actual_width_in"])
             panel_l = float(cat_row["length_in"])
@@ -60,6 +61,9 @@ for obj in doc.Objects:
             entry["qty"] += obj_area / panel_area
         except Exception:
             entry["qty"] += 1.0
+    elif nominal.startswith("hardware_lu210"):
+        # Hanger counted as 1 each
+        entry["qty"] += 1.0
     else:
         entry["qty"] += 1.0
 

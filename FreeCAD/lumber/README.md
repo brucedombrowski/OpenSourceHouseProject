@@ -54,3 +54,6 @@ Provide a macro (e.g., `export_bom.FCMacro`) that:
 - `ln -s <repo>/FreeCAD/lumber/Sheathing_Advantech_4x8_16x24.FCMacro ~/.FreeCAD/Macro/`
 - `ln -s <repo>/FreeCAD/lumber/Build_House_16x24_From_Modules.FCMacro ~/.FreeCAD/Macro/`
 - After setting the macro path or symlink, the macros (e.g., `Joist_Module_2x12_16x16.FCMacro`, `Joist_Module_2x12_16x8.FCMacro`, `Sheathing_Advantech_4x8_16x24.FCMacro`, `Build_House_16x24_From_Modules.FCMacro`) should appear in the Macro dialog without manual import.
+
+## Hardware
+- Joist hangers: placeholder label `hanger_LU210` (approx 16ga, 12" height, 2" seat depth) modeled as a simple U-shape for BOM counting; attached automatically to joist modules.
