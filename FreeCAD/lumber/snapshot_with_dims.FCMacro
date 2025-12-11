@@ -74,7 +74,11 @@ doc.recompute()
 # Set top view orthographic and fit
 view = Gui.ActiveDocument.ActiveView
 view.viewTop()
-view.setOrthographic(True)
+# Fallback for API differences
+try:
+    view.setOrthographic(True)
+except Exception:
+    view.setCameraType("Orthographic")
 view.fitAll()
 
 # Export to PNG next to the macro
