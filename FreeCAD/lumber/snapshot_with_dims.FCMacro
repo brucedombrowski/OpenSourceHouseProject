@@ -31,7 +31,9 @@ def make_dim(p1, p2, dim_dir):
     dim = Draft.make_dimension(p1, p2, dim_dir)
     dim.ViewObject.LineColor = (1.0, 0.0, 0.0)
     dim.ViewObject.ArrowSize = 3
-    dim.ViewObject.FontSize = 8
+    dim.ViewObject.FontSize = 24
+    dim.ViewObject.ShowUnit = True
+    dim.ViewObject.DisplayMode = "3D"
     return dim
 
 temp_dims = []
