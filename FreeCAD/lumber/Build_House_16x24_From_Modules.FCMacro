@@ -14,9 +14,11 @@ def inch(x): return x * 25.4
 macro_dir = os.path.dirname(__file__)
 macro_16x16 = os.path.join(macro_dir, "Joist_Module_2x12_16x16.FCMacro")
 macro_16x8  = os.path.join(macro_dir, "Joist_Module_2x12_16x8.FCMacro")
+macro_sheath = os.path.join(macro_dir, "Sheathing_Advantech_4x8_16x24.FCMacro")
+sheathing_z_offset_in = 11.25  # lift sheathing to sit on top of 2x12 joists
 
-if not os.path.isfile(macro_16x16) or not os.path.isfile(macro_16x8):
-    raise FileNotFoundError("Required joist module macros not found in macro directory.")
+if not all(os.path.isfile(p) for p in (macro_16x16, macro_16x8, macro_sheath)):
+    raise FileNotFoundError("Required module macros not found in macro directory.")
 
 # Work in active doc or create a new one
 doc = App.ActiveDocument or App.newDocument("House_16x24_from_modules")
@@ -68,5 +70,16 @@ for obj in mod8.Group:
 # Create top-level assembly group
 root = doc.addObject("App::DocumentObjectGroup", root_group_name)
 root.Group = [mod16, mod8]
+
+# Add sheathing (runs 8' along Y, staggered courses)
+run_macro(macro_sheath)
+sheath = doc.getObject("First_Floor_Sheathing")
+if sheath:
+    # Raise sheathing to sit atop joists
+    for panel in sheath.Group:
+        pl = panel.Placement
+        pl.Base.z += inch(sheathing_z_offset_in)
+        panel.Placement = pl
+    root.addObject(sheath)
 
 doc.recompute()

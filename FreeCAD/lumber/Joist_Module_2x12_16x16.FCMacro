@@ -23,7 +23,7 @@ if not catalog_path:
     raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
-module_length = 192.0        # Overall X dimension (outer edge to outer edge)
+module_length = 195.0        # Overall X dimension (outer edge to outer edge) = full 16' joists + 2 rims (1.5" each)
 module_width  = 192.0        # Overall Y dimension
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
 offset_first_center = 0.00   # Joist_1 starts flush to rim (center at 0.75), see spacing logic below
@@ -62,6 +62,7 @@ if not row:
 
 thick = float(row["actual_thickness_in"])
 width = float(row["actual_width_in"])
+stock_length = float(row["length_in"])  # 192", use full length (no cuts)
 
 doc = App.ActiveDocument or App.newDocument("FloorJoists_from_catalog")
 
@@ -99,10 +100,10 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     shape.addProperty("App::PropertyString", "label").label = label_to_use
     return shape
 
-# Place rim joists with 3/4" offsets: left rim starts at +0.75, right rim ends at module_length + 0.75
+# Place rim joists: left rim centered at 0.75, right rim centered at module_length - 0.75
 created = []
-left_rim  = make_rim("Rim_Left", 0.75, module_width); created.append(left_rim)
-right_rim = make_rim("Rim_Right", module_length - thick + 0.75, module_width); created.append(right_rim)
+left_rim  = make_rim("Rim_Left", thick / 2.0, module_width); created.append(left_rim)
+right_rim = make_rim("Rim_Right", module_length - (thick / 2.0), module_width); created.append(right_rim)
 
 # Interior joists
 positions = []
@@ -126,9 +127,9 @@ last_center = module_width - (thick / 2.0)
 if positions[-1] != last_center:
     positions.append(last_center)
 
-# Build joists
+# Build joists with full-length stock
 for idx, y_pos in enumerate(positions, start=1):
-    created.append(make_joist(f"Joist_{idx}", y_pos, module_length - 2 * thick))
+    created.append(make_joist(f"Joist_{idx}", y_pos, stock_length))
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x16"

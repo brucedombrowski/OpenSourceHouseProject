@@ -1,0 +1,95 @@
+# FreeCAD macro: add 3/4" Advantech 4x8 panels over a 16' x 24' footprint (X=16', Y=24').
+# Panels run with the 8' length along Y. Seams staggered by 4' on alternating columns, producing 4x4 pieces at the far end.
+# No explicit gap is added (T&G panels are typically undersized to provide fit); we can parameterize a gap later if needed.
+
+import os
+import csv
+import FreeCAD as App
+import Part
+
+_macro_dir = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_macro_dir))
+catalog_candidates = [
+    os.path.join(_macro_dir, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = next((p for p in catalog_candidates if os.path.isfile(p)), None)
+if not catalog_path:
+    raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
+
+panel_label = "panel_advantech_4x8"
+footprint_x = 195.0  # inches (16' 3") matches full-length joists + rims
+footprint_y = 288.0  # inches (24')
+
+def inch(x): return x * 25.4
+
+def load_catalog(path):
+    with open(path, newline="") as f:
+        return list(csv.DictReader(f))
+
+def find_panel(rows, label):
+    for r in rows:
+        if r.get("label") == label:
+            return r
+    return None
+
+rows = load_catalog(catalog_path)
+panel = find_panel(rows, panel_label)
+if not panel:
+    raise ValueError(f"Panel '{panel_label}' not found in catalog at {catalog_path}")
+
+thick = float(panel["actual_thickness_in"])
+width_x = float(panel["actual_width_in"])   # 48"
+length_y = float(panel["length_in"])        # 96"
+
+doc = App.ActiveDocument or App.newDocument("Sheathing_Advantech_4x8_16x24")
+
+def make_panel(name, x, y, x_size=width_x, y_size=length_y, z=0.0):
+    box = Part.makeBox(inch(x_size), inch(y_size), inch(thick))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(inch(x), inch(y), inch(z))
+    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
+        if key not in obj.PropertiesList:
+            obj.addProperty("App::PropertyString", key)
+        obj.__setattr__(key, panel.get(key, ""))
+    obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
+    obj.addProperty("App::PropertyString", "label").label = panel_label
+    return obj
+
+# Clean previous group
+group_name = "First_Floor_Sheathing"
+old = doc.getObject(group_name)
+if old:
+    for c in list(old.Group):
+        doc.removeObject(c.Name)
+    doc.removeObject(old.Name)
+
+created = []
+# Columns across X, stagger every other column by 4'. Use ceil to cover the full 195".
+import math
+cols = int(math.ceil(footprint_x / width_x))
+for col in range(cols):
+    x0 = col * width_x
+    # For the last column, trim to remaining width if less than a full panel.
+    remaining_x = footprint_x - x0
+    x_size = min(width_x, remaining_x)
+
+    stagger = (col % 2 == 1)
+    if stagger:
+        # Starter 4' piece, then run from y=48 with 8' pieces
+        created.append(make_panel(f"Panel_{col}_0", x0, 0.0, x_size, 48.0, z=0.0))
+        y = 48.0
+    else:
+        y = 0.0
+
+    while y < footprint_y:
+        remaining_y = footprint_y - y
+        y_len = min(length_y, remaining_y)
+        created.append(make_panel(f"Panel_{col}_{int(y)}", x0, y, x_size, y_len, z=0.0))
+        y += length_y
+
+group = doc.addObject("App::DocumentObjectGroup", group_name)
+group.Group = created
+
+doc.recompute()
