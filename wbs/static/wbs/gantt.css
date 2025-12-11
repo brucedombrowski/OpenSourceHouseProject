@@ -507,17 +507,31 @@ body.theme-dark .today-marker {
 
 .gantt-legend {
   display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12px;
   margin: 8px 0 12px;
   color: #444;
   background: #f7f9fc;
   border: 1px solid #e1e7f0;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.legend-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 12px;
+  align-items: center;
+}
+
 .legend-item {
   display: inline-flex;
   align-items: center;
@@ -540,6 +554,15 @@ body.theme-dark .today-marker {
   background: #ef4444;
   border: 1px solid #dc2626;
   border-radius: 2px;
+}
+
+.legend-swatch.today-swatch {
+  width: 3px;
+  height: 16px;
+  background: #ffe600;
+  border-radius: 4px;
+  box-shadow: 0 0 6px rgba(255, 230, 0, 0.6);
+  transform: rotate(0deg); /* keep vertical */
 }
 
 .milestone-icon {
@@ -1436,6 +1459,10 @@ body.theme-dark .legend-swatch.dep-type-sf { border-bottom: none; }
 body.theme-dark .legend-swatch.critical-path-swatch {
   background: #f87171;
   border-color: #ef4444;
+}
+body.theme-dark .legend-swatch.today-swatch {
+  background: #ffe600;
+  box-shadow: 0 0 6px rgba(255, 230, 0, 0.6);
 }
 body.theme-dark .milestone-icon {
   color: #fbbf24;

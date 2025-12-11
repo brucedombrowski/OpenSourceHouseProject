@@ -754,37 +754,43 @@
   </div>
 
   <div class="gantt-legend">
-    <strong>Dependency types:</strong>
-    <span class="legend-item">
-      <span class="legend-swatch dep-type-fs"></span> FS
-    </span>
-    <span class="legend-item">
-      <span class="legend-swatch dep-type-ss"></span> SS
-    </span>
-    <span class="legend-item">
-      <span class="legend-swatch dep-type-ff"></span> FF
-    </span>
-    <span class="legend-item">
-      <span class="legend-swatch dep-type-sf"></span> SF
-    </span>
-    <span class="legend-item">Lag label shown when lag ≠ 0</span>
-    <span class="legend-separator">|</span>
-    <span class="legend-item">
-      <span class="legend-swatch critical-path-swatch"></span> Critical Path
-    </span>
-    <span class="legend-item">
-      <span class="milestone-icon">◆</span> Milestone
-    </span>
-    <span class="legend-separator">|</span>
-    <span class="legend-item">
-      <span class="baseline-sample baseline-default"></span> Baseline (Actual)
-    </span>
-    <span class="legend-item">
-      <span class="baseline-sample baseline-behind"></span> Behind Schedule
-    </span>
-    <span class="legend-item">
-      <span class="baseline-sample baseline-ahead"></span> Ahead of Schedule
-    </span>
+    <div class="legend-header">
+      <strong>Legend</strong>
+      <button type="button" id="toggle-legend" class="legend-toggle" aria-label="Toggle legend">Hide</button>
+    </div>
+    <div class="legend-body" id="legend-body">
+      <span class="legend-item">
+        <span class="legend-swatch dep-type-fs"></span> FS
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch dep-type-ss"></span> SS
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch dep-type-ff"></span> FF
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch dep-type-sf"></span> SF
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch critical-path-swatch"></span> Critical Path
+      </span>
+      <span class="legend-item">
+        <span class="milestone-icon">◆</span> Milestone
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch today-swatch"></span> Today
+      </span>
+      <span class="legend-item">
+        <span class="baseline-sample baseline-default"></span> Baseline (Actual)
+      </span>
+      <span class="legend-item">
+        <span class="baseline-sample baseline-behind"></span> Behind Schedule
+      </span>
+      <span class="legend-item">
+        <span class="baseline-sample baseline-ahead"></span> Ahead of Schedule
+      </span>
+      <span class="legend-item">Lag label shown when lag ≠ 0</span>
+    </div>
   </div>
 
 
