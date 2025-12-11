@@ -2,10 +2,19 @@
 # Orientation: X = 16' run (192"), Y = width (96"), boards stand upright (X=length, Y=thickness, Z=depth).
 # Spacing: 16" OC, no initial 3/4" offset (starts at origin-aligned center).
 
-import csv
 import os
+import sys
 import FreeCAD as App
 import Part
+
+# Ensure this macro folder is on sys.path before importing helpers
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+from lumber_common import ensure_macro_path, resolve_catalog, load_catalog, find_stock, attach_metadata, clear_group, make_hanger, inch
+
+ensure_macro_path()
 
 # -----------------------
 # Parameters (inches)
@@ -16,9 +25,7 @@ catalog_candidates = [
     os.path.join(_macro_dir, "lumber_catalog.csv"),
     os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
 ]
-catalog_path = next((p for p in catalog_candidates if os.path.isfile(p)), None)
-if not catalog_path:
-    raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
+catalog_path = resolve_catalog(catalog_candidates)
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 195.0        # Overall X dimension (outer edge to outer edge) = full 16' joists + 2 rims
@@ -39,19 +46,6 @@ def inch(x): return x * 25.4
 # Board orientation: X = length, Y = thickness, Z = depth (so boards stand upright)
 def make_box(length, thickness, depth):
     return Part.makeBox(inch(length), inch(thickness), inch(depth))
-
-def load_catalog(path):
-    rows = []
-    with open(path, newline="") as f:
-        for row in csv.DictReader(f):
-            rows.append(row)
-    return rows
-
-def find_stock(rows, label):
-    for r in rows:
-        if r.get("label") == label:
-            return r
-    return None
 
 # -----------------------
 # Main
@@ -74,14 +68,7 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
     shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick/2.0), 0)
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in shape.PropertiesList:
-            shape.addProperty("App::PropertyString", key)
-        shape.setPropertyStatus(key, ['Hidden'])
-        shape.setPropertyStatus(key, [])
-        shape.__setattr__(key, row.get(key, ""))
-    shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    shape.addProperty("App::PropertyString", "label").label = label_to_use
+    attach_metadata(shape, row, label_to_use, supplier="lowes")
     return shape
 
 def make_hanger(name, x_pos, y_center):
@@ -99,15 +86,7 @@ def make_hanger(name, x_pos, y_center):
     seat = Part.makeBox(inch(bd), inch(bw), inch(bt))
     seat.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw/2.0), 0)
     u_shape = back.fuse([sideL, sideR, seat])
-    obj = doc.addObject("Part::Feature", name)
-    obj.Shape = u_shape
-    obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    obj.addProperty("App::PropertyString", "label").label = hanger_label
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in obj.PropertiesList:
-            obj.addProperty("App::PropertyString", key)
-        obj.__setattr__(key, "")
-    return obj
+    return make_hanger(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label=hanger_label)
 
 # Rim joists at ends, running perpendicular to joists (along Y)
 def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
@@ -164,7 +143,8 @@ for idx, y_pos in enumerate(positions, start=1):
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x8"
-group = doc.getObject(group_name) or doc.addObject("App::DocumentObjectGroup", group_name)
+clear_group(doc, group_name)
+group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Group = created
 
 doc.recompute()

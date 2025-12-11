@@ -3,10 +3,20 @@
 # spaced 16" OC (default) with a 3/4" offset for sheathing alignment. It pulls actual dimensions
 # from the catalog row whose label matches `stock_label`.
 
-import csv
 import os
+import sys
 import FreeCAD as App
 import Part
+
+# Ensure this macro folder is on sys.path before importing helpers
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+from lumber_common import ensure_macro_path, resolve_catalog, load_catalog, find_stock, attach_metadata, clear_group, make_hanger, inch
+
+# Ensure helpers are importable if FreeCAD doesn't add macro dir to sys.path
+ensure_macro_path()
 
 # -----------------------
 # Parameters (inches)
@@ -18,9 +28,7 @@ catalog_candidates = [
     os.path.join(_macro_dir, "lumber_catalog.csv"),
     os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
 ]
-catalog_path = next((p for p in catalog_candidates if os.path.isfile(p)), None)
-if not catalog_path:
-    raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
+catalog_path = resolve_catalog(catalog_candidates)
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 195.0        # Overall X dimension (outer edge to outer edge) = full 16' joists + 2 rims (1.5" each)
@@ -36,8 +44,6 @@ hanger_seat_depth = 2.0     # back plate depth
 # -----------------------
 # Helpers
 # -----------------------
-def inch(x): return x * 25.4
-
 # Board orientation: X = length, Y = thickness, Z = depth (so boards stand upright)
 def make_box(length, thickness, depth):
     return Part.makeBox(inch(length), inch(thickness), inch(depth))
@@ -78,16 +84,7 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     # Place so joists run along X; distribute along Y (spacing_oc)
     shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick/2.0), 0)
     # Attach metadata
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in shape.PropertiesList:
-            shape.addProperty("App::PropertyString", key)
-        shape.setPropertyStatus(key, ['Hidden'])
-        shape.setPropertyStatus(key, [])
-        shape.setExpression(key, None)
-        shape.setPropertyStatus(key, [])
-        shape.__setattr__(key, row.get(key, ""))
-    shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    shape.addProperty("App::PropertyString", "label").label = label_to_use
+    attach_metadata(shape, row, label_to_use, supplier="lowes")
     return shape
 
 def make_hanger(name, x_pos, y_center):
@@ -105,15 +102,7 @@ def make_hanger(name, x_pos, y_center):
     seat = Part.makeBox(inch(bd), inch(bw), inch(bt))
     seat.Placement.Base = App.Vector(inch(x_pos - bd), inch(y_center - bw/2.0), 0)
     u_shape = back.fuse([sideL, sideR, seat])
-    obj = doc.addObject("Part::Feature", name)
-    obj.Shape = u_shape
-    obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    obj.addProperty("App::PropertyString", "label").label = hanger_label
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in obj.PropertiesList:
-            obj.addProperty("App::PropertyString", key)
-        obj.__setattr__(key, "")
-    return obj
+    return make_hanger(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label=hanger_label)
 
 # Rim joists at ends, running perpendicular to joists (along Y)
 def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
@@ -167,15 +156,8 @@ for idx, y_pos in enumerate(positions, start=1):
     created.append(make_hanger(f"Hanger_L_{idx}", left_face_x, y_pos))
     created.append(make_hanger(f"Hanger_R_{idx}", right_face_x, y_pos))
 
-# Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x16"
-# Clean any prior group + children so reruns don't leave stale geometry
-old_group = doc.getObject(group_name)
-if old_group:
-    for obj in list(old_group.Group):
-        doc.removeObject(obj.Name)
-    doc.removeObject(old_group.Name)
-
+clear_group(doc, group_name)
 group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Group = created
 
