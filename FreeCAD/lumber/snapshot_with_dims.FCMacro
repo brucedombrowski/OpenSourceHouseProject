@@ -50,7 +50,7 @@ p2_w = App.Vector(bb.XMin, bb.YMax, bb.ZMin)
 dim_w = make_dim(p1_w, p2_w, App.Vector(bb.XMin - (bb.XMax - bb.XMin)*0.05, (bb.YMin + bb.YMax)/2, bb.ZMin))
 temp_dims.append(dim_w)
 
-# Joist spacing: find two joists with smallest center Y difference
+# Joist spacing and offset: use first two joists for 16" OC, and dimension offset to first joist
 joists = [o for o in objs if "Joist" in o.Name or "Joist" in o.Label]
 if len(joists) >= 2:
     centers = []
@@ -58,18 +58,19 @@ if len(joists) >= 2:
         b = j.Shape.BoundBox
         centers.append((j, (b.YMin + b.YMax) / 2.0))
     centers.sort(key=lambda x: x[1])
-    best = None
-    for i in range(len(centers)-1):
-        dy = centers[i+1][1] - centers[i][1]
-        if best is None or dy < best[0]:
-            best = (dy, centers[i][1], centers[i+1][1], centers[i][0], centers[i+1][0])
-    if best:
-        y1, y2 = best[1], best[2]
-        x_mid = (bb.XMin + bb.XMax) / 2.0
-        p1_s = App.Vector(x_mid, y1, bb.ZMin)
-        p2_s = App.Vector(x_mid, y2, bb.ZMin)
-        dim_s = make_dim(p1_s, p2_s, App.Vector(x_mid + (bb.XMax - bb.XMin)*0.05, (y1 + y2)/2.0, bb.ZMin))
-        temp_dims.append(dim_s)
+    y_first = centers[0][1]
+    y_second = centers[1][1]
+    x_mid = (bb.XMin + bb.XMax) / 2.0
+    # Offset dimension from module YMin to first joist center
+    p1_o = App.Vector(x_mid, bb.YMin, bb.ZMin)
+    p2_o = App.Vector(x_mid, y_first, bb.ZMin)
+    dim_o = make_dim(p1_o, p2_o, App.Vector(x_mid - (bb.XMax - bb.XMin)*0.1, (bb.YMin + y_first)/2.0, bb.ZMin))
+    temp_dims.append(dim_o)
+    # Spacing dimension between first two joists
+    p1_s = App.Vector(x_mid, y_first, bb.ZMin)
+    p2_s = App.Vector(x_mid, y_second, bb.ZMin)
+    dim_s = make_dim(p1_s, p2_s, App.Vector(x_mid + (bb.XMax - bb.XMin)*0.05, (y_first + y_second)/2.0, bb.ZMin))
+    temp_dims.append(dim_s)
 
 doc.recompute()
 
