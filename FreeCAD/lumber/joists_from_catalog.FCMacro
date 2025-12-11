@@ -22,10 +22,11 @@ catalog_path = next((p for p in catalog_candidates if os.path.isfile(p)), None)
 if not catalog_path:
     raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
 
-stock_label = "2x12x192"   # Which catalog entry to use (e.g., 2x12x192)
-joist_len   = 192.0        # Overall joist length to place (inches). Trim as needed.
-spacing_oc  = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.75 # Offset for first interior joist (inches) for sheathing alignment
+stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
+module_length = 192.0        # X dimension of module (inches) - along joist length
+module_width  = 192.0        # Y dimension of module (inches) - along joist span for placement
+spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
+offset_first_center = 0.75   # Offset for first interior joist (inches) for sheathing alignment
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 
 # -----------------------
@@ -64,13 +65,13 @@ width = float(row["actual_width_in"])
 
 doc = App.ActiveDocument or App.newDocument("FloorJoists_from_catalog")
 
-def make_joist(name, x_center, length=joist_len, depth=width, thick=thick):
+def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     # X = length, Y = thickness, Z = depth (standing upright)
     box = make_box(length, thick, depth)
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
-    # Place so length runs along X, thickness along Y, depth along Z
-    shape.Placement.Base = App.Vector(inch(x_center - length/2.0), 0, 0)
+    # Place so joists run along X; distribute along Y (spacing_oc)
+    shape.Placement.Base = App.Vector(inch(0), inch(y_pos - thick/2.0), 0)
     # Attach metadata
     for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
         if key not in shape.PropertiesList:
@@ -84,16 +85,16 @@ def make_joist(name, x_center, length=joist_len, depth=width, thick=thick):
     shape.addProperty("App::PropertyString", "label").label = label_to_use
     return shape
 
-# Rim joists at ends
-left_rim  = make_joist("Rim_Left", thick/2.0, joist_len)
-right_rim = make_joist("Rim_Right", joist_len - thick/2.0, joist_len)
+# Rim joists at ends (along module width, standing at Y = 0 and Y = module_width)
+left_rim  = make_joist("Rim_Bottom", thick/2.0, module_length)
+right_rim = make_joist("Rim_Top", module_width - thick/2.0, module_length)
 
 # Interior joists
-x = offset_first_center
+y = offset_first_center
 idx = 1
-while x < joist_len - offset_first_center:
-    make_joist(f"Joist_{idx}", x, joist_len)
-    x += spacing_oc
+while y < module_width - offset_first_center:
+    make_joist(f"Joist_{idx}", y, module_length)
+    y += spacing_oc
     idx += 1
 
 doc.recompute()
