@@ -24,7 +24,7 @@ stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 192.0        # Overall X dimension (outer edge to outer edge)
 module_width  = 96.0         # Overall Y dimension (8')
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.75    # No offset for first joist center
+offset_first_center = 0.00   # Joist_1 starts flush to rim (center at 0.75), see spacing logic below
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 
 # -----------------------
@@ -100,14 +100,30 @@ left_rim  = make_rim("Rim_Left", 0.75, module_width); created.append(left_rim)
 right_rim = make_rim("Rim_Right", module_length - thick + 0.75, module_width); created.append(right_rim)
 
 # Interior joists
-y = offset_first_center
-idx = 1
-while y < module_width - offset_first_center:
-    created.append(make_joist(f"Joist_{idx}", y, module_length - 2 * thick))
-    y += spacing_oc
-    idx += 1
-# Add a final joist near the far edge to close the box
-created.append(make_joist(f"Joist_{idx}", module_width - offset_first_center, module_length - 2 * thick))
+positions = []
+# Spacing rules:
+# - Joist_1: center at 0.75" (flush to left rim)
+# - Joist_2: center at 15.25" (15-1/4" from Joist_1)
+# - Joists 3..n: 16" OC progression
+# - Final joist: forced to center at (module_width - 0.75) to align to right rim
+first_center = thick / 2.0                     # 0.75"
+second_center = first_center + 15.25           # 15.25" from first
+positions = [first_center, second_center]
+
+# Fill remaining joists at 16" OC until near far rim
+next_center = second_center + spacing_oc
+while next_center < module_width - (thick / 2.0):
+    positions.append(next_center)
+    next_center += spacing_oc
+
+# Force final joist to align to far rim (center 0.75" from edge)
+last_center = module_width - (thick / 2.0)
+if positions[-1] != last_center:
+    positions.append(last_center)
+
+# Build joists
+for idx, y_pos in enumerate(positions, start=1):
+    created.append(make_joist(f"Joist_{idx}", y_pos, module_length - 2 * thick))
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x8"
