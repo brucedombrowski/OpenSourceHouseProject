@@ -144,8 +144,9 @@ for idx, y_pos in enumerate(positions, start=1):
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x8"
 clear_group(doc, group_name)
-group = doc.addObject("App::DocumentObjectGroup", group_name)
-group.addObjects(created)
+group = doc.getObject(group_name) or doc.addObject("App::DocumentObjectGroup", group_name)
+for obj in created:
+    group.addObject(obj)
 group.Group = created
 
 doc.recompute()
