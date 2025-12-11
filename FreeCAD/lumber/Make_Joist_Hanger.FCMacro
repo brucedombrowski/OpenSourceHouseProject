@@ -5,13 +5,22 @@ import os
 import sys
 import FreeCAD as App
 import Part
+import importlib
 
 # Ensure helper module is on path
 _here = os.path.dirname(__file__)
 if _here not in sys.path:
     sys.path.append(_here)
 
-from lumber_common import make_hanger, inch
+# Force-load lumber_common from this folder (avoid stale copies in other macro paths)
+lc_path = os.path.join(_here, "lumber_common.py")
+if "lumber_common" in sys.modules:
+    del sys.modules["lumber_common"]
+spec = importlib.util.spec_from_file_location("lumber_common", lc_path)
+lumber_common = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lumber_common)
+make_hanger = lumber_common.make_hanger
+inch = lumber_common.inch
 
 # Parameters (adjust as needed)
 hanger_label = "hanger_LU210"
@@ -20,9 +29,16 @@ hanger_height = 7.8125      # 7-13/16"
 hanger_seat_depth = 2.0     # seat/back depth into rim
 joist_thick = 1.5           # 2x thickness
 joist_width = 11.25         # 2x12 depth
-color = (1.0, 0.2, 0.2)     # debug color to confirm updates
+color = (0.75, 0.75, 0.75)  # neutral metal tone
+direction = 1               # +1 = extends into +X (useful for left rim); -1 flips into -X
+debug_components = False    # fused solid (set True to see colored sub-parts)
 
 doc = App.ActiveDocument or App.newDocument("Hanger_Test")
+
+# Clear previous test hanger (group or subparts) to keep reruns clean
+for obj in list(doc.Objects):
+    if obj.Name == hanger_label or obj.Label == hanger_label or obj.Name.startswith(f"{hanger_label}_"):
+        doc.removeObject(obj.Name)
 
 # Create hanger at origin, centered on Y=0, seat below Z=0
 h = make_hanger(
@@ -35,10 +51,17 @@ h = make_hanger(
     hanger_height=hanger_height,
     hanger_seat_depth=hanger_seat_depth,
     hanger_label=hanger_label,
+    direction=direction,
+    debug_components=debug_components,
 )
 try:
-    h.ViewObject.ShapeColor = color
+    if hasattr(h, "ViewObject"):
+        h.ViewObject.ShapeColor = color
 except Exception:
     pass
 
 doc.recompute()
+try:
+    App.Console.PrintMessage("[hanger test] created hanger debug parts\n")
+except Exception:
+    pass

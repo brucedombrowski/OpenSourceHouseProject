@@ -49,12 +49,14 @@ def make_panel(name, x, y, x_size=width_x, y_size=length_y, z=0.0):
     obj = doc.addObject("Part::Feature", name)
     obj.Shape = box
     obj.Placement.Base = App.Vector(inch(x), inch(y), inch(z))
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in obj.PropertiesList:
-            obj.addProperty("App::PropertyString", key)
-        obj.__setattr__(key, panel.get(key, ""))
-    obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    obj.addProperty("App::PropertyString", "label").label = panel_label
+    try:
+        import importlib
+        import lumber_common
+        importlib.reload(lumber_common)
+        from lumber_common import attach_metadata
+        attach_metadata(obj, panel, panel_label, supplier="lowes")
+    except Exception:
+        pass
     return obj
 
 # Clean previous group

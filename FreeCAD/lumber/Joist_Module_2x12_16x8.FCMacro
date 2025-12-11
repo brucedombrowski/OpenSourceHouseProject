@@ -6,12 +6,15 @@ import os
 import sys
 import FreeCAD as App
 import Part
+import importlib
 
 # Ensure this macro folder is on sys.path before importing helpers
 _here = os.path.dirname(__file__)
 if _here not in sys.path:
     sys.path.append(_here)
 
+import lumber_common
+importlib.reload(lumber_common)
 from lumber_common import ensure_macro_path, resolve_catalog, load_catalog, find_stock, attach_metadata, clear_group, make_hanger, inch
 from lumber_common import make_hanger as make_hanger_helper
 
@@ -29,6 +32,7 @@ catalog_candidates = [
 catalog_path = resolve_catalog(catalog_candidates)
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
+rim_label = "2x12x96"        # Rims are 8' long along Y; use 8' stock for distinct color/BOM
 module_length = 195.0        # Overall X dimension (outer edge to outer edge) = full 16' joists + 2 rims
 module_width  = 96.0         # Overall Y dimension (8')
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
@@ -38,6 +42,7 @@ hanger_label = "hanger_LU210"
 hanger_thickness = 0.06     # approx 16ga
 hanger_height = 7.8125      # ~7-13/16" overall height
 hanger_seat_depth = 2.0     # back plate depth
+hanger_color = None         # use palette default for hardware
 
 # -----------------------
 # Helpers
@@ -53,9 +58,13 @@ def make_box(length, thickness, depth):
 # -----------------------
 rows = load_catalog(catalog_path)
 label_to_use = stock_label + "_PT" if make_pressure_treated else stock_label
+rim_label_to_use = rim_label + "_PT" if make_pressure_treated else rim_label
 row = find_stock(rows, label_to_use)
+rim_row = find_stock(rows, rim_label_to_use)
 if not row:
     raise ValueError(f"Label '{label_to_use}' not found in catalog at {catalog_path}")
+if not rim_row:
+    raise ValueError(f"Rim label '{rim_label_to_use}' not found in catalog at {catalog_path}")
 
 thick = float(row["actual_thickness_in"])
 width = float(row["actual_width_in"])
@@ -72,8 +81,20 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     attach_metadata(shape, row, label_to_use, supplier="lowes")
     return shape
 
-def make_hanger(name, x_pos, y_center):
-    return make_hanger_helper(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label)
+def make_hanger(name, x_pos, y_center, facing=1):
+    return make_hanger_helper(
+        doc,
+        name,
+        x_pos,
+        y_center,
+        thick,
+        hanger_thickness,
+        hanger_height,
+        hanger_seat_depth,
+        hanger_label,
+        direction=facing,
+        color=hanger_color,
+    )
 
 # Rim joists at ends, running perpendicular to joists (along Y)
 def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
@@ -81,12 +102,7 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
     shape.Placement.Base = App.Vector(inch(x_pos - thick/2.0), 0, 0)
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in shape.PropertiesList:
-            shape.addProperty("App::PropertyString", key)
-        shape.__setattr__(key, row.get(key, ""))
-    shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    shape.addProperty("App::PropertyString", "label").label = label_to_use
+    attach_metadata(shape, rim_row, rim_label_to_use, supplier="lowes")
     return shape
 
 created = []
@@ -128,13 +144,16 @@ right_base_x = module_length - thick
 for idx, y_pos in enumerate(positions, start=1):
     if idx == 1 or idx == len(positions):
         continue
-    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x, y_pos))
-    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x, y_pos))
+    # Nudge hangers outward along X by flange thickness so they clear the joist edge
+    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x + hanger_thickness, y_pos, facing=1))
+    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x - hanger_thickness, y_pos, facing=-1))
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x8"
+clear_group(doc, group_name)
 group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Label = group_name
+# Group after cleanup so reruns stay clean
 group.addObjects(created)
 group.Group = created
 

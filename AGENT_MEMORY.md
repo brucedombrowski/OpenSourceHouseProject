@@ -270,3 +270,9 @@ pip install -r requirements-production.txt
 - Joist modules use full-length 2x12x16 stock (overall X=195"). Updated 16x16 and 16x8 macros to group all parts, skip hangers on rim joists, and color hangers red for debugging; hangers pulled from catalog entry `hanger_LU210`.
 - Sheathing macro tiles 3/4" Advantech 4x8 panels (staggered seams) over 16x24 footprint; build macro assembles 16x16 and 16x8 modules under `First_Floor_Joists` and lifts sheathing +11.25". Catalog now includes panel and hanger entries; BOM macro consolidates panels and counts hangers.
 - Known follow-ups: hanger geometry still visually blocky and right-side placement needs refinement; keep using standalone hanger macro for inspection.
+
+## Dec 11, 2025 (FreeCAD BOM correctness & coloring)
+- Added catalog-driven color palette by nominal and length; parts are shaded by length bands (8', 10', 14', 16'+) for visual distinction.
+- `attach_metadata` now applies colors automatically and logs `[color-debug]` with label/nominal/length/color to the FreeCAD console for tracing.
+- 16x8 module rims now use `2x12x96` while joists stay `2x12x192`, ensuring BOM shows `2x12x96` qty 2 and distinct rim color. Hangers default to hardware gray unless debug mode is on.
+- Reminder: dimensional lumber labels must match the catalog entries exactly for accurate BOM; rerun `export_bom.FCMacro` after building assemblies to refresh `lumber_bom.csv`.

@@ -7,12 +7,16 @@ import os
 import sys
 import FreeCAD as App
 import Part
+import importlib
 
 # Ensure this macro folder is on sys.path before importing helpers
 _here = os.path.dirname(__file__)
 if _here not in sys.path:
     sys.path.append(_here)
 
+# Force reload helpers to avoid stale copies inside FreeCAD session
+import lumber_common
+importlib.reload(lumber_common)
 from lumber_common import (
     ensure_macro_path,
     resolve_catalog,
@@ -49,6 +53,7 @@ hanger_label = "hanger_LU210"
 hanger_thickness = 0.06     # approx 16ga
 hanger_height = 7.8125      # ~7-13/16" overall height
 hanger_seat_depth = 2.0     # back plate depth
+hanger_color = None         # use palette default for hardware
 
 # -----------------------
 # Helpers
@@ -85,13 +90,20 @@ def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     return shape
 
 def make_hanger(name, x_pos, y_center, facing=1):
-    # facing unused now; seat depth is always positive, we place base_x toward interior
-    h = make_hanger_helper(doc, name, x_pos, y_center, thick, hanger_thickness, hanger_height, hanger_seat_depth, hanger_label)
-    # Debug: color hangers to verify updates
-    try:
-        h.ViewObject.ShapeColor = (1.0, 0.2, 0.2)
-    except Exception:
-        pass
+    # facing: +1 pushes into +X (left rim), -1 pushes into -X (right rim)
+    h = make_hanger_helper(
+        doc,
+        name,
+        x_pos,
+        y_center,
+        thick,
+        hanger_thickness,
+        hanger_height,
+        hanger_seat_depth,
+        hanger_label,
+        direction=facing,
+        color=hanger_color,
+    )
     return h
 
 # Rim joists at ends, running perpendicular to joists (along Y)
@@ -100,12 +112,7 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
     shape.Placement.Base = App.Vector(inch(x_pos - thick/2.0), 0, 0)
-    for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
-        if key not in shape.PropertiesList:
-            shape.addProperty("App::PropertyString", key)
-        shape.__setattr__(key, row.get(key, ""))
-    shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
-    shape.addProperty("App::PropertyString", "label").label = label_to_use
+    attach_metadata(shape, row, label_to_use, supplier="lowes")
     return shape
 
 # Place rim joists: left rim centered at 0.75, right rim centered at module_length - 0.75
@@ -146,10 +153,12 @@ right_base_x = module_length - thick
 for idx, y_pos in enumerate(positions, start=1):
     if idx == 1 or idx == len(positions):
         continue
-    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x, y_pos))
-    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x, y_pos))
+    # Nudge hangers outward along X by flange thickness so they clear the joist edge
+    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x + hanger_thickness, y_pos, facing=1))
+    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x - hanger_thickness, y_pos, facing=-1))
 
 # Create group first, then attach all parts (some FreeCAD builds ignore addObjects unless Group exists)
+clear_group(doc, group_name)
 group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Label = group_name
 for obj in created:

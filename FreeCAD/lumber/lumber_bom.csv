@@ -1,3 +1,5 @@
 label,qty,supplier,sku_lowes,url_lowes,sku_hd,url_hd
-2x12x192,24,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-16-ft-Standard/1000220445,100086492,https://www.homedepot.com/p/2-in-x-12-in-x-16-ft-Prime-Whitewood-Lumber-100086492/100007971
+2x12x192,22,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-16-ft-Standard/1000220445,100086492,https://www.homedepot.com/p/2-in-x-12-in-x-16-ft-Prime-Whitewood-Lumber-100086492/100007971
+hanger_LU210,32,lowes,,,,
+2x12x96,2,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-8-ft-Standard/1000220439,915595,https://www.homedepot.com/p/2-in-x-12-in-x-96-in-Prime-Whitewood-Board-915595/203927582
 panel_advantech_4x8,13,lowes,TBD,TBD,,
