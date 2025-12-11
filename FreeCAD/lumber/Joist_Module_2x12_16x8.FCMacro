@@ -24,7 +24,7 @@ stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 192.0        # Overall X dimension (outer edge to outer edge)
 module_width  = 96.0         # Overall Y dimension (8')
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.0    # No offset for first joist center
+offset_first_center = 0.75    # No offset for first joist center
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 
 # -----------------------

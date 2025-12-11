@@ -193,12 +193,12 @@ pip install -r requirements-production.txt
   - New endpoint `/scheduler/set-project-start/` calculates delta from earliest task's start and shifts ALL tasks proportionally
   - Simpler UX: one button, one prompt, one action shifts entire project timeline forward/backward
 
-- **Dec 9, 2025** (FreeCAD lumber workspace):
+- **Dec 11, 2025** (FreeCAD lumber workspace):
   - Added `FreeCAD/` workspace with `lumber/lumber_catalog.csv` populated with Lowe’s/HD SKUs/URLs (note: SKUs may vary by region; documented in catalog).
   - Macros live in `FreeCAD/lumber/`; set FreeCAD macro path to that folder. Current joist macros: `Joist_Module_2x12_16x16.FCMacro` and `Joist_Module_2x12_16x8.FCMacro` (defaults supplier=`lowes`, optional `_PT` lookup).
   - BOM macro: `export_bom.FCMacro` emits `lumber_bom.csv` using part metadata.
   - Snapshot macro: `snapshot_with_dims.FCMacro` creates `module_snapshot.png` with key dimensions (orthographic top view, large font).
-  - Joist module uses upright boards: X=length, Y=thickness, Z=depth; origin at lower-left rim for symmetry/tiling. Macro now groups all created parts into a single module assembly.
+  - Joist module uses upright boards: X=length, Y=thickness, Z=depth; origin at lower-left rim for symmetry/tiling. Macros group all created parts into a single module assembly; 16x8 module uses a 0.75" first-center offset to align rims/joists.
 
 # AGENT_MEMORY.md
 
