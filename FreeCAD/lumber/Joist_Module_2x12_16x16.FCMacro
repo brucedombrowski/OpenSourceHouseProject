@@ -26,7 +26,7 @@ stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 192.0        # Overall X dimension (outer edge to outer edge)
 module_width  = 192.0        # Overall Y dimension
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.75   # Offset for first interior joist (inches) for sheathing alignment
+offset_first_center = 0.75   # Base offset; Joist_1 will be shifted +0.75 per layout rules below
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 
 # -----------------------
@@ -105,14 +105,31 @@ left_rim  = make_rim("Rim_Left", 0.75, module_width); created.append(left_rim)
 right_rim = make_rim("Rim_Right", module_length - thick + 0.75, module_width); created.append(right_rim)
 
 # Interior joists
+positions = []
 y = offset_first_center
-idx = 1
 while y < module_width - offset_first_center:
-    created.append(make_joist(f"Joist_{idx}", y, module_length - 2 * thick))
+    positions.append(y)
     y += spacing_oc
-    idx += 1
-# Add a final joist near the far edge to close the box
-created.append(make_joist(f"Joist_{idx}", module_width - offset_first_center, module_length - 2 * thick))
+# Ensure final joist near far edge to close the box
+if module_width - offset_first_center not in positions:
+    positions.append(module_width - offset_first_center)
+
+# Apply requested adjustments:
+# - Joist_1 positioned +0.75" in Y from the base offset
+# - Joists 2-6 remain 16" OC from Joist_1 baseline
+# - Joist_7 shifted -1.5" relative to its current placement w.r.t Joist_1
+if positions:
+    positions[0] = positions[0] + 0.75  # Joist_1 shift
+if len(positions) >= 2:
+    base = positions[0]
+    for i in range(1, min(6, len(positions))):
+        positions[i] = base + i * spacing_oc
+if len(positions) >= 7:
+    positions[6] = positions[6] - 1.5  # Joist_7 shift toward interior
+
+# Build joists
+for idx, y_pos in enumerate(positions, start=1):
+    created.append(make_joist(f"Joist_{idx}", y_pos, module_length - 2 * thick))
 
 # Group the assembly so it behaves as a single module in the tree
 group_name = "Joist_Module_2x12_16x16"
