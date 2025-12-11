@@ -1,7 +1,6 @@
-# FreeCAD macro: build a joist assembly from the lumber_catalog.csv entries.
-# Usage: Set the params below, then run the macro. It will create rim joists and interior joists
-# spaced 16" OC (default) with a 3/4" offset for sheathing alignment. It pulls actual dimensions
-# from the catalog row whose label matches `stock_label`.
+# FreeCAD macro: build a 16' x 8' joist assembly (2x12 stock) from lumber_catalog.csv.
+# Orientation: X = 16' run (192"), Y = width (96"), boards stand upright (X=length, Y=thickness, Z=depth).
+# Spacing: 16" OC, no initial 3/4" offset (starts at origin-aligned center).
 
 import csv
 import os
@@ -11,7 +10,6 @@ import Part
 # -----------------------
 # Parameters (inches)
 # -----------------------
-# Resolve catalog path robustly: first next to this macro, then parent project FreeCAD/lumber.
 _macro_dir = os.path.dirname(__file__)
 _project_root = os.path.dirname(os.path.dirname(_macro_dir))
 catalog_candidates = [
@@ -24,9 +22,9 @@ if not catalog_path:
 
 stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
 module_length = 192.0        # Overall X dimension (outer edge to outer edge)
-module_width  = 192.0        # Overall Y dimension
+module_width  = 96.0         # Overall Y dimension (8')
 spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.75   # Offset for first interior joist (inches) for sheathing alignment
+offset_first_center = 0.0    # No offset for first joist center
 make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
 
 # -----------------------
@@ -63,22 +61,18 @@ if not row:
 thick = float(row["actual_thickness_in"])
 width = float(row["actual_width_in"])
 
-doc = App.ActiveDocument or App.newDocument("FloorJoists_from_catalog")
+doc = App.ActiveDocument or App.newDocument("Joist_Module_2x12_16x8")
 
 def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
     # X = length, Y = thickness, Z = depth (standing upright)
     box = make_box(length, thick, depth)
     shape = doc.addObject("Part::Feature", name)
     shape.Shape = box
-    # Place so joists run along X; distribute along Y (spacing_oc)
     shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick/2.0), 0)
-    # Attach metadata
     for key in ("sku_lowes", "url_lowes", "sku_hd", "url_hd"):
         if key not in shape.PropertiesList:
             shape.addProperty("App::PropertyString", key)
         shape.setPropertyStatus(key, ['Hidden'])
-        shape.setPropertyStatus(key, [])
-        shape.setExpression(key, None)
         shape.setPropertyStatus(key, [])
         shape.__setattr__(key, row.get(key, ""))
     shape.addProperty("App::PropertyString", "supplier").supplier = "lowes"
@@ -99,8 +93,9 @@ def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
     shape.addProperty("App::PropertyString", "label").label = label_to_use
     return shape
 
-# Place rim joists with 3/4" offsets: left rim starts at +0.75, right rim ends at module_length + 0.75
 created = []
+
+# Rims: left starts at +0.75, right ends at module_length + 0.75 (matching 16x16 logic)
 left_rim  = make_rim("Rim_Left", 0.75, module_width); created.append(left_rim)
 right_rim = make_rim("Rim_Right", module_length - thick + 0.75, module_width); created.append(right_rim)
 
@@ -115,7 +110,7 @@ while y < module_width - offset_first_center:
 created.append(make_joist(f"Joist_{idx}", module_width - offset_first_center, module_length - 2 * thick))
 
 # Group the assembly so it behaves as a single module in the tree
-group_name = "Joist_Module_2x12_16x16"
+group_name = "Joist_Module_2x12_16x8"
 group = doc.getObject(group_name) or doc.addObject("App::DocumentObjectGroup", group_name)
 group.Group = created
 
