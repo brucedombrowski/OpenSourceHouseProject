@@ -51,4 +51,5 @@ Provide a macro (e.g., `export_bom.FCMacro`) that:
 - Or symlink/copy macros into your user macro folder (e.g., `~/.FreeCAD/Macro` on Linux/Mac):
 - `ln -s <repo>/FreeCAD/lumber/Joist_Module_2x12_16x16.FCMacro ~/.FreeCAD/Macro/`
 - `ln -s <repo>/FreeCAD/lumber/Joist_Module_2x12_16x8.FCMacro ~/.FreeCAD/Macro/`
-- After setting the macro path or symlink, the macros (e.g., `Joist_Module_2x12_16x16.FCMacro`, `Joist_Module_2x12_16x8.FCMacro`) should appear in the Macro dialog without manual import.
+- `ln -s <repo>/FreeCAD/lumber/Build_House_16x24_From_Modules.FCMacro ~/.FreeCAD/Macro/`
+- After setting the macro path or symlink, the macros (e.g., `Joist_Module_2x12_16x16.FCMacro`, `Joist_Module_2x12_16x8.FCMacro`, `Build_House_16x24_From_Modules.FCMacro`) should appear in the Macro dialog without manual import.
