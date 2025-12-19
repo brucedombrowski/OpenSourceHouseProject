@@ -114,12 +114,15 @@ SEPTIC_SYSTEM = {
     "leach_field_width_ft": 20.0,  # Trench width + spacing
     "leach_field_trench_count": 3,
     "leach_field_trench_spacing_ft": 10.0,
-    # Drain line from house to tank
+    # Drain line from house to tank (routed around piles)
     "drain_line_diameter_in": 4.0,  # 4" PVC drain
     "drain_line_depth_in": 24.0,  # 2' below grade (frost line + code)
     # Stub-up location (rear of house, centered)
     "stub_up_x_ft": 25.0,  # Centered on lot
-    "stub_up_y_ft": 68.0,  # Just behind rear piles (last pile at Y=68')
+    "stub_up_y_ft": 65.0,  # Front of rear piles (rear piles at Y=68', so stub at Y=65')
+    # Drain line waypoint (route around piles to east side)
+    "drain_line_waypoint_x_ft": 47.0,  # East of pile grid (piles end at ~45')
+    "drain_line_waypoint_y_ft": 70.0,  # Behind rear piles
 }
 
 # ============================================================

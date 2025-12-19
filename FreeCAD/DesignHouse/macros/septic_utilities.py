@@ -111,7 +111,8 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
         - 4" Schedule 40 PVC (typical sewer drain)
         - Slope: 1/4" per foot (2% grade, typical for 4" drain per IPC 704.1)
         - 90-degree bends with 12" radius (typical for 4" PVC)
-        - Path: Straight from house stub-up, then 90° bend down to run depth, then to tank
+        - Path: Routes around piles to side of house, then to tank
+        - Uses waypoint to avoid pile grid
 
     Args:
         doc: FreeCAD document
@@ -127,10 +128,19 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
     diameter_in = config["drain_line_diameter_in"]
     depth_start_in = config["drain_line_depth_in"]  # Start depth at house
 
+    # Waypoint to route around piles
+    waypoint_x_ft = config.get("drain_line_waypoint_x_ft", start_x_ft)
+    waypoint_y_ft = config.get("drain_line_waypoint_y_ft", start_y_ft)
+
     # Calculate slope (1/4" per foot = 0.02083 ft/ft)
     slope_in_per_ft = 0.25
-    horizontal_run_ft = end_y_ft - start_y_ft
-    depth_change_in = horizontal_run_ft * slope_in_per_ft
+
+    # Calculate total horizontal run including waypoint routing
+    run_1_ft = ((waypoint_x_ft - start_x_ft) ** 2 + (waypoint_y_ft - start_y_ft) ** 2) ** 0.5
+    run_2_ft = ((end_x_ft - waypoint_x_ft) ** 2 + (end_y_ft - waypoint_y_ft) ** 2) ** 0.5
+    total_run_ft = run_1_ft + run_2_ft
+
+    depth_change_in = total_run_ft * slope_in_per_ft
     depth_end_in = depth_start_in + depth_change_in
 
     # PVC pipe parameters
@@ -143,9 +153,16 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
     seg1_start = App.Vector(bc.ft(start_x_ft), bc.ft(start_y_ft), 0)
     seg1_end = App.Vector(bc.ft(start_x_ft), bc.ft(start_y_ft), bc.inch(-depth_start_in))
 
-    # Segment 2: Horizontal run from house to tank (with slope)
+    # Segment 2: Horizontal run to waypoint (around piles)
     seg2_start = seg1_end
-    seg2_end = App.Vector(bc.ft(end_x_ft), bc.ft(end_y_ft), bc.inch(-depth_end_in))
+    depth_at_waypoint_in = depth_start_in + (run_1_ft * slope_in_per_ft)
+    seg2_end = App.Vector(
+        bc.ft(waypoint_x_ft), bc.ft(waypoint_y_ft), bc.inch(-depth_at_waypoint_in)
+    )
+
+    # Segment 3: Horizontal run from waypoint to tank
+    seg3_start = seg2_end
+    seg3_end = App.Vector(bc.ft(end_x_ft), bc.ft(end_y_ft), bc.inch(-depth_end_in))
 
     # Create pipe segments as cylinders
     segments = []
@@ -161,7 +178,7 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
         )
         segments.append(seg1_pipe)
 
-    # Segment 2: Sloped horizontal run
+    # Segment 2: Sloped horizontal run to waypoint
     seg2_vec = seg2_end - seg2_start
     seg2_length_mm = seg2_vec.Length
     if seg2_length_mm > 0.1:  # Only create if non-zero length
@@ -171,13 +188,26 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
         )
         segments.append(seg2_pipe)
 
-    # Create 90° bend at junction (elbow fitting)
-    # Bend center is at seg1_end, transitioning from vertical to horizontal
-    if len(segments) >= 2:
-        # Create torus for bend (simplified as small cylinder for now)
-        bend_center = seg1_end
-        bend = Part.makeSphere(bc.inch(outer_radius_in * 1.5), bend_center)
-        segments.append(bend)
+    # Segment 3: Sloped horizontal run from waypoint to tank
+    seg3_vec = seg3_end - seg3_start
+    seg3_length_mm = seg3_vec.Length
+    if seg3_length_mm > 0.1:  # Only create if non-zero length
+        seg3_direction = seg3_vec.normalize()
+        seg3_pipe = Part.makeCylinder(
+            bc.inch(outer_radius_in), seg3_length_mm, seg3_start, seg3_direction
+        )
+        segments.append(seg3_pipe)
+
+    # Create bends at junctions (elbow fittings)
+    # Bend 1: vertical to horizontal at stub-up
+    if len(segments) >= 1:
+        bend1 = Part.makeSphere(bc.inch(outer_radius_in * 1.5), seg1_end)
+        segments.append(bend1)
+
+    # Bend 2: waypoint turn
+    if len(segments) >= 3:
+        bend2 = Part.makeSphere(bc.inch(outer_radius_in * 1.5), seg2_end)
+        segments.append(bend2)
 
     # Combine all segments into compound shape
     drain_line = doc.addObject("Part::Feature", "Drain_Line_4in_PVC")
@@ -185,7 +215,7 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
         drain_line.Shape = Part.Compound(segments)
     else:
         # Fallback: simple line if segments failed
-        drain_line.Shape = Part.makeLine(seg1_start, seg2_end)
+        drain_line.Shape = Part.makeLine(seg1_start, seg3_end)
 
     return drain_line
 
