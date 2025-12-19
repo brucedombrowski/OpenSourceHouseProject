@@ -33,3 +33,13 @@ label,nominal,actual_thickness_in,actual_width_in,length_in,treatment,sku_lowes,
 2x12x96_PT,2x12,1.5,11.25,96,PT,1027,"https://www.lowes.com/pd/2-in-x-12-in-x-8-ft-2-Pressure-Treated-Lumber/1000064975",100086500,"https://www.homedepot.com/p/2-in-x-12-in-x-8-ft-Pressure-Treated-Lumber-100086500/100047290","SKUs/URLs may vary by region; verify before ordering."
 panel_advantech_4x8,4x8_panel,0.75,48,96,Advantech,TBD,TBD,,,,
 hanger_LU210,hardware_lu210,0.06,3.0,12.0,Hardware,LU210,"https://www.strongtie.com/facemounthangersssl_lsseriesluproductgroup/lu_base/product","",,"Simpson LU210 face-mount hanger (approx dims; verify region/SKU)"
+plywood_0.5x4x8,4x8_panel,0.5,48,96,Sheathing,TBD,TBD,,,,"Generic 1/2\" plywood 4x8 sheet; used for header rip consolidation"
+ply_rip_0.5x11.25x93,ply_rip,0.5,11.25,93,Sheathing,TBD,TBD,,,,"Ripped 1/2\" ply 11.25\" x 93\" for header sandwich"
+hurricane_tie_H2.5A,hardware_hurricane,0.06,1.6,5.0,Hardware,H2.5A,"https://www.strongtie.com/hiprooftrussclipshurricaneclips_connectors/h1_h2.5a/product","",,"Simpson H2.5A hurricane tie (handed; typical rafter-to-plate tie)"
+hurricane_tie_H1,hardware_hurricane,0.06,1.6,3.5,Hardware,H1,"https://www.strongtie.com/hiprooftrussclipshurricaneclips_connectors/h1_h2.5a/product","",,"Simpson H1 hurricane tie (use on gable/ladder framing as needed)"
+strap_LSTA12,hardware_strap,0.05,1.25,12.0,Hardware,LSTA12,"https://www.strongtie.com/rolltiedstraps_straightstraps/lst/product","",,"Simpson LSTA12 light strap (optional ceiling/rafter continuity tie)"
+strap_LSTA18,hardware_strap,0.05,1.25,18.0,Hardware,LSTA18,"https://www.strongtie.com/rolltiedstraps_straightstraps/lst/product","",,"Simpson LSTA18 light strap (longer optional tie/drag)"
+deckboard_5_4x6x192_PT,deck,1.0,5.5,192,PT,TBD,TBD,,,,"5/4x6x16' deck board, PT; add SKU/URL when selected (placeholder)"
+post_6x6x96_PT,6x6,5.5,5.5,96,PT,TBD,TBD,,,,"6x6x8' PT post for deck/porch support (placeholder SKU)"
+post_6x6x120_PT,6x6,5.5,5.5,120,PT,TBD,TBD,,,,"6x6x10' PT post for deck/porch support (placeholder SKU)"
+post_6x6x144_PT,6x6,5.5,5.5,144,PT,TBD,TBD,,,,"6x6x12' PT post for deck/porch support (placeholder SKU)"

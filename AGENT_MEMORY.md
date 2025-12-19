@@ -87,6 +87,13 @@ pip install -r requirements-production.txt
 
 ## Session History Notes
 
+- **Jan 2026** (FreeCAD build usability + multi-trade goal):
+  - `run_build_house.sh` now timestamps output files, force-quits FreeCAD/FreeCADCmd after the macro run, and reopens the generated FCStd in the GUI for review.
+  - `Build_House_16x24_From_Modules.FCMacro` forces all objects/groups visible in the saved document to avoid manual unhide steps when opening.
+  - Forward-looking: expand FreeCAD workspace beyond lumber to plumbing/electrical/HVAC/appliances, aiming at a full build-ready house model; robotics is a future execution layer, but near-term workflows assume human crews.
+  - Default build now uses the GUI FreeCAD binary (not FreeCADCmd) so colors/visibility metadata are saved into the FCStd; FreeCADCmd (headless) dropped to avoid greyscale output. 3Dconnexion driver load is disabled in the script to suppress warnings on machines without the hardware.
+  - BOM now auto-runs as part of the build macro (export_bom.FCMacro), regenerating `lumber_bom.csv` on each `run_build_house.sh` invocation. `LUMBER_RUN_BOM=0` can disable if needed.
+
 - **Dec 9, 2025** (Gantt regression guard):
   - Added regression test ensuring resource calendar builds when tasks lack owners; updated owner assertion to read from resource calendar context
   - Full Django suite now 45 tests, all green; commit `354b687` pushed to `main`
@@ -276,3 +283,23 @@ pip install -r requirements-production.txt
 - `attach_metadata` now applies colors automatically and logs `[color-debug]` with label/nominal/length/color to the FreeCAD console for tracing.
 - 16x8 module rims now use `2x12x96` while joists stay `2x12x192`, ensuring BOM shows `2x12x96` qty 2 and distinct rim color. Hangers default to hardware gray unless debug mode is on.
 - Reminder: dimensional lumber labels must match the catalog entries exactly for accurate BOM; rerun `export_bom.FCMacro` after building assemblies to refresh `lumber_bom.csv`.
+
+## Jan 3, 2026 (FreeCAD 16' stud wall + placement)
+- Added `Wall_2x4_16ft.FCMacro`: builds a 16' wall with 2x4x192 plates (top/bottom) and 2x4x104.625 studs at 16" OC. Group name `Wall_2x4_16ft`, built at origin with Z=0 at the bottom plate.
+- `Build_House_16x24_From_Modules.FCMacro` now runs the wall macro and places it on the sheathing, sitting on top of the panels (Z = 12") and flush to the corner (no inset). Wall runs along +Y so it aligns with the 16' edge of the 16x24 footprint. Added a `First_Floor_Framing` group; wall lives there with label `Left_Wall` instead of inside the joists group.
+
+## Jan 3, 2026 (FreeCAD snapshot updates)
+- Updated `snapshot_with_dims.FCMacro` to scope to a selected group (if exactly one is selected) and to add bay spacing dimensions between adjacent members (studs/joists) using face-to-face gaps. Still adds overall X/Y dims, sets top orthographic view, saves `module_snapshot.png`, then cleans temporary dimensions.
+
+## Jan 3, 2026 (FreeCAD assembly group structure)
+- `Build_House_16x24_From_Modules.FCMacro` now creates separate top-level groups: `First_Floor_Joists`, `First_Floor_Sheathing`, and `First_Floor_Framing`. Joist modules live under joists; sheathing is its own group; framing holds `Left_Wall`. Cleans previous groups before rebuild.
+
+## Jan 3, 2026 (FreeCAD double 3x5 window wall)
+- Added `Window_Wall_Double_3x5.FCMacro`: 8' wall along +Y with 2x4x96 plates, 104.625" king studs (ends/header kings/center), 80" jack studs, a cut 2x12 header (90" span), sill at 20", two 36"x60" rough openings with 1.5" center post, and cripples above/below. Group name `Window_Wall_Double_3x5`, origin at lower-left.
+- Added `Window_Wall_Double_3x5_Step1.FCMacro`: minimal starting state (top/bottom 2x4x96 plates + left/right 104.625" kings) with ROYGBIV colors for iterative visualization. Group `Window_Wall_Double_3x5_Step1`, origin at lower-left, wall runs +Y.
+- Added `FreeCAD/lumber/Window_Wall_Double_3x5_BUILD.md`: human-readable build notes for the double 3x5 window wall; currently documents Step 1 (plates + end kings) and outlines upcoming steps (jacks + built-up header, sill/RO/cripples, sliding door variant).
+- Adjusted `Window_Wall_Double_3x5_Step1.FCMacro` to rotate the end king studs 90° so their faces align with the plates (thickness along Y, width along X).
+- Updated `Window_Wall_Double_3x5.FCMacro` to include jacks (80") inside kings and a built-up header (2x12x7'9" x2 + 0.5" rip 11.25x7'9") sitting on the jacks; header plies offset along X (0.0, +1.5, +2.0) with same Y origin. Added cap plate (2x4x93), seven short blocks (2x4x11-7/8") at 16" OC atop the header (shifted +1.5" in Z), seven short bottom studs (2x4x15.5") at 16" OC along the bottom plate, and a 2x4x90 cap centered between jacks above the short studs. Colors by dimension: plates=red, kings=yellow, jacks=green, header=orange, ply=blue, blocks=teal, bottom shorts=violet. Single macro now iterated (no new step files).
+- Updated `Window_Wall_Double_3x5.FCMacro` to include jacks (80") inside kings and a built-up header (2x12x7'9" x2 + 0.5" rip 11.25x7'9") sitting on the jacks; header plies offset along X (0.0, +1.5, +2.0) with same Y origin. Added cap plate (2x4x93), seven short blocks (2x4x11-7/8") at 16" OC atop the header (shifted +1.5" in Z), seven short bottom studs (2x4x15.5") at 16" OC along the bottom plate with offsets: first stud +1.5" in Y, seventh stud -6" in Y, a 2x4x90 cap centered between jacks above the short studs, a second 2x4x90 cap stacked above, six 2x4x60 studs laid out as: stud1 at cap_start (aligned to right face of left jack), stud2 +36", stud3 adjacent (+1.5"), stud4 = stud3+15", stud5 adjacent (+1.5"), stud6 = stud5+36" (lands near right jack), and a top 2x4x90 cap over those studs (aligns with header underside). Colors by dimension: plates=red, kings=yellow, jacks=green, header=orange, ply=blue, blocks=teal, bottom shorts=violet, mid studs=yellow. Single macro now iterated (no new step files).
+- Catalog: added `plywood_0.5x4x8` (4x8_panel) for header rip so BOM counts sheet area; window wall rip now tagged to this label.
+- Build macro: added window wall into `Build_House_16x24_From_Modules.FCMacro` (placed next to Left_Wall at Y=192", Z on sheathing) and removed redundant sheathing wrapper; run_macro now opens files with `encoding=\"utf-8\"` to avoid ASCII decode errors.

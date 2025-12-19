@@ -8,6 +8,9 @@ import Part
 
 import FreeCAD as App
 
+# Debug/verbosity switches (can be overridden with env vars)
+COLOR_DEBUG = os.environ.get("LUMBER_COLOR_DEBUG", "").lower() in ("1", "true", "yes")
+
 # -----------------------
 # Color palette helpers
 # -----------------------
@@ -107,13 +110,14 @@ def attach_metadata(obj, row, label, supplier="lowes"):
         col = color_for_row(row)
         if col and hasattr(obj, "ViewObject"):
             obj.ViewObject.ShapeColor = col
-        try:
-            length_in = row.get("length_in", "?")
-            App.Console.PrintMessage(
-                f"[color-debug] label={label} nominal={row.get('nominal','?')} length_in={length_in} color={col}\n"
-            )
-        except Exception:
-            pass
+        if COLOR_DEBUG:
+            try:
+                length_in = row.get("length_in", "?")
+                App.Console.PrintMessage(
+                    f"[color-debug] label={label} nominal={row.get('nominal','?')} length_in={length_in} color={col}\n"
+                )
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -142,75 +146,95 @@ def make_hanger(
     hanger_seat_depth,
     hanger_label="hanger",
     direction=1,
+    axis="X",
     debug_components=False,
     color=None,
 ):
     """
-    Build a simple U-shape hanger (back plate + seat + two side flanges + front lip).
+    Build a simple U-shape hanger (rim flange + seat + two side flanges + far flange).
+    Built at origin in local coordinates, then translated to the requested rim face.
 
-    x_pos is the face of the rim the hanger mounts to.
-    direction=+1: hanger extends into +X (left rim interior).
-    direction=-1: hanger extends into -X (right rim interior).
+    axis="X": rim face at x_pos, hanger extends along ±X.
+    axis="Y": rim face at y_pos (x_pos arg), hanger extends along ±Y.
+    direction=+1 extends into +axis; direction=-1 extends into -axis.
 
-    When debug_components is True, return a colored group of sub-parts instead of a fused solid.
+    When debug_components is True, return a colored group of sub-parts instead of a fused solid (used by test macro).
     """
     bh = hanger_height
     bd = hanger_seat_depth
     bt = hanger_thickness
     z0 = -bt  # drop seat below joist bottom
     direction = 1 if direction >= 0 else -1
+    axis = (axis or "X").upper()
 
-    # Position solids so they always extend into the module interior.
-    if direction > 0:
-        back_base_x = x_pos - bt  # back plate sits on rim face
-        seat_base_x = back_base_x + bt  # seat starts just inside the back
-        front_base_x = back_base_x  # lip sits in same X plane as back
+    # Build at origin in local coordinates: A-axis = seat length, B-axis = joist thickness, Z up
+    if axis == "Y":
+        # Local A (seat length) -> world Y, Local B (joist thickness) -> world X
+        seat = Part.makeBox(inch(thick), inch(bd), inch(bt))  # X=thickness, Y=length
+        seat.Placement.Base = App.Vector(0, 0, inch(z0))
+        sideL = Part.makeBox(inch(thick), inch(bt), inch(bh))
+        sideL.Placement.Base = App.Vector(0, 0, inch(z0))  # shift back -bt in X
+        sideL.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
+        sideR = Part.makeBox(inch(thick), inch(bt), inch(bh))
+        sideR.Placement.Base = App.Vector(
+            inch(thick + bt), 0, inch(z0)
+        )  # far side shift +X by hanger thickness
+        sideR.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
+        flangeL = Part.makeBox(inch(thick), inch(bt), inch(bh))
+        flangeL.Placement.Base = App.Vector(
+            -inch(bt + thick), 0, inch(z0)
+        )  # rim flange at X=-bt-thick
+        flangeR = Part.makeBox(inch(thick), inch(bt), inch(bh))
+        flangeR.Placement.Base = App.Vector(
+            inch(thick + bt), 0, inch(z0)
+        )  # far flange at X=thick+bt
+
+        assembled = seat.fuse([sideL, sideR, flangeL, flangeR])
+        # Rotate to flip rim/far orientation when extending toward -Y
+        rot_z = 0 if direction > 0 else 180
+        assembled.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), rot_z)
+        # Translate: center on joist thickness (world X = y_center), rim face to world Y = x_pos
+        tx = inch(y_center - (thick / 2.0))  # center on joist thickness (no extra offset)
+        ty = inch(x_pos)
+        assembled.Placement.Base = App.Vector(tx, ty, 0)
     else:
-        back_base_x = x_pos  # back plate sits on rim face
-        seat_base_x = back_base_x - bd  # seat extends toward negative X
-        front_base_x = back_base_x - bt  # lip sits in same X plane as back
+        # axis == "X": local A -> world X, local B -> world Y
+        seat = Part.makeBox(inch(bd), inch(thick), inch(bt))
+        seat.Placement.Base = App.Vector(0, 0, inch(z0))
+        sideL = Part.makeBox(inch(bd), inch(bt), inch(bh))
+        sideL.Placement.Base = App.Vector(0, -inch(bt), inch(z0))
+        sideR = Part.makeBox(inch(bd), inch(bt), inch(bh))
+        sideR.Placement.Base = App.Vector(0, inch(thick), inch(z0))
+        flangeL = Part.makeBox(inch(bt), inch(thick), inch(bh))
+        flangeL.Placement.Base = App.Vector(
+            0, -inch(bt + thick), inch(z0)
+        )  # rim side at x=0, y=-bt-thick
+        flangeR = Part.makeBox(inch(bt), inch(thick), inch(bh))
+        flangeR.Placement.Base = App.Vector(0, inch(thick + bt), inch(z0))  # far side at Y=thick+bt
 
-    # Back plate (treat as left flange in debug): same size as front lip; align its right edge to the green flange (-Y face)
-    back = Part.makeBox(inch(bt), inch(thick), inch(bh))
-    back.Placement.Base = App.Vector(
-        inch(back_base_x), inch(y_center - thick / 2.0 - thick), inch(z0)
-    )
-
-    # Seat (spans joist width only)
-    seat = Part.makeBox(inch(bd), inch(thick), inch(bt))
-    seat.Placement.Base = App.Vector(inch(seat_base_x), inch(y_center - thick / 2.0), inch(z0))
-
-    # Side flanges (tall plates)
-    sideL = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideL.Placement.Base = App.Vector(
-        inch(seat_base_x), inch(y_center - thick / 2.0 - bt), inch(z0)
-    )
-
-    sideR = Part.makeBox(inch(bd), inch(bt), inch(bh))
-    sideR.Placement.Base = App.Vector(inch(seat_base_x), inch(y_center + thick / 2.0), inch(z0))
-
-    # Front lip (treat as right flange in debug): same size as back, at +Y side
-    front = Part.makeBox(inch(bt), inch(thick), inch(bh))
-    front.Placement.Base = App.Vector(inch(front_base_x), inch(y_center + thick / 2.0), inch(z0))
+        assembled = seat.fuse([sideL, sideR, flangeL, flangeR])
+        tx = inch(x_pos + (bt if direction > 0 else -bt))  # shift along world X
+        ty = inch(y_center - (thick / 2.0))  # center on joist thickness
+        assembled.Placement.Base = App.Vector(tx, ty, 0)
 
     if debug_components:
         # Build individual colored parts and group them for visual debugging.
         colors = {
-            "back": (0.8, 0.2, 0.2),
+            "flangeL": (0.8, 0.2, 0.2),  # rim edge
             "seat": (0.2, 0.6, 0.9),
             "sideL": (0.2, 0.8, 0.4),
             "sideR": (0.9, 0.7, 0.2),
-            "front": (0.6, 0.4, 0.9),
+            "flangeR": (0.6, 0.4, 0.9),  # far edge
         }
         if color:
             for k in colors:
                 colors[k] = color
         pieces = [
-            ("back", back),
+            ("flangeL", flangeL),
             ("seat", seat),
             ("sideL", sideL),
             ("sideR", sideR),
-            ("front", front),
+            ("flangeR", flangeR),
         ]
 
         grp = doc.addObject("App::DocumentObjectGroup", name)
@@ -234,9 +258,8 @@ def make_hanger(
         grp.Group = objs
         return grp
     else:
-        u_shape = back.fuse([seat, sideL, sideR, front])
         obj = doc.addObject("Part::Feature", name)
-        obj.Shape = u_shape
+        obj.Shape = assembled
         obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
         obj.addProperty("App::PropertyString", "label").label = hanger_label
         # Default to hardware palette if no color provided

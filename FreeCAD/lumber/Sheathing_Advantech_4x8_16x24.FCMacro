@@ -18,7 +18,7 @@ if not catalog_path:
     raise FileNotFoundError(f"Could not find lumber_catalog.csv. Checked: {catalog_candidates}")
 
 panel_label = "panel_advantech_4x8"
-footprint_x = 195.0  # inches (16' 3") matches full-length joists + rims
+footprint_x = 195.5  # inches (16' 3.5") to cover joists plus 1/2" plywood shim
 footprint_y = 288.0  # inches (24')
 
 def inch(x): return x * 25.4

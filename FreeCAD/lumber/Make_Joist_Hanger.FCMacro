@@ -29,9 +29,9 @@ hanger_height = 7.8125      # 7-13/16"
 hanger_seat_depth = 2.0     # seat/back depth into rim
 joist_thick = 1.5           # 2x thickness
 joist_width = 11.25         # 2x12 depth
-color = (0.75, 0.75, 0.75)  # neutral metal tone
+color = None                # None = keep per-part debug colors
 direction = 1               # +1 = extends into +X (useful for left rim); -1 flips into -X
-debug_components = False    # fused solid (set True to see colored sub-parts)
+debug_components = True     # show colored sub-parts and names for review
 
 doc = App.ActiveDocument or App.newDocument("Hanger_Test")
 
@@ -53,12 +53,8 @@ h = make_hanger(
     hanger_label=hanger_label,
     direction=direction,
     debug_components=debug_components,
+    color=color,
 )
-try:
-    if hasattr(h, "ViewObject"):
-        h.ViewObject.ShapeColor = color
-except Exception:
-    pass
 
 doc.recompute()
 try:

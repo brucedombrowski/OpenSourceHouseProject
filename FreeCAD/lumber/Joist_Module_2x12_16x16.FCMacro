@@ -104,6 +104,11 @@ def make_hanger(name, x_pos, y_center, facing=1):
         direction=facing,
         color=hanger_color,
     )
+    if facing < 0:
+        # Flip 180 deg about Z so far flange sits correctly on the opposite rim face
+        pl = h.Placement
+        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
+        h.Placement = pl
     return h
 
 # Rim joists at ends, running perpendicular to joists (along Y)
@@ -150,20 +155,27 @@ for idx, y_pos in enumerate(positions, start=1):
 # Place back plate/seat with interior face at the rim interior (seat extends -X)
 left_base_x = thick
 right_base_x = module_length - thick
+hanger_objs = []
 for idx, y_pos in enumerate(positions, start=1):
     if idx == 1 or idx == len(positions):
         continue
     # Nudge hangers outward along X by flange thickness so they clear the joist edge
-    created.append(make_hanger(f"Hanger_L_{idx}", left_base_x + hanger_thickness, y_pos, facing=1))
-    created.append(make_hanger(f"Hanger_R_{idx}", right_base_x - hanger_thickness, y_pos, facing=-1))
+    hanger_objs.append(make_hanger(f"Hanger_L_{idx}", left_base_x + hanger_thickness, y_pos, facing=1))
+    hanger_objs.append(make_hanger(f"Hanger_R_{idx}", right_base_x - hanger_thickness, y_pos, facing=-1))
+created.extend(hanger_objs)
 
 # Create group first, then attach all parts (some FreeCAD builds ignore addObjects unless Group exists)
 clear_group(doc, group_name)
 group = doc.addObject("App::DocumentObjectGroup", group_name)
 group.Label = group_name
+# Group hangers separately for clearer tree
+hanger_grp = doc.addObject("App::DocumentObjectGroup", "Joist_Hardware")
+for h in hanger_objs:
+    hanger_grp.addObject(h)
+group.addObject(hanger_grp)
 for obj in created:
     group.addObject(obj)
-group.Group = created
+group.Group = created + [hanger_grp]
 
 App.Console.PrintMessage(f"[Joist 16x16] Created {len(created)} parts, group children: {len(group.Group)}\n")
 

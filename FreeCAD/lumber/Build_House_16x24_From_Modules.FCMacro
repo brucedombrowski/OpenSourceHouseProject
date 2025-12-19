@@ -15,13 +15,207 @@ macro_dir = os.path.dirname(__file__)
 macro_16x16 = os.path.join(macro_dir, "Joist_Module_2x12_16x16.FCMacro")
 macro_16x8  = os.path.join(macro_dir, "Joist_Module_2x12_16x8.FCMacro")
 macro_sheath = os.path.join(macro_dir, "Sheathing_Advantech_4x8_16x24.FCMacro")
-sheathing_z_offset_in = 11.25  # lift sheathing to sit on top of 2x12 joists
+macro_wall = os.path.join(macro_dir, "Wall_2x4_16ft.FCMacro")
+macro_window_wall = os.path.join(macro_dir, "Window_Wall_Double_3x5.FCMacro")
+macro_sliding = os.path.join(macro_dir, "Sliding_Door_72x80.FCMacro")
+macro_roof_main = os.path.join(macro_dir, "Roof_Gable_6_12_16x24.FCMacro")
+macro_roof_porch = os.path.join(macro_dir, "Roof_Porch_Wrap_3_12_8ft.FCMacro")
+macro_deck_16x8 = os.path.join(macro_dir, "Deck_Joist_Module_2x12_16x8.FCMacro")
 
-if not all(os.path.isfile(p) for p in (macro_16x16, macro_16x8, macro_sheath)):
+# Top-level groups
+group_joists = "First_Floor_Joists"
+group_sheathing = "First_Floor_Subfloor"
+group_framing = "First_Floor_Framing"
+sheathing_z_offset_in = 11.25  # lift sheathing to sit on top of 2x12 joists
+sheathing_thickness_in = 0.75  # Advantech panel thickness
+# Place wall flush at the corner; wall runs along +Y
+wall_offset_x_in = 0.0
+wall_offset_y_in = 0.0
+wall_offset_z_in = sheathing_z_offset_in + sheathing_thickness_in  # sit on top of sheathing
+# Place window module to the right of the left wall; rotate 90 deg and shift
+window_offset_x_in = (8.0 * 12.0) + 3.5  # +8' 3.5" in X
+window_offset_y_in = 0.0  # align at Y=0
+window_offset_z_in = wall_offset_z_in
+sliding_offset_x_in = window_offset_x_in + (8.0 * 12.0)  # place 8' sliding module to the right of window module
+sliding_offset_y_in = 0.0
+sliding_offset_z_in = wall_offset_z_in
+# Right-side wall (runs +Y) placed against the front wall thickness
+right_wall_offset_x_in = 16.0 * 12.0  # 16' over in X
+right_wall_offset_y_in = 3.5          # slide back to clear front wall thickness
+right_wall_offset_z_in = wall_offset_z_in
+# Back wall (mirrors front wall) running along +X at far Y edge
+back_wall_offset_y_in = (24.0 * 12.0) - 3.5  # shift to far edge minus wall thickness
+back_wall_offset_z_in = wall_offset_z_in
+# Left side wall (matching right wall module)
+left_wall_offset_x_in = 0.0
+left_wall_offset_y_in = 16.0 * 12.0  # user-specified
+left_wall_offset_z_in = wall_offset_z_in
+# Left side short wall dimensions (8' - 3.5") with 16" OC studs
+left_side_plate_length_in = (8.0 * 12.0) - 3.5  # 92.5"
+left_side_plate_width_in = 3.5
+left_side_plate_thick_in = 1.5
+left_side_stud_width_in = 3.5
+left_side_stud_thick_in = 1.5
+left_side_stud_length_in = 104.625
+left_side_spacing_oc_in = 16.0
+# Right side short wall matches left side length/dimensions
+right_side_plate_length_in = left_side_plate_length_in
+right_side_plate_width_in = left_side_plate_width_in
+right_side_plate_thick_in = left_side_plate_thick_in
+right_side_stud_width_in = left_side_stud_width_in
+right_side_stud_thick_in = left_side_stud_thick_in
+right_side_stud_length_in = left_side_stud_length_in
+right_side_spacing_oc_in = left_side_spacing_oc_in
+right_side_offset_x_in = right_wall_offset_x_in
+right_side_offset_y_in = left_wall_offset_y_in + 3.5  # shift +3.5" in Y
+right_side_offset_z_in = wall_offset_z_in
+# Colors (sampled from main wall to reuse on short walls)
+plate_color_ref = None
+stud_color_ref = None
+# Deterministic red shades per 2x4 length
+length_color_cache = {}
+def red_shade_for_length(length_in):
+    length_in = round(length_in, 3)
+    if length_in in length_color_cache:
+        return length_color_cache[length_in]
+    # Deterministic shade per length (max length 192)
+    max_len = 192.0
+    factor = max(0.4, min(1.0, 1.0 - (length_in / max_len) * 0.4))
+    color = (1.0, 0.2 * factor, 0.2 * factor)
+    length_color_cache[length_in] = color
+    return color
+
+def force_uniform_2x4_colors(doc):
+    """Force consistent colors for 2x4 objects by length across the model."""
+    def is_2x4_dims(obj):
+        try:
+            bb = obj.Shape.BoundBox
+            dims = sorted([bb.XLength, bb.YLength, bb.ZLength])
+            # dimensions in mm; 1.5"=38.1, 3.5"=88.9
+            return abs(dims[0] - inch(1.5)) < 2.0 and abs(dims[1] - inch(3.5)) < 2.0
+        except Exception:
+            return False
+
+    def length_from_props(obj):
+        # Prefer cut_length_in if present
+        for prop in ("cut_length_in", "length_in"):
+            try:
+                if prop in obj.PropertiesList:
+                    return float(obj.__getattribute__(prop))
+            except Exception:
+                pass
+        # Try metadata label like 2x4x192
+        try:
+            if "label" in obj.PropertiesList:
+                lbl = obj.label
+            else:
+                lbl = obj.Label if hasattr(obj, "Label") else ""
+            if lbl and lbl.lower().startswith("2x4x"):
+                return float(lbl.split("x")[-1])
+        except Exception:
+            pass
+        return None
+
+    for obj in doc.Objects:
+        if not hasattr(obj, "Shape"):
+            continue
+        length_in = length_from_props(obj)
+        if length_in is None:
+            if not is_2x4_dims(obj):
+                continue
+            # infer length from bounding box largest dimension (mm to inches)
+            try:
+                bb = obj.Shape.BoundBox
+                length_in = max(bb.XLength, bb.YLength, bb.ZLength) / 25.4
+            except Exception:
+                continue
+        try:
+            obj.ViewObject.ShapeColor = red_shade_for_length(length_in)
+        except Exception:
+            pass
+
+# Helper to copy arbitrary objects with offsets and metadata/colors
+def copy_with_offset(obj, suffix, dx_in=0.0, dy_in=0.0, dz_in=0.0):
+    if not hasattr(obj, "Placement"):
+        return None
+    new_obj = doc.addObject(obj.TypeId, f"{obj.Name}_{suffix}")
+    new_obj.Shape = obj.Shape.copy()
+    new_pl = obj.Placement.copy()
+    new_pl.Base.x += inch(dx_in)
+    new_pl.Base.y += inch(dy_in)
+    new_pl.Base.z += inch(dz_in)
+    new_obj.Placement = new_pl
+    try:
+        for prop in ("sku_lowes", "url_lowes", "sku_hd", "url_hd", "supplier", "label", "cut_length_in"):
+            if prop in obj.PropertiesList:
+                if prop not in new_obj.PropertiesList:
+                    new_obj.addProperty("App::PropertyString", prop)
+                new_obj.__setattr__(prop, obj.__getattribute__(prop))
+    except Exception:
+        pass
+    try:
+        new_obj.ViewObject.ShapeColor = obj.ViewObject.ShapeColor
+    except Exception:
+        pass
+    return new_obj
+# Second story elevation (toggle rendering later)
+wall_full_height_in = 1.5 + 104.625 + 1.5  # plate + stud + plate
+second_floor_joist_base_z_in = wall_offset_z_in + wall_full_height_in + 1.5  # raise joists +1.5"
+second_floor_sheathing_z_in = second_floor_joist_base_z_in + sheathing_z_offset_in
+enable_second_floor = True  # render second floor (joists, sheathing, framing)
+# Perimeter footprint for plates/sheathing
+footprint_x_in = 195.5
+footprint_y_in = 288.0
+plate_width_in = 3.5
+plate_thick_in = 1.5
+# Add a thin plywood shim to bring the joist edge flush
+joist_strip_thickness_in = 0.5
+joist_strip_height_in = 11.25  # match 2x12 depth
+joist_strip_length_y_in = 24.0 * 12.0  # full 24' run along Y
+joist_strip_offset_x_in = 195.0  # place at the far X edge of joists
+joist_strip_name = "First_Floor_Plywood_Strip"
+
+if not all(
+    os.path.isfile(p)
+    for p in (
+        macro_16x16,
+        macro_16x8,
+        macro_sheath,
+        macro_wall,
+        macro_window_wall,
+        macro_sliding,
+        macro_roof_main,
+        macro_roof_porch,
+        macro_deck_16x8,
+    )
+):
     raise FileNotFoundError("Required module macros not found in macro directory.")
 
-# Work in active doc or create a new one
-doc = App.ActiveDocument or App.newDocument("House_16x24_from_modules")
+# Dev/testing flag: force a brand-new document each run (closes any open docs)
+DEV_FORCE_NEW_DOC = os.environ.get("LUMBER_FORCE_NEW_DOC", "").lower() in ("1", "true", "yes")
+
+if DEV_FORCE_NEW_DOC:
+    try:
+        import FreeCADGui as Gui
+        for _doc_name in list(Gui.listDocuments().keys()):
+            try:
+                Gui.closeDocument(_doc_name)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        for _doc_name in list(App.listDocuments().keys()):
+            try:
+                App.closeDocument(_doc_name)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    doc = App.newDocument("House_16x24_from_modules")
+else:
+    # Work in active doc or create a new one
+    doc = App.ActiveDocument or App.newDocument("House_16x24_from_modules")
 
 
 def run_macro(path):
@@ -36,18 +230,46 @@ def run_macro(path):
         "os": os,
         "csv": csv,
     }
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         code = f.read()
     exec(compile(code, path, "exec"), env, env)
 
 
-# Clean any previous assembly
-root_group_name = "First_Floor_Joists"
-old_root = doc.getObject(root_group_name)
-if old_root:
-    for child in list(old_root.Group):
-        doc.removeObject(child.Name)
-    doc.removeObject(old_root.Name)
+# Clean previous groups
+for gname in (group_joists, group_sheathing, group_framing):
+    old = doc.getObject(gname)
+    if old:
+        for child in list(old.Group):
+            doc.removeObject(child.Name)
+        doc.removeObject(old.Name)
+
+# Clean common residual groups/objects from reruns to avoid auto-suffixed names
+cleanup_names = [
+    "First_Floor_Top_Plate_Add",
+    "Second_Floor_Joists",
+    "Second_Floor_Subfloor",
+    "Second_Floor_Framing",
+    "Second_Floor_Top_Plate_Add",
+    "Second_Front_Wall_Group",
+    "Second_Back_Wall_Group",
+    "Second_Left_Wall_Group",
+    "Second_Right_Wall_Group",
+    "Stud_Wall_16ft_Right",
+    "Right_Short_Wall_8ft_minus_3p5",
+    "Left_Short_Wall_8ft_minus_3p5",
+    "Roof_Main_Gable_6_12",
+    "Roof_Porch_Wrap_3_12",
+    "Roofing",
+    "Deck_Front_16x8",
+    "Deck_Front_16x8_2F",
+]
+for name in cleanup_names:
+    obj = doc.getObject(name)
+    if obj:
+        if hasattr(obj, "Group"):
+            for c in list(obj.Group):
+                doc.removeObject(c.Name)
+        doc.removeObject(obj.Name)
 
 # Build first module (16x16) at origin
 run_macro(macro_16x16)
@@ -63,23 +285,578 @@ if not mod8:
 
 offset_y = inch(16 * 12)  # 16 feet in Y
 for obj in mod8.Group:
+    if not hasattr(obj, "Placement"):
+        continue
     pl = obj.Placement
     pl.Base.y += offset_y
     obj.Placement = pl
 
-# Create top-level assembly group
-root = doc.addObject("App::DocumentObjectGroup", root_group_name)
-root.Group = [mod16, mod8]
+# Joists group
+joists_grp = doc.addObject("App::DocumentObjectGroup", group_joists)
+joists_grp.Group = [mod16, mod8]
+
+# Add plywood shim at the far X face to bring joists flush
+strip = doc.addObject("Part::Feature", joist_strip_name)
+strip.Shape = Part.makeBox(inch(joist_strip_thickness_in), inch(joist_strip_length_y_in), inch(joist_strip_height_in))
+strip.Placement.Base = App.Vector(inch(joist_strip_offset_x_in), 0, 0)
+strip.Label = joist_strip_name
+joists_grp.addObject(strip)
+
+# Ensure hangers created inside the joist modules are included in the joists group
+for obj in doc.Objects:
+    try:
+        if obj.Name.startswith("Hanger_") and obj not in joists_grp.Group:
+            joists_grp.addObject(obj)
+    except Exception:
+        pass
 
 # Add sheathing (runs 8' along Y, staggered courses)
 run_macro(macro_sheath)
-sheath = doc.getObject("First_Floor_Sheathing")
+sheathe_name = "First_Floor_Sheathing"
+sheath = doc.getObject(sheathe_name)
 if sheath:
     # Raise sheathing to sit atop joists
     for panel in sheath.Group:
         pl = panel.Placement
         pl.Base.z += inch(sheathing_z_offset_in)
         panel.Placement = pl
-    root.addObject(sheath)
+    sheath.Label = group_sheathing  # reuse the existing group; avoid nested redundant grouping
+
+# Create framing group with explicit wall groups
+framing = doc.addObject("App::DocumentObjectGroup", group_framing)
+front_group = doc.addObject("App::DocumentObjectGroup", "Front_Wall_Group")
+back_group = doc.addObject("App::DocumentObjectGroup", "Back_Wall_Group")
+left_group = doc.addObject("App::DocumentObjectGroup", "Left_Wall_Group")
+right_group = doc.addObject("App::DocumentObjectGroup", "Right_Wall_Group")
+for g in (front_group, back_group, left_group, right_group):
+    framing.addObject(g)
+
+# Add a 16' stud wall on top of the sheathing along the front edge
+run_macro(macro_wall)
+wall = doc.getObject("Wall_2x4_16ft")
+if not wall:
+    raise RuntimeError("Wall_2x4_16ft group not created by macro.")
+try:
+    doc.renameObject(wall.Name, "Stud_Wall_16ft_Base")
+except Exception:
+    pass
+wall.Label = "Stud_Wall_16ft"
+for obj in wall.Group:
+    pl = obj.Placement
+    pl.Base.x += inch(wall_offset_x_in)
+    pl.Base.y += inch(wall_offset_y_in)
+    pl.Base.z += inch(wall_offset_z_in)
+    obj.Placement = pl
+left_group.addObject(wall)
+
+# Capture colors from main wall parts to reuse on short walls
+for o in wall.Group:
+    try:
+        col = o.ViewObject.ShapeColor
+    except Exception:
+        continue
+    name_lower = o.Name.lower()
+    if plate_color_ref is None and "plate" in name_lower:
+        plate_color_ref = col
+    if stud_color_ref is None and "stud" in name_lower:
+        stud_color_ref = col
+    if plate_color_ref and stud_color_ref:
+        break
+
+# Add window wall module next to the left wall
+run_macro(macro_window_wall)
+window_wall = doc.getObject("Window_Wall_Double_3x5")
+if not window_wall:
+    raise RuntimeError("Window_Wall_Double_3x5 group not created by macro.")
+window_wall.Label = "Window_Wall_Double_3x5"
+rot90 = App.Rotation(App.Vector(0, 0, 1), 90)
+for obj in window_wall.Group:
+    pl = obj.Placement
+    pl.Rotation = rot90.multiply(pl.Rotation)
+    pl.Base = rot90.multVec(pl.Base)
+    pl.Base.x += inch(window_offset_x_in)
+    pl.Base.y += inch(window_offset_y_in)
+    pl.Base.z += inch(window_offset_z_in)
+    obj.Placement = pl
+front_group.addObject(window_wall)
+
+# Add sliding door module next to the window module on the front wall
+run_macro(macro_sliding)
+sliding = doc.getObject("Sliding_Door_72x80")
+if not sliding:
+    raise RuntimeError("Sliding_Door_72x80 group not created by macro.")
+sliding.Label = "Sliding_Door_72x80"
+for obj in sliding.Group:
+    pl = obj.Placement
+    pl.Rotation = rot90.multiply(pl.Rotation)
+    pl.Base = rot90.multVec(pl.Base)
+    pl.Base.x += inch(sliding_offset_x_in)
+    pl.Base.y += inch(sliding_offset_y_in)
+    pl.Base.z += inch(sliding_offset_z_in)
+    obj.Placement = pl
+front_group.addObject(sliding)
+
+# Add right-side 16' wall (duplicate the straight wall and place at X=16', Y=3.5")
+if not wall:
+    raise RuntimeError("Base Wall_2x4_16ft group missing; cannot create right wall.")
+
+right_wall_parts = []
+for obj in wall.Group:
+    new_obj = doc.addObject(obj.TypeId, f"{obj.Name}_Right")
+    new_obj.Shape = obj.Shape.copy()
+    new_pl = obj.Placement.copy()
+    new_pl.Base.x += inch(right_wall_offset_x_in)
+    new_pl.Base.y += inch(right_wall_offset_y_in)
+    new_pl.Base.z += 0.0  # already includes wall_offset_z_in
+    new_obj.Placement = new_pl
+    try:
+        for prop in ("sku_lowes", "url_lowes", "sku_hd", "url_hd", "supplier", "label", "cut_length_in"):
+            if prop in obj.PropertiesList:
+                if prop not in new_obj.PropertiesList:
+                    new_obj.addProperty("App::PropertyString", prop)
+                new_obj.__setattr__(prop, obj.__getattribute__(prop))
+    except Exception:
+        pass
+    try:
+        new_obj.ViewObject.ShapeColor = obj.ViewObject.ShapeColor
+    except Exception:
+        pass
+    new_obj.Label = f"Right_{obj.Label}"
+    right_wall_parts.append(new_obj)
+
+right_stud_wall = doc.addObject("App::DocumentObjectGroup", "Stud_Wall_16ft_Right")
+right_stud_wall.Label = "Stud_Wall_16ft"
+right_stud_wall.Group = right_wall_parts
+for o in right_wall_parts:
+    right_stud_wall.addObject(o)
+right_group.addObject(right_stud_wall)
+
+# Build short side walls (8' - 3.5") with 16" OC studs and end studs.
+def build_short_wall(name_prefix, label_name, base_x_in, base_y_in, base_z_in, plate_length_in, plate_width_in, plate_thick_in, stud_width_in, stud_thick_in, stud_length_in, spacing_oc_in):
+    created = []
+
+    def make_plate(name, z_base):
+        box = Part.makeBox(inch(plate_width_in), inch(plate_length_in), inch(plate_thick_in))
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        obj.Placement.Base = App.Vector(inch(base_x_in), inch(base_y_in), inch(z_base + base_z_in))
+        try:
+            obj.ViewObject.ShapeColor = red_shade_for_length(plate_length_in)
+        except Exception:
+            pass
+        return obj
+
+    created.append(make_plate(f"{name_prefix}_Plate_Bottom", 0.0))
+    created.append(make_plate(f"{name_prefix}_Plate_Top", plate_thick_in + stud_length_in))
+
+    stud_centers = []
+    first_center = stud_thick_in / 2.0
+    last_center = plate_length_in - (stud_thick_in / 2.0)
+    center = first_center
+    while center < last_center - 1e-6:
+        stud_centers.append(center)
+        center += spacing_oc_in
+    if not stud_centers or stud_centers[-1] < last_center - 1e-6:
+        stud_centers.append(last_center)
+
+    for idx, c in enumerate(stud_centers, start=1):
+        y_base = c - (stud_thick_in / 2.0)
+        box = Part.makeBox(inch(stud_width_in), inch(stud_thick_in), inch(stud_length_in))
+        stud = doc.addObject("Part::Feature", f"{name_prefix}_Stud_{idx}")
+        stud.Shape = box
+        stud.Placement.Base = App.Vector(inch(base_x_in), inch(base_y_in + y_base), inch(base_z_in + plate_thick_in))
+        try:
+            stud.ViewObject.ShapeColor = red_shade_for_length(stud_length_in)
+        except Exception:
+            pass
+        created.append(stud)
+
+    grp = doc.addObject("App::DocumentObjectGroup", name_prefix)
+    grp.Label = label_name
+    grp.Group = created
+    for o in created:
+        grp.addObject(o)
+    return grp
+
+left_side_wall = build_short_wall(
+    "Left_Short_Wall_8ft_minus_3p5",
+    "Short_Wall_8ft_minus_3p5",
+    left_wall_offset_x_in,
+    left_wall_offset_y_in,
+    left_wall_offset_z_in,
+    left_side_plate_length_in,
+    left_side_plate_width_in,
+    left_side_plate_thick_in,
+    left_side_stud_width_in,
+    left_side_stud_thick_in,
+    left_side_stud_length_in,
+    left_side_spacing_oc_in,
+)
+left_group.addObject(left_side_wall)
+
+right_short_wall = build_short_wall(
+    "Right_Short_Wall_8ft_minus_3p5",
+    "Short_Wall_8ft_minus_3p5",
+    right_side_offset_x_in,
+    right_side_offset_y_in,
+    right_side_offset_z_in,
+    right_side_plate_length_in,
+    right_side_plate_width_in,
+    right_side_plate_thick_in,
+    right_side_stud_width_in,
+    right_side_stud_thick_in,
+    right_side_stud_length_in,
+    right_side_spacing_oc_in,
+)
+right_group.addObject(right_short_wall)
+
+# Add back wall modules mirroring the front wall (window + sliding) at far Y
+if not window_wall or not sliding:
+    raise RuntimeError("Front wall modules missing; cannot create back wall.")
+
+def clone_group(src_group, group_name, y_offset_in, x_offset_in=0.0, z_offset_in=0.0, label_override=None):
+    """Clone a group and all children, handling nested groups and shapes."""
+    def clone_obj(obj, suffix):
+        # Clone nested groups first to avoid attempting Shape copy on groups
+        if hasattr(obj, "Group") and not obj.isDerivedFrom("Part::Feature"):
+            sub_grp = doc.addObject("App::DocumentObjectGroup", f"{obj.Name}_{suffix}")
+            sub_grp.Label = obj.Label
+            children = []
+            for child in obj.Group:
+                cloned_child = clone_obj(child, suffix)
+                if cloned_child:
+                    children.append(cloned_child)
+                    sub_grp.addObject(cloned_child)
+            sub_grp.Group = children
+            return sub_grp
+        elif hasattr(obj, "Shape"):
+            new_obj = doc.addObject(obj.TypeId, f"{obj.Name}_{suffix}")
+            new_obj.Shape = obj.Shape.copy()
+            new_pl = obj.Placement.copy()
+            new_pl.Base.x += inch(x_offset_in)
+            new_pl.Base.y += inch(y_offset_in)
+            new_pl.Base.z += inch(z_offset_in)
+            new_obj.Placement = new_pl
+            try:
+                for prop in ("sku_lowes", "url_lowes", "sku_hd", "url_hd", "supplier", "label", "cut_length_in"):
+                    if prop in obj.PropertiesList:
+                        if prop not in new_obj.PropertiesList:
+                            new_obj.addProperty("App::PropertyString", prop)
+                        new_obj.__setattr__(prop, obj.__getattribute__(prop))
+            except Exception:
+                pass
+            try:
+                new_obj.ViewObject.ShapeColor = obj.ViewObject.ShapeColor
+            except Exception:
+                pass
+            new_obj.Label = obj.Label
+            return new_obj
+        elif hasattr(obj, "Group"):
+            sub_grp = doc.addObject("App::DocumentObjectGroup", f"{obj.Name}_{suffix}")
+            sub_grp.Label = obj.Label
+            children = []
+            for child in obj.Group:
+                cloned_child = clone_obj(child, suffix)
+                if cloned_child:
+                    children.append(cloned_child)
+                    sub_grp.addObject(cloned_child)
+            sub_grp.Group = children
+            return sub_grp
+        else:
+            return None
+
+    objs = []
+    for obj in src_group.Group:
+        cloned = clone_obj(obj, group_name)
+        if cloned:
+            objs.append(cloned)
+    grp = doc.addObject("App::DocumentObjectGroup", group_name)
+    grp.Label = label_override or group_name.replace("_Front", "").replace("_Back", "")
+    grp.Group = objs
+    for o in objs:
+        grp.addObject(o)
+    return grp
+
+y_delta_back = back_wall_offset_y_in - window_offset_y_in
+back_window_grp = clone_group(window_wall, "Window_Wall_Double_3x5_Back", y_delta_back, x_offset_in=-3.5)
+back_sliding_grp = clone_group(sliding, "Sliding_Door_72x80_Back", back_wall_offset_y_in - sliding_offset_y_in, x_offset_in=-3.5)
+back_group.addObject(back_window_grp)
+back_group.addObject(back_sliding_grp)
+
+# Enforce uniform 2x4 colors across all modules
+force_uniform_2x4_colors(doc)
+
+# Add one additional top-plate layer around perimeter (uses 16' + remainder pieces)
+double_top_plate_z = inch(wall_offset_z_in + wall_full_height_in)
+double_top_plate_group = doc.addObject("App::DocumentObjectGroup", "First_Floor_Top_Plate_Add")
+double_top_plate_group.Label = "First_Floor_Top_Plate_Add"
+
+def add_plate_segment(name, x_len_in, y_len_in, base_x_in, base_y_in):
+    seg = doc.addObject("Part::Feature", name)
+    seg.Shape = Part.makeBox(inch(x_len_in), inch(y_len_in), inch(plate_thick_in))
+    seg.Placement.Base = App.Vector(inch(base_x_in), inch(base_y_in), double_top_plate_z)
+    run_len = x_len_in if x_len_in >= y_len_in else y_len_in
+    try:
+        seg.ViewObject.ShapeColor = red_shade_for_length(run_len)
+    except Exception:
+        pass
+    double_top_plate_group.addObject(seg)
+    return seg
+
+def add_plate_segment_at(group_obj, z_in, name, x_len_in, y_len_in, base_x_in, base_y_in):
+    seg = doc.addObject("Part::Feature", name)
+    seg.Shape = Part.makeBox(inch(x_len_in), inch(y_len_in), inch(plate_thick_in))
+    seg.Placement.Base = App.Vector(inch(base_x_in), inch(base_y_in), inch(z_in))
+    run_len = x_len_in if x_len_in >= y_len_in else y_len_in
+    try:
+        seg.ViewObject.ShapeColor = red_shade_for_length(run_len)
+    except Exception:
+        pass
+    group_obj.addObject(seg)
+    return seg
+
+# Layer 1 (front/back along X, left/right along Y)
+# Adjustments per request: drop Front_L1_2, move Back_L1_1 +3.5" X and remove Back_L1_2, shorten Right_L1_2 by 3.5", move Left_L1_1 +3.5" Y.
+front_pieces = [(192.0, 0.0)]  # only one piece along front
+back_pieces = [(192.0, 3.5)]  # shifted +3.5" in X; only one piece
+right_pieces = [(192.0, 0.0), (footprint_y_in - 192.0 - 3.5, 192.0)]
+left_pieces = [(footprint_y_in - 192.0 - 3.5, 192.0 + 3.5), (192.0, 3.5)]
+
+for idx, (ln, start_x) in enumerate(front_pieces, start=1):
+    add_plate_segment(f"TopPlate_Front_L1_{idx}", ln, plate_width_in, start_x, 0.0)
+for idx, (ln, start_x) in enumerate(back_pieces, start=1):
+    add_plate_segment(f"TopPlate_Back_L1_{idx}", ln, plate_width_in, start_x, footprint_y_in - plate_width_in)
+for idx, (ln, start_y) in enumerate(right_pieces, start=1):
+    add_plate_segment(f"TopPlate_Right_L1_{idx}", plate_width_in, ln, footprint_x_in - plate_width_in, start_y)
+for idx, (ln, start_y) in enumerate(left_pieces, start=1):
+    add_plate_segment(f"TopPlate_Left_L1_{idx}", plate_width_in, ln, 0.0, start_y)
+
+framing.addObject(double_top_plate_group)
+
+# Second floor: joists, sheathing, framing (mirrors first floor), placed atop added top plate
+if enable_second_floor:
+    # Joists + shim
+    second_joist_objs = []
+    for src in list(mod16.Group) + list(mod8.Group) + [strip]:
+        new_obj = copy_with_offset(src, "Second", dz_in=second_floor_joist_base_z_in)
+        if new_obj:
+            second_joist_objs.append(new_obj)
+    second_joists_grp = doc.addObject("App::DocumentObjectGroup", "Second_Floor_Joists")
+    second_joists_grp.Label = "Second_Floor_Joists"
+    second_joists_grp.Group = second_joist_objs
+    for o in second_joist_objs:
+        second_joists_grp.addObject(o)
+
+    # Sheathing
+    second_sheathing_objs = []
+    if sheath and hasattr(sheath, "Group"):
+        for panel in sheath.Group:
+            second_sheathing_objs.append(copy_with_offset(panel, "Second", dz_in=second_floor_joist_base_z_in))
+        second_sheath_grp = doc.addObject("App::DocumentObjectGroup", "Second_Floor_Subfloor")
+        second_sheath_grp.Label = "Second_Floor_Subfloor"
+        second_sheath_grp.Group = second_sheathing_objs
+        for o in second_sheathing_objs:
+            second_sheath_grp.addObject(o)
+
+    # Framing groups
+    second_framing = doc.addObject("App::DocumentObjectGroup", "Second_Floor_Framing")
+    s_front = doc.addObject("App::DocumentObjectGroup", "Second_Front_Wall_Group")
+    s_back = doc.addObject("App::DocumentObjectGroup", "Second_Back_Wall_Group")
+    s_left = doc.addObject("App::DocumentObjectGroup", "Second_Left_Wall_Group")
+    s_right = doc.addObject("App::DocumentObjectGroup", "Second_Right_Wall_Group")
+    for g in (s_front, s_back, s_left, s_right):
+        second_framing.addObject(g)
+
+    dz_framing = second_floor_joist_base_z_in  # raise same assemblies up one level
+    # Front modules
+    s_window = clone_group(window_wall, "Window_Wall_Double_3x5_2F", 0.0, 0.0, dz_framing, label_override="Window_Wall_Double_3x5")
+    s_sliding = clone_group(sliding, "Sliding_Door_72x80_2F", 0.0, 0.0, dz_framing, label_override="Sliding_Door_72x80")
+    s_front.addObject(s_window); s_front.addObject(s_sliding)
+
+    # Left walls (stud + short)
+    s_left_stud = clone_group(left_group, "Stud_Wall_16ft_2F", 0.0, 0.0, dz_framing, label_override="Stud_Wall_16ft")
+    s_left_short = clone_group(left_side_wall, "Short_Wall_8ft_minus_3p5_2F", 0.0, 0.0, dz_framing, label_override="Short_Wall_8ft_minus_3p5")
+    s_left.addObject(s_left_stud); s_left.addObject(s_left_short)
+
+    # Right walls (stud + short)
+    # Right walls (stud + short)
+    s_right_stud = clone_group(right_stud_wall, "Stud_Wall_16ft_Right_2F", 0.0, 0.0, dz_framing, label_override="Stud_Wall_16ft")
+    s_right_short = clone_group(right_short_wall, "Short_Wall_8ft_minus_3p5_Right_2F", 0.0, 0.0, dz_framing, label_override="Short_Wall_8ft_minus_3p5")
+    s_right.addObject(s_right_stud); s_right.addObject(s_right_short)
+
+    # Back modules
+    s_back_window = clone_group(back_window_grp, "Window_Wall_Double_3x5_Back_2F", 0.0, 0.0, dz_framing, label_override="Window_Wall_Double_3x5")
+    s_back_sliding = clone_group(back_sliding_grp, "Sliding_Door_72x80_Back_2F", 0.0, 0.0, dz_framing, label_override="Sliding_Door_72x80")
+    s_back.addObject(s_back_window); s_back.addObject(s_back_sliding)
+
+    # Second-floor top plate (single layer) atop second-floor walls
+    # Raise second-story added top plate above framing (approx 2x12 depth ~11.25" + 0.75" bump)
+    second_top_plate_z = dz_framing + wall_full_height_in + 12.0
+    second_top_plate_group = doc.addObject("App::DocumentObjectGroup", "Second_Floor_Top_Plate_Add")
+    second_top_plate_group.Label = "Second_Floor_Top_Plate_Add"
+    for idx, (ln, start_x) in enumerate(front_pieces, start=1):
+        add_plate_segment_at(second_top_plate_group, second_top_plate_z, f"TopPlate2_Front_L1_{idx}", ln, plate_width_in, start_x, 0.0)
+    for idx, (ln, start_x) in enumerate(back_pieces, start=1):
+        add_plate_segment_at(second_top_plate_group, second_top_plate_z, f"TopPlate2_Back_L1_{idx}", ln, plate_width_in, start_x, footprint_y_in - plate_width_in)
+    for idx, (ln, start_y) in enumerate(right_pieces, start=1):
+        add_plate_segment_at(second_top_plate_group, second_top_plate_z, f"TopPlate2_Right_L1_{idx}", plate_width_in, ln, footprint_x_in - plate_width_in, start_y)
+    for idx, (ln, start_y) in enumerate(left_pieces, start=1):
+        add_plate_segment_at(second_top_plate_group, second_top_plate_z, f"TopPlate2_Left_L1_{idx}", plate_width_in, ln, 0.0, start_y)
+    second_framing.addObject(second_top_plate_group)
+
+# Roofs: main gable + wrap porch (3:12)
+roofing_grp = doc.addObject("App::DocumentObjectGroup", "Roofing")
+roofing_grp.Label = "Roofing"
+run_macro(macro_roof_main)
+main_roof_grp = doc.getObject("Roof_Main_Gable_6_12")
+if main_roof_grp:
+    roofing_grp.addObject(main_roof_grp)
+run_macro(macro_roof_porch)
+porch_roof_grp = doc.getObject("Roof_Porch_Wrap_3_12")
+if porch_roof_grp:
+    roofing_grp.addObject(porch_roof_grp)
+
+# Front deck (16x8) centered on front wall, projecting outward
+run_macro(macro_deck_16x8)
+deck_grp = doc.getObject("Deck_Joist_Module_2x12_16x8")
+if deck_grp:
+    deck_length_in = 192.0
+    deck_depth_in = 96.0
+    joist_depth_in = 11.25  # deck joists are 2x12, depth 11.25"
+    # Snap deck’s top-left corner to house origin/front-left: align deck minX to 0, rim to Y=0 after rotation.
+    deck_offset_x_in = deck_length_in + 1.75  # nudge +X by 1.75"
+    # Align deck house rim to wall plane (rim thickness only)
+    deck_offset_y_in = -1.5
+    deck_offset_z_in = 0.0    # lift deck +0.25" (align bottom of deck joists to bottom of first-floor joists)
+    rot180 = App.Rotation(App.Vector(0, 0, 1), 180)
+    deck_objs = []
+
+    def adjust_obj(o):
+        try:
+            pl = o.Placement
+        except AttributeError:
+            pl = None
+        if pl:
+            pl = pl.copy()
+            pl.Rotation = rot180.multiply(pl.Rotation)
+            pl.Base = rot180.multVec(pl.Base)
+            pl.Base.x += inch(deck_offset_x_in)
+            pl.Base.y += inch(deck_offset_y_in)
+            pl.Base.z += inch(deck_offset_z_in)
+            o.Placement = pl
+            deck_objs.append(o)
+        if hasattr(o, "Group"):
+            for child in list(o.Group):
+                adjust_obj(child)
+
+    for obj in list(deck_grp.Group):
+        adjust_obj(obj)
+    decking_group = doc.getObject("Decking") or doc.addObject("App::DocumentObjectGroup", "Decking")
+    decking_group.Label = "Decking"
+    deck_container = doc.addObject("App::DocumentObjectGroup", "Deck_Front_16x8")
+    deck_container.Label = "Deck_Front_16x8"
+    # Reparent the deck subgroups under the container/decking for a cleaner tree
+    deck_children = list(deck_grp.Group)
+    for sub in deck_children:
+        deck_container.addObject(sub)
+    deck_container.Group = deck_children
+    decking_group.addObject(deck_container)
+    # Trim posts to stop at the bottom of the second-story deck boards (so they don't protrude above upper decking)
+    deck_post_target_in = second_floor_joist_base_z_in + joist_depth_in  # joist depth assumed 11.25" for 2x12
+    for obj in doc.Objects:
+        try:
+            if obj.Name.startswith("Post_") and hasattr(obj, "Shape"):
+                pl = obj.Placement.copy()
+                bb = obj.Shape.BoundBox
+                new_h = deck_post_target_in * 25.4
+                new_shape = Part.makeBox(bb.XLength, bb.YLength, new_h)
+                obj.Shape = new_shape
+                # Preserve existing placement (base at original xyz)
+                obj.Placement = pl
+                if "cut_length_in" not in obj.PropertiesList:
+                    obj.addProperty("App::PropertyString", "cut_length_in")
+                obj.cut_length_in = f"{deck_post_target_in}"
+        except Exception:
+            pass
+    # Remove the original top-level macro group to avoid an empty stray group in the tree
+    try:
+        deck_grp.Group = []
+        doc.removeObject(deck_grp.Name)
+    except Exception:
+        pass
+    # Second-story deck: copy first deck up to the second-floor joist baseline
+    deck2_objs = []
+    for o in deck_objs:
+        try:
+            if o.Name.startswith("Post_"):
+                continue  # posts already tall; skip duplicating for second-floor deck
+            deck2_objs.append(copy_with_offset(o, "2F", dz_in=second_floor_joist_base_z_in))
+        except Exception:
+            pass
+    if deck2_objs:
+        deck2_container = doc.addObject("App::DocumentObjectGroup", "Deck_Front_16x8_2F")
+        deck2_container.Label = "Deck_Front_16x8_2F"
+        for o in deck2_objs:
+            deck2_container.addObject(o)
+        deck2_container.Group = deck2_objs
+        decking_group.addObject(deck2_container)
 
 doc.recompute()
+
+# Ensure everything is visible (helpful for reviewing saved docs opened after headless build)
+def ensure_visible(obj):
+    try:
+        if hasattr(obj, "Visibility"):
+            obj.Visibility = True
+    except Exception:
+        pass
+    try:
+        if hasattr(obj, "ViewObject"):
+            obj.ViewObject.Visibility = True
+    except Exception:
+        pass
+
+for obj in doc.Objects:
+    ensure_visible(obj)
+
+# Optional save path (set env LUMBER_SAVE_FCSTD=/path/to/output.fcstd)
+save_path = os.environ.get("LUMBER_SAVE_FCSTD")
+if save_path:
+    try:
+        doc.saveAs(save_path)
+        App.Console.PrintMessage(f"[Build_House] Saved document to {save_path}\n")
+    except Exception as e:
+        App.Console.PrintError(f"[Build_House] Failed to save document to {save_path}: {e}\n")
+
+# Optionally export BOM from the active document (default on; set LUMBER_RUN_BOM=0 to skip)
+if os.environ.get("LUMBER_RUN_BOM", "1").lower() in ("1", "true", "yes"):
+    bom_macro = os.path.join(macro_dir, "export_bom.FCMacro")
+    if os.path.isfile(bom_macro):
+        try:
+            run_macro(bom_macro)
+        except Exception as e:
+            App.Console.PrintError(f"[Build_House] Failed to run export_bom: {e}\n")
+    else:
+        App.Console.PrintError(f"[Build_House] Missing BOM macro at {bom_macro}\n")
+
+# Set view to front and fit contents (when GUI is available)
+try:
+    import FreeCADGui as Gui
+    if Gui.ActiveDocument:
+        v = Gui.ActiveDocument.ActiveView
+        v.setCameraType("Orthographic")
+        v.viewIsometric()
+        v.fitAll()
+except Exception:
+    pass
+
+# Clean exit when running from FreeCAD console to avoid interactive prompts.
+try:
+    App.closeDocument(doc.Name)
+except Exception:
+    pass
+try:
+    import FreeCADGui as Gui
+    Gui.doCommand("import sys; sys.exit(0)")
+except Exception:
+    pass
