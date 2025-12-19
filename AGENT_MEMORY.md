@@ -303,3 +303,64 @@ pip install -r requirements-production.txt
 - Updated `Window_Wall_Double_3x5.FCMacro` to include jacks (80") inside kings and a built-up header (2x12x7'9" x2 + 0.5" rip 11.25x7'9") sitting on the jacks; header plies offset along X (0.0, +1.5, +2.0) with same Y origin. Added cap plate (2x4x93), seven short blocks (2x4x11-7/8") at 16" OC atop the header (shifted +1.5" in Z), seven short bottom studs (2x4x15.5") at 16" OC along the bottom plate with offsets: first stud +1.5" in Y, seventh stud -6" in Y, a 2x4x90 cap centered between jacks above the short studs, a second 2x4x90 cap stacked above, six 2x4x60 studs laid out as: stud1 at cap_start (aligned to right face of left jack), stud2 +36", stud3 adjacent (+1.5"), stud4 = stud3+15", stud5 adjacent (+1.5"), stud6 = stud5+36" (lands near right jack), and a top 2x4x90 cap over those studs (aligns with header underside). Colors by dimension: plates=red, kings=yellow, jacks=green, header=orange, ply=blue, blocks=teal, bottom shorts=violet, mid studs=yellow. Single macro now iterated (no new step files).
 - Catalog: added `plywood_0.5x4x8` (4x8_panel) for header rip so BOM counts sheet area; window wall rip now tagged to this label.
 - Build macro: added window wall into `Build_House_16x24_From_Modules.FCMacro` (placed next to Left_Wall at Y=192", Z on sheathing) and removed redundant sheathing wrapper; run_macro now opens files with `encoding=\"utf-8\"` to avoid ASCII decode errors.
+
+## Dec 19, 2025 (BeachHouse Refactoring - Systems Engineering Approach)
+- **Context**: ChatGPT Pro struggled with FreeCAD group hierarchy and catalog integration for 950 Surf beach house macro. Switched to Claude Code for systematic refactoring.
+- **Priority**: Accurate parametric model first (stampable drawings are future work). Real houses need to get built; users are human builders and eventual robotic fabricators.
+- **Key Insight**: Code is construction documentation. Every line must be as clear as architectural drawings, as precise as shop drawings, and as reliable as engineering specs.
+
+### BeachHouse Refactoring Strategy
+- **Created comprehensive documentation**:
+  - `FreeCAD/BeachHouse/docs/REFACTORING_PLAN.md`: Full software engineering plan (design principles, architecture issues, success criteria, milestones)
+  - `FreeCAD/BeachHouse/docs/CODING_STANDARDS.md`: Construction-grade standards emphasizing real-world buildability, BOM accuracy, code-as-construction-docs
+- **Created beach_common.py helper module**:
+  - Bridges BeachHouse catalog format (sku, url, price) with lumber_common (sku_lowes, sku_hd, dual-supplier)
+  - Normalizes metadata for attach_metadata() compatibility
+  - Provides foundation-specific geometry helpers (make_pile, make_beam)
+  - Standardizes FreeCAD grouping patterns
+- **Began incremental refactoring of Build_950Surf.FCMacro** (2,363 lines → targeting ~1,600-1,800):
+  - Created `Build_950Surf_REFACTOR.FCMacro` with lot survey + foundation sections
+  - Eliminated ~60 lines of manual catalog lookup code (replaced with bc.attach_beach_metadata)
+  - Added construction-focused docstrings (build sequence, design rationale, IRC code references)
+  - Standardized grouping using beach_common.add_to_group()
+  - Backed up original as Build_950Surf.FCMacro.backup
+
+### Design Principles Applied
+1. **DRY**: Manual catalog lookup repeated 20+ times → use lumber_common.attach_metadata() (single source of truth)
+2. **Separation of Concerns**: Extract logical sections into well-documented functions (foundation, joists, walls, stairs, roof)
+3. **Consistent Abstraction**: Clear hierarchy (primitives → components → assemblies → building)
+4. **Single Responsibility**: Each function does one thing well
+5. **API Consistency**: Standardize on proven FreeCAD grouping pattern from lumber/ macros
+
+### Catalog Integration
+- **BeachHouse catalog**: sku, url, price_each_usd, price_per_ft_usd
+- **Lumber catalog**: sku_lowes, url_lowes, sku_hd, url_hd, treatment
+- **Solution**: beach_common.load_beach_catalog() merges both, normalizes field names, returns list for lumber_common compatibility
+- **Benefit**: Single codebase works with both catalog formats; changes to metadata format happen once
+
+### Grouping Standard (FreeCAD Compatibility)
+```python
+# 1. Create all parts first
+created = []
+created.append(make_pile(...))
+created.append(make_beam(...))
+
+# 2. Create group and attach
+group = bc.create_group(doc, "Foundation")
+bc.add_to_group(group, created)  # Handles both addObject() and Group = list
+
+# 3. Recompute once at end
+bc.recompute_once(doc)
+```
+**Why**: Predictable, compatible across FreeCAD versions, explicit, debuggable.
+
+### Next Steps (for future sessions)
+- Continue refactoring remaining sections: blocking, joists (16x16 modules), sheathing, walls, stairs, second floor, roof
+- Test each section incrementally (run_beach_house.sh)
+- Visual regression test (old vs new model geometry comparison)
+- BOM test (verify identical part counts)
+- Replace Build_950Surf.FCMacro with refactored version after all tests pass
+
+### Personal Note
+- Bruce's dog Luna demanded a walk mid-session (good dog!).
+- Nickname: **Luke** (in memory of Luke Dombrowski). Stay Alive. Listen to @fuchinluke while coding.
