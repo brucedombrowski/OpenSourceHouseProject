@@ -97,6 +97,63 @@ ROOF = {
 }
 
 # ============================================================
+# SEPTIC SYSTEM (Northern/back part of lot)
+# ============================================================
+
+SEPTIC_SYSTEM = {
+    # Septic tank position (northern back part of lot)
+    "tank_x_ft": 25.0,  # Centered on lot width
+    "tank_y_ft": 85.0,  # Northern (back) part of lot
+    "tank_length_ft": 10.0,  # Typical 1000-1500 gallon tank
+    "tank_width_ft": 5.0,
+    "tank_depth_ft": 5.0,  # Underground
+    # Leach field (drain field)
+    "leach_field_x_start_ft": 10.0,  # West side of tank
+    "leach_field_y_start_ft": 75.0,  # Behind tank
+    "leach_field_length_ft": 30.0,  # 3 trenches × 10' spacing
+    "leach_field_width_ft": 20.0,  # Trench width + spacing
+    "leach_field_trench_count": 3,
+    "leach_field_trench_spacing_ft": 10.0,
+    # Drain line from house to tank
+    "drain_line_diameter_in": 4.0,  # 4" PVC drain
+    "drain_line_depth_in": 24.0,  # 2' below grade (frost line + code)
+    # Stub-up location (rear of house, centered)
+    "stub_up_x_ft": 25.0,  # Centered on lot
+    "stub_up_y_ft": 68.0,  # Just behind rear piles (last pile at Y=68')
+}
+
+# ============================================================
+# UTILITIES (Plumbing and Electrical Stub-Ups)
+# ============================================================
+
+UTILITIES = {
+    # Concrete slab (driveway thickness with stub-ups)
+    "slab_thickness_in": 6.0,  # 6" concrete (driveway grade)
+    "slab_x_start_ft": 5.0,  # Under house footprint
+    "slab_y_start_ft": 20.0,  # Front setback
+    "slab_width_ft": 40.0,  # Match house width
+    "slab_depth_ft": 48.0,  # Match house depth
+    # Water supply (from street, south side Y=0)
+    "water_service_line_diameter_in": 1.0,  # 1" PVC water supply
+    "water_service_depth_in": 36.0,  # 3' below grade (frost line)
+    "water_stub_x_ft": 25.0,  # Centered on lot
+    "water_stub_y_ft": 22.0,  # Just inside front setback
+    "water_entry_from_street_y_ft": 0.0,  # Street connection point
+    # Electrical service (from street, south side Y=0)
+    "electrical_service_conduit_diameter_in": 2.0,  # 2" conduit (200A service)
+    "electrical_service_depth_in": 24.0,  # 2' below grade
+    "electrical_stub_x_ft": 30.0,  # Near front of house
+    "electrical_stub_y_ft": 22.0,  # Just inside front setback
+    "electrical_entry_from_street_y_ft": 0.0,  # Street connection point
+    # Plumbing stub-ups (drain/waste/vent for 3 zones)
+    "plumbing_stub_positions": [
+        {"name": "Kitchen", "x_ft": 15.0, "y_ft": 30.0, "diameter_in": 4.0},
+        {"name": "Bath", "x_ft": 35.0, "y_ft": 40.0, "diameter_in": 4.0},
+        {"name": "Laundry", "x_ft": 25.0, "y_ft": 50.0, "diameter_in": 4.0},
+    ],
+}
+
+# ============================================================
 # MATERIALS
 # ============================================================
 
@@ -116,6 +173,8 @@ MATERIALS = {
 BUILD = {
     # What to include in build
     "include_lot_survey": True,
+    "include_septic_system": True,  # Septic tank, leach field, drain lines
+    "include_utilities": True,  # Concrete slab, plumbing/electrical stub-ups
     "include_foundation": True,
     "include_first_floor": True,
     "include_walls": False,  # Not yet implemented in refactored version

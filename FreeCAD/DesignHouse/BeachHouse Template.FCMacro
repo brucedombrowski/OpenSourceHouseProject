@@ -52,30 +52,33 @@ if _design_house_root not in sys.path:
 try:
     import beach_common as bc
     import beam_assemblies as ba
+    import septic_utilities as su
     BEACH_COMMON_AVAILABLE = True
 except ImportError:
     App.Console.PrintError(
-        "[Build_950Surf] beach_common.py or beam_assemblies.py not found; cannot proceed.\n"
-        "Ensure beach_common.py and beam_assemblies.py exist in macros/ directory.\n"
+        "[Build_950Surf] beach_common.py, beam_assemblies.py, or septic_utilities.py not found; cannot proceed.\n"
+        "Ensure all helper modules exist in macros/ directory.\n"
     )
     raise
 
 # Import design configuration
 try:
-    from config_950_surf import LOT, FOUNDATION, FIRST_FLOOR, BUILD
-    App.Console.PrintMessage("[Build_950Surf] Loaded design configuration from 950_surf_config.py\n")
+    from config_950_surf import LOT, FOUNDATION, FIRST_FLOOR, SEPTIC_SYSTEM, UTILITIES, BUILD
+    App.Console.PrintMessage("[Build_950Surf] Loaded design configuration from config_950_surf.py\n")
 except ImportError:
     App.Console.PrintError(
-        "[Build_950Surf] 950_surf_config.py not found; using default parameters.\n"
+        "[Build_950Surf] config_950_surf.py not found; using default parameters.\n"
     )
     # Fallback defaults
-    LOT = {"width_ft": 75.0, "depth_ft": 100.0, "front_setback_ft": 20.0, "side_setback_ft": 7.5}
+    LOT = {"width_ft": 50.0, "depth_ft": 100.0, "front_setback_ft": 20.0, "side_setback_ft": 7.5}
     FOUNDATION = {
-        "pile_grid_x": 5, "pile_grid_y": 6, "pile_spacing_x_ft": 8.0, "pile_spacing_y_ft": 8.0,
+        "pile_grid_x": 5, "pile_grid_y": 7, "pile_spacing_x_ft": 8.0, "pile_spacing_y_ft": 8.0,
         "above_grade_ft": 20.0, "pile_size_in": 12.0, "pile_length_ft": 40.0
     }
     FIRST_FLOOR = {"start_x_ft": 9.0, "start_y_ft": 20.0, "base_z_ft": 20.0}
-    BUILD = {"include_lot_survey": True, "include_foundation": True, "include_first_floor": True}
+    SEPTIC_SYSTEM = {"tank_x_ft": 25.0, "tank_y_ft": 85.0}
+    UTILITIES = {"slab_thickness_in": 6.0}
+    BUILD = {"include_lot_survey": True, "include_foundation": True, "include_first_floor": True, "include_septic_system": False, "include_utilities": False}
 
 # ============================================================
 # EXTRACT PARAMETERS FROM CONFIG
@@ -228,7 +231,17 @@ def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft
 lot_grp = create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft)
 
 # ============================================================
-# SECTION 2: FOUNDATION (Piles, Beams, Blocking, Mid-Boards)
+# SECTION 2: SEPTIC SYSTEM (if enabled)
+# ============================================================
+
+if BUILD.get("include_septic_system", False):
+    App.Console.PrintMessage("[Build_950Surf] === SEPTIC SYSTEM ===\n")
+    septic_grp = su.create_septic_system(doc, SEPTIC_SYSTEM)
+else:
+    App.Console.PrintMessage("[Build_950Surf] Septic system skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 3: FOUNDATION (Piles, Beams, Blocking, Mid-Boards)
 # ============================================================
 
 def create_foundation(doc, catalog, params):
@@ -446,7 +459,24 @@ foundation_params = {
 foundation_grp = create_foundation(doc, catalog, foundation_params)
 
 # ============================================================
-# SECTION 3: FIRST FLOOR JOISTS (Assembly-Based Modules)
+# SECTION 4: UTILITIES AND CONCRETE SLAB (if enabled)
+# ============================================================
+
+if BUILD.get("include_utilities", False):
+    App.Console.PrintMessage("[Build_950Surf] === UTILITIES AND CONCRETE SLAB ===\n")
+    # Pass pile positions for slab cutouts
+    pile_positions_ft = [(x, y) for x in x_positions_ft for y in y_positions_ft]
+    utilities_grp = su.create_utilities_slab(
+        doc,
+        UTILITIES,
+        pile_positions_ft=pile_positions_ft,
+        pile_size_in=FOUNDATION["pile_size_in"]
+    )
+else:
+    App.Console.PrintMessage("[Build_950Surf] Utilities skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 5: FIRST FLOOR JOISTS (Assembly-Based Modules)
 # ============================================================
 
 def create_first_floor_joists(doc, catalog, params, macro_dir):
