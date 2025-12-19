@@ -1,0 +1,124 @@
+# FreeCAD macro: build a straight 16' stud wall with 2x4 plates and 2x4x104.625" studs @ 16" OC.
+# The wall is built at the origin with Z=0 at the bottom of the bottom plate. Move/rotate in an assembly macro.
+
+import os
+import sys
+import importlib
+import FreeCAD as App
+import Part
+
+# Ensure this macro folder is on sys.path before importing helpers
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+# Reload helpers to avoid stale copies in the FreeCAD session
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import (
+    ensure_macro_path,
+    resolve_catalog,
+    load_catalog,
+    find_stock,
+    attach_metadata,
+    clear_group,
+    inch,
+)
+
+ensure_macro_path()
+
+# -----------------------
+# Parameters
+# -----------------------
+_macro_dir = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_macro_dir))
+catalog_candidates = [
+    os.path.join(_macro_dir, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = resolve_catalog(catalog_candidates)
+
+stud_label = "2x4x104.625"
+plate_label = "2x4x192"
+spacing_oc = 16.0  # inches on-center
+make_pressure_treated = False  # append "_PT" to labels when True
+
+rows = load_catalog(catalog_path)
+stud_key = stud_label + "_PT" if make_pressure_treated else stud_label
+plate_key = plate_label + "_PT" if make_pressure_treated else plate_label
+stud_row = find_stock(rows, stud_key)
+plate_row = find_stock(rows, plate_key)
+if not stud_row:
+    raise ValueError(f"Stud label '{stud_key}' not found in catalog at {catalog_path}")
+if not plate_row:
+    raise ValueError(f"Plate label '{plate_key}' not found in catalog at {catalog_path}")
+
+stud_thick = float(stud_row["actual_thickness_in"])   # 1.5"
+stud_width = float(stud_row["actual_width_in"])       # 3.5"
+stud_length = float(stud_row["length_in"])            # 104.625"
+plate_thick = float(plate_row["actual_thickness_in"]) # 1.5"
+plate_width = float(plate_row["actual_width_in"])     # 3.5"
+plate_length = float(plate_row["length_in"])          # 192"
+
+# -----------------------
+# Helpers
+# -----------------------
+doc = App.ActiveDocument or App.newDocument("Wall_2x4_16ft")
+
+
+def make_plate(name, z_base):
+    # Plate lies flat, wall runs along +Y: X = wall thickness (3.5), Y = length (192), Z = plate thickness (1.5)
+    box = Part.makeBox(inch(plate_width), inch(plate_length), inch(plate_thick))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, 0, inch(z_base))
+    attach_metadata(obj, plate_row, plate_key, supplier="lowes")
+    return obj
+
+
+def make_stud(name, x_base, y_base, z_base):
+    # Stud stands vertical; wall runs along +Y.
+    # X = wall thickness (3.5), Y = stud thickness (1.5), Z = stud length.
+    box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(stud_length))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(inch(x_base), inch(y_base), inch(z_base))
+    attach_metadata(obj, stud_row, stud_key, supplier="lowes")
+    return obj
+
+
+# -----------------------
+# Build wall
+# -----------------------
+created = []
+created.append(make_plate("Plate_Bottom", 0.0))
+created.append(make_plate("Plate_Top", plate_thick + stud_length))
+
+# Lay out studs: end studs flush to both ends, infill at 16" OC.
+stud_centers = []
+first_center = stud_thick / 2.0  # 0.75" from end so face is flush at y=0
+last_center = plate_length - (stud_thick / 2.0)
+center = first_center
+while center < last_center - 1e-6:
+    stud_centers.append(center)
+    center += spacing_oc
+if not stud_centers or stud_centers[-1] < last_center - 1e-6:
+    stud_centers.append(last_center)
+
+for idx, center in enumerate(stud_centers, start=1):
+    y_base = center - (stud_thick / 2.0)
+    created.append(make_stud(f"Stud_{idx}", 0.0, y_base, plate_thick))
+
+group_name = "Wall_2x4_16ft"
+clear_group(doc, group_name)
+group = doc.addObject("App::DocumentObjectGroup", group_name)
+group.Label = group_name
+for obj in created:
+    group.addObject(obj)
+group.Group = created
+
+App.Console.PrintMessage(
+    f"[Wall 16ft] Created {len(stud_centers)} studs + 2 plates (wall height {plate_thick + stud_length + plate_thick}\")\n"
+)
+
+doc.recompute()

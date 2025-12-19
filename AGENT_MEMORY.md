@@ -364,3 +364,66 @@ bc.recompute_once(doc)
 ### Personal Note
 - Bruce's dog Luna demanded a walk mid-session (good dog!).
 - Nickname: **Luke** (in memory of Luke Dombrowski). Stay Alive. Listen to @fuchinluke while coding.
+
+## Dec 19, 2025 (Assembly Architecture - Eliminating Hard-Coded Offsets)
+
+### Problem Solved
+- Previous BeachHouse macro used hard-coded placement offsets (+1.5", -4.0", etc.) making it impossible to swap modules without manual recalculation
+- FreeCAD DocumentObjectGroup doesn't provide bounding boxes, making geometric snapping impossible
+
+### Solution: App::Part + joist_modules Library
+1. **Converted joist modules to App::Part assemblies**:
+   - App::Part provides true spatial properties and bounding boxes
+   - Added LCS (Local Coordinate System) markers at 4 corners for reference
+   - `get_assembly_bbox()` calculates precise dimensions in local space
+
+2. **Created joist_modules.py Python library**:
+   - Extracted all joist creation logic from .FCMacro files into reusable Python functions
+   - `create_joist_module_16x16()` and `create_joist_module_16x8()` accept `assembly_name` parameter for multiple instances
+   - Catalog-driven: accepts pre-loaded catalog_rows, no file path dependencies
+   - **Key benefit**: Minimized .FCMacro files to thin wrappers (~35 lines each)
+
+3. **Implemented snap_assembly_corner_to_corner()**:
+   - Uses bounding box geometry for deterministic placement
+   - NO hard-coded offsets - purely geometric calculation
+   - Achieved **0.0000mm gap alignment** (verified in test output)
+
+### Code Organization (Minimize .FCMacro Files)
+**Principle**: Keep most code in .py library files; .FCMacro files should be minimal entry points.
+
+**Current structure**:
+- `FreeCAD/lumber/joist_modules.py`: All joist assembly logic (370+ lines)
+- `FreeCAD/lumber/lumber_common.py`: Shared helpers (catalog, metadata, grouping, geometry)
+- `FreeCAD/lumber/Joist_Module_2x12_16x16.FCMacro`: Thin wrapper (35 lines) - loads library + calls `create_joist_module_16x16()`
+- `FreeCAD/lumber/Joist_Module_2x12_16x8.FCMacro`: Thin wrapper (35 lines) - loads library + calls `create_joist_module_16x8()`
+
+**Build_950Surf_REFACTOR.FCMacro** now uses library approach:
+```python
+import joist_modules as jm
+
+module_1 = jm.create_joist_module_16x16(doc, catalog_rows, assembly_name="Floor_Module_Front_Left_16x16")
+module_2 = jm.create_joist_module_16x16(doc, catalog_rows, assembly_name="Floor_Module_Front_Right_16x16")
+lc.snap_assembly_corner_to_corner(module_2, module_1, target_corner="bottom_right", assembly_corner="bottom_left")
+```
+
+### Test Results
+- Build completed successfully with `NO_OPEN=1 bash run_beach_house.sh`
+- Perfect alignment: **Gap between modules: 0.0000mm**
+- Floor dimensions: **32.8' x 16.0'** (two 16x16 modules side-by-side)
+- File saved: `950Surf.20251219-121846.fcstd`
+- Snapshots generated: pile spacing + joist layout
+- BOM export works correctly with assembly architecture
+
+### Benefits Achieved
+1. **Reusability**: Same joist module function creates unlimited instances with different names
+2. **No exec() issues**: Library approach avoids namespace/context problems
+3. **Type safety**: Functions have clear signatures, IDE autocomplete works
+4. **Testability**: Library functions can be unit tested independently
+5. **Maintainability**: Logic lives in one place; .FCMacro files just call functions
+6. **Geometric precision**: Assembly snapping uses bounding box math, not magic numbers
+
+### Next Steps
+1. Finish converting remaining Build_950Surf sections to use assembly architecture
+2. Consider extracting other macro logic into libraries (walls, roof, etc.)
+3. Visual regression test: compare old vs new model geometry
+4. Document assembly architecture patterns for future macros

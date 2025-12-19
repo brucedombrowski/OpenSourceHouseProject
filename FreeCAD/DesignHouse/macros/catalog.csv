@@ -1,0 +1,14 @@
+label,nominal,actual_thickness_in,actual_width_in,length_in,supplier,sku,url,price_each_usd,price_per_ft_usd
+12x12x40_piling_PT,12x12x40,11.25,11.25,480,american_pole_timbers,,https://www.americanpoleandtimber.com/wood-timber-products/poles-pilings-posts/,1000,
+beam_2x12x192_PT,2x12x16,1.5,11.25,192,lowes,100002,https://www.lowes.com/,40,
+beam_2x12x96_PT,2x12x8,1.5,11.25,96,lowes,100003,https://www.lowes.com/,20,
+joist_2x12_PT,2x12,1.5,11.25,,lowes,100004,https://www.lowes.com/,,2.50
+hanger_LU210,LU210,0.06,1.0,,lowes,100005,https://www.lowes.com/,4.00,
+panel_advantech_4x8,3/4_advantech,0.75,48,96,lowes,100006,https://www.lowes.com/,75.00,
+2x4x96,2x4x8,1.5,3.5,96,lowes,100007,https://www.lowes.com/,3.50,
+2x4x104.625,2x4x104.625,1.5,3.5,104.625,lowes,100008,https://www.lowes.com/,5.50,
+2x12x96,2x12x8,1.5,11.25,96,lowes,100009,https://www.lowes.com/,20.00,
+plywood_0.5x4x8,1/2_plywood,0.5,48,96,lowes,100010,https://www.lowes.com/,25.00,
+2x4_plate_custom,2x4_plate,1.5,3.5,,lowes,100011,https://www.lowes.com/,,0.30
+2x4_cap_plate,2x4_cap_plate,1.5,3.5,,lowes,100012,https://www.lowes.com/,,0.30
+1x8x96,1x8x8,0.75,7.25,96,lowes,100013,https://www.lowes.com/pd/1-in-x-8-in-x-8-ft-S1S2E-Prime-Kiln-dried-Whitewood-Board/100003,10.00,

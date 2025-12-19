@@ -1,0 +1,56 @@
+import FreeCAD as App
+import os
+import sys
+try:
+    import FreeCADGui as Gui
+except Exception:
+    Gui = None
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("No active document.")
+
+def ensure_visible(obj):
+    try:
+        if hasattr(obj, "Visibility"):
+            obj.Visibility = True
+    except Exception:
+        pass
+    try:
+        if hasattr(obj, "ViewObject"):
+            obj.ViewObject.Visibility = True
+    except Exception:
+        pass
+
+for obj in doc.Objects:
+    ensure_visible(obj)
+
+# Try to colorize using shared lumber palette
+try:
+    macro_dir = os.path.dirname(__file__)
+    lumber_dir = os.path.abspath(os.path.join(macro_dir, "..", "..", "lumber"))
+    if lumber_dir not in sys.path:
+        sys.path.append(lumber_dir)
+    color_macro = os.path.join(lumber_dir, "Colorize_All.FCMacro")
+    if os.path.isfile(color_macro):
+        env = {
+            "__file__": color_macro,
+            "__name__": "__main__",
+            "__builtins__": __builtins__,
+            "App": App,
+        }
+        with open(color_macro, "r", encoding="utf-8") as f:
+            code = f.read()
+        exec(compile(code, color_macro, "exec"), env, env)
+except Exception:
+    pass
+
+doc.recompute()
+
+if Gui and Gui.ActiveDocument:
+    v = Gui.ActiveDocument.ActiveView
+    v.setCameraType("Orthographic")
+    v.viewIsometric()
+    v.fitAll()
+
+App.Console.PrintMessage("[Show_All_and_Fit] Made all objects visible, colorized, and fit view.\n")

@@ -1,0 +1,178 @@
+import os
+import math
+import FreeCAD as App
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception as exc:
+    raise RuntimeError(f"Pillow not available for snapshot generation: {exc}")
+
+"""
+Headless snapshot for pile spacing + lot lines.
+Reads SNAPSHOT_INPUT (FCStd) and writes SNAPSHOT_IMAGE (PNG) using Pillow.
+Draws:
+  - Lot and buildable area outlines (if present)
+  - Piles
+  - Per-interval spacing in X and Y (center-to-center)
+  - Offsets from lot edges to first/last pile centers
+No FreeCADGui dependency; intended to run under FreeCADCmd.
+"""
+
+input_path = os.environ.get("SNAPSHOT_INPUT")
+output_path = os.environ.get("SNAPSHOT_IMAGE")
+
+if not input_path or not os.path.isfile(input_path):
+    raise RuntimeError("SNAPSHOT_INPUT missing or file not found")
+if not output_path:
+    raise RuntimeError("SNAPSHOT_IMAGE not set")
+
+doc = App.openDocument(input_path)
+App.setActiveDocument(doc.Name)
+
+pile_boxes = []
+lot_box = None
+build_box = None
+for obj in doc.Objects:
+    if not obj.Name.startswith("Pile_"):
+        try:
+            if obj.Name == "Lot_Boundary":
+                lot_box = obj.Shape.BoundBox
+            elif obj.Name == "Buildable_Area":
+                build_box = obj.Shape.BoundBox
+        except Exception:
+            pass
+        continue
+    try:
+        bb = obj.Shape.BoundBox
+        pile_boxes.append(bb)
+    except Exception:
+        pass
+
+if not pile_boxes:
+    App.Console.PrintError("[snapshot_pile_spacing] No piles found; skipping image\n")
+    App.closeDocument(doc.Name)
+    raise SystemExit(0)
+
+xs = sorted({bb.Center.x for bb in pile_boxes})
+ys = sorted({bb.Center.y for bb in pile_boxes})
+App.Console.PrintMessage(f"[snapshot_pile_spacing] Piles={len(pile_boxes)}, xs={len(xs)}, ys={len(ys)}\n")
+spacings_x = [xs[i+1] - xs[i] for i in range(len(xs)-1)]
+spacings_y = [ys[i+1] - ys[i] for i in range(len(ys)-1)]
+if spacings_x:
+    App.Console.PrintMessage(f"[snapshot_pile_spacing] First X spacing: {spacings_x[0]:.3f} mm ({spacings_x[0]/304.8:.3f} ft)\n")
+if spacings_y:
+    App.Console.PrintMessage(f"[snapshot_pile_spacing] First Y spacing: {spacings_y[0]:.3f} mm ({spacings_y[0]/304.8:.3f} ft)\n")
+
+# Compute drawing bounds
+all_boxes = list(pile_boxes)
+for box in (lot_box, build_box):
+    if box:
+        all_boxes.append(box)
+min_x = min(bb.XMin for bb in all_boxes)
+max_x = max(bb.XMax for bb in all_boxes)
+min_y = min(bb.YMin for bb in all_boxes)
+max_y = max(bb.YMax for bb in all_boxes)
+
+pad_mm = 500.0
+span_x = max_x - min_x
+span_y = max_y - min_y
+img_size = 2000
+draw_span_x = span_x + 2 * pad_mm
+draw_span_y = span_y + 2 * pad_mm
+scale = min((img_size - 40) / draw_span_x, (img_size - 40) / draw_span_y)
+if not math.isfinite(scale) or scale <= 0:
+    scale = 1.0
+
+def map_point(x_mm, y_mm):
+    px = int(round((x_mm - min_x + pad_mm) * scale + 20))
+    py = int(round((max_y + pad_mm - y_mm) * scale + 20))
+    return px, py
+
+img = Image.new("RGB", (img_size, img_size), "white")
+draw = ImageDraw.Draw(img)
+
+# Draw lot/buildable outlines
+def draw_rect(bb, outline, width=2, dash=False):
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    if dash:
+        draw.rectangle([(xa, ya), (xb, yb)], outline=outline, width=width)
+    else:
+        draw.rectangle([(xa, ya), (xb, yb)], outline=outline, width=width)
+
+if lot_box:
+    draw_rect(lot_box, outline="#999999", width=3)
+    draw.text(map_point(lot_box.XMin, lot_box.YMax), "Lot", fill="black", font=ImageFont.load_default())
+if build_box:
+    draw_rect(build_box, outline="#5555aa", width=2)
+    draw.text(map_point(build_box.XMin, build_box.YMax), "Buildable", fill="black", font=ImageFont.load_default())
+
+# Draw piles as rectangles
+for bb in pile_boxes:
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="black", fill="#c5d8ff")
+
+# Annotate spacing text
+try:
+    font = ImageFont.truetype("Arial", 28)
+except Exception:
+    font = ImageFont.load_default()
+
+text_lines = [f"Piles: {len(pile_boxes)}"]
+if spacings_x:
+    text_lines.append(f"X spacing first: {spacings_x[0]/304.8:.3f} ft")
+if spacings_y:
+    text_lines.append(f"Y spacing first: {spacings_y[0]/304.8:.3f} ft")
+text = " | ".join(text_lines) if text_lines else "Pile spacing snapshot"
+draw.text((30, 30), text, fill="black", font=font)
+
+# Dimension helpers
+def draw_h_dim(y_mm, x0_mm, x1_mm, label):
+    p0 = map_point(x0_mm, y_mm)
+    p1 = map_point(x1_mm, y_mm)
+    draw.line([p0, p1], fill="red", width=3)
+    mid = ((p0[0]+p1[0])//2, (p0[1]+p1[1])//2 - 10)
+    draw.text(mid, label, fill="red", font=font)
+
+def draw_v_dim(x_mm, y0_mm, y1_mm, label):
+    p0 = map_point(x_mm, y0_mm)
+    p1 = map_point(x_mm, y1_mm)
+    draw.line([p0, p1], fill="red", width=3)
+    mid = (p0[0]+6, (p0[1]+p1[1])//2 - 10)
+    draw.text(mid, label, fill="red", font=font)
+
+# Draw per-gap X dimensions (center to center)
+gap_y_mm = min_y - pad_mm * 0.2
+for i, gap in enumerate(spacings_x):
+    draw_h_dim(gap_y_mm - i * 40, xs[i], xs[i+1], f"{gap/304.8:.2f} ft")
+# Draw per-gap Y dimensions
+gap_x_mm = min_x - pad_mm * 0.25
+for i, gap in enumerate(spacings_y):
+    draw_v_dim(gap_x_mm - i * 40, ys[i], ys[i+1], f"{gap/304.8:.2f} ft")
+
+# Offsets to lot edges if lot is present
+if lot_box:
+    lot_left = lot_box.XMin
+    lot_right = lot_box.XMax
+    lot_front = lot_box.YMin
+    lot_back = lot_box.YMax
+    half_w_mm = pile_boxes[0].XLength / 2.0
+    half_t_mm = pile_boxes[0].YLength / 2.0
+    offset_left = (xs[0] - half_w_mm) - lot_left
+    offset_right = lot_right - (xs[-1] + half_w_mm)
+    offset_front = (ys[0] - half_t_mm) - lot_front
+    offset_back = lot_back - (ys[-1] + half_t_mm)
+    draw_h_dim(min_y - pad_mm * 0.6, lot_left, lot_left + offset_left, f"Offset left: {offset_left/304.8:.2f} ft")
+    draw_h_dim(min_y - pad_mm * 0.65, lot_right - offset_right, lot_right, f"Offset right: {offset_right/304.8:.2f} ft")
+    draw_v_dim(min_x - pad_mm * 0.6, lot_front, lot_front + offset_front, f"Offset front: {offset_front/304.8:.2f} ft")
+    draw_v_dim(min_x - pad_mm * 0.65, lot_back - offset_back, lot_back, f"Offset back: {offset_back/304.8:.2f} ft")
+
+img.save(output_path)
+App.Console.PrintMessage(f"[snapshot_pile_spacing] Saved image to {output_path}\n")
+
+App.closeDocument(doc.Name)

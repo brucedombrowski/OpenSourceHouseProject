@@ -1,0 +1,117 @@
+# FreeCAD macro: build a wrap-around 3:12 porch roof projecting 8' from all sides of the 16x24 box.
+# Creates 2x8 shed rafters @ 16" OC on each side. Adjust base_z_in to the top of the first-floor plates.
+
+import os
+import sys
+import math
+import importlib
+import FreeCAD as App
+import Part
+
+_here = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_here))
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import (
+    ensure_macro_path,
+    resolve_catalog,
+    load_catalog,
+    find_stock,
+    attach_metadata,
+    inch,
+)
+
+ensure_macro_path()
+
+# -----------------------
+# Parameters
+# -----------------------
+footprint_x_in = 195.5   # house width
+footprint_y_in = 288.0   # house length
+projection_in = 96.0     # porch depth from wall to beam (8')
+overhang_in = 12.0       # extra beyond beam
+pitch_rise_in = 3.0
+pitch_run_in = 12.0
+rafter_spacing_oc_in = 16.0
+rafter_stock_label = "2x8x120"
+supplier = "lowes"
+# Ledger height: set to the top of first-floor plates (current build macro ~119.625").
+base_z_in = 119.625
+
+catalog_candidates = [
+    os.path.join(_here, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = resolve_catalog(catalog_candidates)
+rows = load_catalog(catalog_path)
+rafter_row = find_stock(rows, rafter_stock_label)
+if not rafter_row:
+    raise ValueError(f"Rafter label '{rafter_stock_label}' not found in catalog.")
+
+rafter_thick_in = float(rafter_row["actual_thickness_in"])  # 1.5"
+rafter_width_in = float(rafter_row["actual_width_in"])      # depth 7.25" for 2x8
+
+run_out_in = projection_in + overhang_in
+rise_out_in = run_out_in * (pitch_rise_in / pitch_run_in)
+rafter_len_out_in = math.hypot(run_out_in, rise_out_in)
+
+doc = App.ActiveDocument or App.newDocument("Roof_Porch_Wrap_3_12_8ft")
+
+
+def add_rafter(name, base_vec_in, slope_vec):
+    rot = App.Rotation(App.Vector(1, 0, 0), slope_vec)
+    box = Part.makeBox(inch(rafter_len_out_in), inch(rafter_thick_in), inch(rafter_width_in))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Rotation = rot
+    obj.Placement.Base = App.Vector(inch(base_vec_in[0]), inch(base_vec_in[1]), inch(base_vec_in[2]))
+    attach_metadata(obj, rafter_row, rafter_stock_label, supplier=supplier)
+    if "cut_length_in" not in obj.PropertiesList:
+        obj.addProperty("App::PropertyFloat", "cut_length_in")
+    obj.cut_length_in = rafter_len_out_in
+    return obj
+
+
+def side_rafters(side_name, origin_xy, along_vec, out_vec, run_len_in):
+    rafs = []
+    pos = 0.0
+    centers = []
+    while pos < run_len_in - 1e-6:
+        centers.append(pos)
+        pos += rafter_spacing_oc_in
+    if not centers or centers[-1] < run_len_in - 1e-6:
+        centers.append(run_len_in)
+
+    for idx, c in enumerate(centers, start=1):
+        bx = origin_xy[0] + along_vec[0] * c
+        by = origin_xy[1] + along_vec[1] * c
+        # Slope downward away from the wall: negative Z component.
+        slope_vec = App.Vector(out_vec[0] * run_out_in, out_vec[1] * run_out_in, -rise_out_in)
+        rafs.append(add_rafter(f"{side_name}_Rafter_{idx}", (bx, by, base_z_in), slope_vec))
+    return rafs
+
+
+# Define sides: (name, origin, along_vec, out_vec, length)
+# Only wrap on left/right; front/back will use deck modules instead
+sides = [
+    ("Left", (0.0, 0.0), (0.0, 1.0), (-1.0, 0.0), footprint_y_in),               # left slopes toward -X
+    ("Right", (footprint_x_in, 0.0), (0.0, 1.0), (1.0, 0.0), footprint_y_in),    # right slopes toward +X
+]
+
+all_rafs = []
+for name, origin, along, out_vec, length_in in sides:
+    all_rafs.extend(side_rafters(name, origin, along, out_vec, length_in))
+
+group = doc.addObject("App::DocumentObjectGroup", "Roof_Porch_Wrap_3_12")
+group.Label = "Roof_Porch_Wrap_3_12"
+for r in all_rafs:
+    group.addObject(r)
+group.Group = all_rafs
+
+doc.recompute()
+App.Console.PrintMessage(
+    f"[Porch Roof] Built wrap roof: {len(all_rafs)} rafters @ {rafter_spacing_oc_in}\" OC, run {run_out_in}\" rise {rise_out_in}\"\n"
+)

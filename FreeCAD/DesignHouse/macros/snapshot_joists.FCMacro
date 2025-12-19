@@ -1,0 +1,160 @@
+import os
+import math
+import FreeCAD as App
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception as exc:
+    raise RuntimeError(f"Pillow not available for joist snapshot: {exc}")
+
+"""
+Headless snapshot of joist module spacing.
+Inputs (env):
+  SNAPSHOT_INPUT  - FCStd path
+  SNAPSHOT_IMAGE  - PNG output
+"""
+
+input_path = os.environ.get("SNAPSHOT_INPUT")
+output_path = os.environ.get("SNAPSHOT_IMAGE")
+
+if not input_path or not os.path.isfile(input_path):
+    raise RuntimeError("SNAPSHOT_INPUT missing or file not found")
+if not output_path:
+    raise RuntimeError("SNAPSHOT_IMAGE not set")
+
+doc = App.openDocument(input_path)
+App.setActiveDocument(doc.Name)
+
+joists = []
+rims = {}
+
+# Find all joist and rim objects from LEFT module only (to show 14.5" first spacing)
+for obj in doc.Objects:
+    try:
+        name = obj.Name
+        # Match assembly-based naming: Floor_Module_*_Joist_*, Floor_Module_*_Rim_*
+        # Only use Front_Left module to show correct spacing
+        if "Front_Left" not in name:
+            continue
+        if "_Joist_" in name and hasattr(obj, "Shape"):
+            joists.append((name, obj.Shape.BoundBox))
+        elif "_Rim_" in name and hasattr(obj, "Shape"):
+            # Extract rim position (Front/Back/Left/Right) - check suffix after _Rim_
+            if name.endswith("_Rim_Front") or "_Rim_Front" in name:
+                rims["Rim_Front"] = obj.Shape.BoundBox
+            elif name.endswith("_Rim_Back") or "_Rim_Back" in name:
+                rims["Rim_Back"] = obj.Shape.BoundBox
+            elif name.endswith("_Rim_Left") or "_Rim_Left" in name:
+                rims["Rim_Left"] = obj.Shape.BoundBox
+            elif name.endswith("_Rim_Right") or "_Rim_Right" in name:
+                rims["Rim_Right"] = obj.Shape.BoundBox
+    except Exception:
+        pass
+
+rim_front = rims.get("Rim_Front")
+rim_back = rims.get("Rim_Back")
+rim_left = rims.get("Rim_Left")
+rim_right = rims.get("Rim_Right")
+
+App.Console.PrintMessage(f"[snapshot_joists] Found {len(joists)} joists, rims: front={rim_front is not None}, back={rim_back is not None}, left={rim_left is not None}, right={rim_right is not None}\n")
+if len(joists) < 2:
+    App.Console.PrintError(f"[snapshot_joists] Not enough joists for spacing (found {len(joists)} joists)\n")
+    App.closeDocument(doc.Name)
+    raise SystemExit(0)
+if rim_front is None:
+    App.Console.PrintWarning("[snapshot_joists] No front rim found, using first joist as reference\n")
+
+# Extract just bounding boxes for layout
+joist_boxes = [bb for name, bb in joists]
+
+# Sort by Y center to compute spacing
+joist_boxes.sort(key=lambda bb: bb.Center.y)
+centers = [rim_front.Center] + [bb.Center for bb in joist_boxes]
+# include back rim to show last gap
+if rim_back:
+    centers.append(rim_back.Center)
+spacings_mm = [centers[i+1].y - centers[i].y for i in range(len(centers)-1)]
+App.Console.PrintMessage(f"[snapshot_joists] Joists={len(joist_boxes)}, gaps={len(spacings_mm)}; first={spacings_mm[0]/25.4:.3f}\" next={spacings_mm[1]/25.4:.3f}\" last={spacings_mm[-1]/25.4:.3f}\"\\n")
+
+all_boxes = joist_boxes + list(rims.values())
+min_x = min(bb.XMin for bb in all_boxes)
+max_x = max(bb.XMax for bb in all_boxes)
+min_y = min(bb.YMin for bb in all_boxes)
+max_y = max(bb.YMax for bb in all_boxes)
+
+pad_mm = 200.0
+img_size = 2000
+span_x = max_x - min_x
+span_y = max_y - min_y
+scale = min((img_size - 40) / (span_x + 2 * pad_mm), (img_size - 40) / (span_y + 2 * pad_mm))
+if not math.isfinite(scale) or scale <= 0:
+    scale = 1.0
+
+def map_point(x_mm, y_mm):
+    px = int(round((x_mm - min_x + pad_mm) * scale + 20))
+    py = int(round((max_y + pad_mm - y_mm) * scale + 20))
+    return px, py
+
+img = Image.new("RGB", (img_size, img_size), "white")
+draw = ImageDraw.Draw(img)
+
+# Load font for labels
+try:
+    font = ImageFont.truetype("Arial", 32)
+except Exception:
+    font = ImageFont.load_default()
+
+# Draw joists
+for bb in joist_boxes:
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="black", fill="#c5ffd2")
+
+# Draw rims with thicker outline and better labeling
+rim_color = "#d0d0d0"
+for name, bb in rims.items():
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="red", width=3, fill=rim_color)
+
+    # Position label based on rim type
+    label = name.replace("Rim_", "")
+    if "Left" in name or "Right" in name:
+        # Vertical rims: place label near top, rotated if needed
+        draw.text((xa + 2, ya + 10), label, fill="red", font=font)
+    else:
+        # Horizontal rims: place label at left edge
+        draw.text((xa + 4, ya + 4), label, fill="red", font=font)
+
+text = f"Joists: {len(joist_boxes)} | Gap0(rim->J0): {spacings_mm[0]/25.4:.3f}\" | Gap1: {spacings_mm[1]/25.4:.3f}\""
+draw.text((30, 30), text, fill="black", font=font)
+line_y = 70
+for idx, sp in enumerate(spacings_mm, start=0):
+    if idx == 0:
+        label = "RimF->J0"
+    elif idx == len(spacings_mm) - 1 and rim_back:
+        label = f"J{idx-1}->RimB"
+    else:
+        label = f"J{idx-1}->J{idx}"
+    line = f"Gap {idx}: {label}: {sp/25.4:.3f}\""
+    draw.text((30, line_y), line, fill="black", font=font)
+    line_y += 32
+
+# Draw dimension arrows between consecutive centers along Y
+def draw_arrow(x, y0, y1, text):
+    y0p = map_point(min_x - pad_mm / 4, y0)[1]
+    y1p = map_point(min_x - pad_mm / 4, y1)[1]
+    xp = map_point(min_x - pad_mm / 4, y0)[0]
+    draw.line([(xp, y0p), (xp, y1p)], fill="red", width=3)
+    draw.text((xp + 6, (y0p + y1p) / 2 - 10), text, fill="red", font=font)
+
+for i in range(len(centers) - 1):
+    draw_arrow(min_x - pad_mm / 4, centers[i].y, centers[i+1].y, f"{spacings_mm[i]/25.4:.2f}\"")
+
+img.save(output_path)
+App.Console.PrintMessage(f"[snapshot_joists] Saved image to {output_path}\n")
+App.closeDocument(doc.Name)

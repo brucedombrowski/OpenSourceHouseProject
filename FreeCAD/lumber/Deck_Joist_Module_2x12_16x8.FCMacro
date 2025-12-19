@@ -1,0 +1,310 @@
+# FreeCAD macro: 16' x 8' deck joist module using 2x12s.
+# House side rim at Y=0, joists project +Y (8'). Joists are 2x12x96 @ 16" OC with rim/end boards 2x12x192.
+
+import os
+import sys
+import importlib
+import FreeCAD as App
+import Part
+
+_here = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_here))
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import (
+    ensure_macro_path,
+    resolve_catalog,
+    load_catalog,
+    find_stock,
+    attach_metadata,
+    inch,
+    clear_group,
+    make_hanger as make_hanger_helper,
+)
+
+ensure_macro_path()
+
+# Parameters
+length_x_in = 192.0  # 16'
+proj_y_in = 96.0     # 8'
+joist_spacing_oc_in = 16.0
+rim_label = "2x12x192"
+joist_label = "2x12x96"
+deck_label = "deckboard_5_4x6x192_PT"
+post_label = "post_6x6x144_PT"
+hanger_label = "hanger_LU210"
+hanger_thickness = 0.06     # approx 16ga
+hanger_height = 7.8125      # ~7-13/16" overall height
+hanger_seat_depth = 2.0     # back plate depth
+supplier = "lowes"
+
+catalog_candidates = [
+    os.path.join(_here, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = resolve_catalog(catalog_candidates)
+rows = load_catalog(catalog_path)
+
+rim_row = find_stock(rows, rim_label)
+joist_row = find_stock(rows, joist_label)
+deck_row = find_stock(rows, deck_label)
+post_row = find_stock(rows, post_label)
+if not rim_row or not joist_row:
+    raise ValueError("Required rim/joist stock not found in catalog.")
+if not deck_row:
+    raise ValueError(f"Deck board label '{deck_label}' not found in catalog.")
+if not post_row:
+    raise ValueError(f"Post label '{post_label}' not found in catalog.")
+
+rim_thick = float(rim_row["actual_thickness_in"])   # 1.5"
+rim_depth = float(rim_row["actual_width_in"])       # 11.25"
+rim_len = float(rim_row["length_in"])               # 192"
+joist_thick = float(joist_row["actual_thickness_in"])
+joist_depth = float(joist_row["actual_width_in"])
+joist_len = float(joist_row["length_in"])           # 96"
+deck_thick = float(deck_row["actual_thickness_in"]) # 1.0"
+deck_width = float(deck_row["actual_width_in"])     # 5.5"
+deck_len = float(deck_row["length_in"])             # 192"
+deck_gap = 0.125  # 1/8" gap
+post_thick = float(post_row["actual_thickness_in"]) # 5.5"
+post_width = float(post_row["actual_width_in"])     # 5.5"
+post_len = float(post_row["length_in"])             # 96" stock
+# Cut posts to terminate at the bottom of deck boards (avoid protruding above deck surface).
+post_height_in = joist_depth  # flush to deck board underside
+
+doc = App.ActiveDocument or App.newDocument("Deck_Joist_Module_2x12_16x8")
+# Clean prior runs
+for grp_name in (
+    "Deck_Joist_Module_2x12_16x8",
+    "Deck_Joists",
+    "Deck_Boards",
+    "Deck_Posts",
+    "Deck_Hardware",
+):
+    clear_group(doc, grp_name)
+
+
+def make_rim(name, y_base):
+    box = Part.makeBox(inch(rim_len), inch(rim_thick), inch(rim_depth))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), 0)
+    attach_metadata(obj, rim_row, rim_label, supplier=supplier)
+    return obj
+
+
+def make_joist(name, x_base):
+    box = Part.makeBox(inch(joist_thick), inch(proj_y_in), inch(joist_depth))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(inch(x_base), 0, 0)
+    attach_metadata(obj, joist_row, joist_label, supplier=supplier)
+    return obj
+
+
+def make_deck_board(name, y_base):
+    box = Part.makeBox(inch(deck_len), inch(deck_width), inch(deck_thick))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), inch(joist_depth))  # sit atop joists
+    attach_metadata(obj, deck_row, deck_label, supplier=supplier)
+    return obj
+
+
+def make_post(name, x_base, y_base, z_base):
+    box = Part.makeBox(inch(post_width), inch(post_thick), inch(post_height_in))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(inch(x_base), inch(y_base), inch(z_base))
+    attach_metadata(obj, post_row, post_label, supplier=supplier)
+    try:
+        if "cut_length_in" not in obj.PropertiesList:
+            obj.addProperty("App::PropertyString", "cut_length_in")
+        obj.cut_length_in = f"{post_height_in}"
+    except Exception:
+        pass
+    return obj
+
+
+created = []
+# Rim centered on joists: offset so joists sit between rims
+rim_offset = joist_thick  # move house rim down by joist thickness
+joist_face_y = -rim_offset  # house-side rim face where hangers mount
+created.append(make_rim("Rim_House", -rim_offset))
+created.append(make_rim("Rim_Outboard", proj_y_in))
+
+# Joists @16" OC along X, flush to rims
+centers = []
+first_center = joist_thick / 2.0
+last_center = length_x_in - (joist_thick / 2.0)
+c = first_center
+while c < last_center - 1e-6:
+    centers.append(c)
+    c += joist_spacing_oc_in
+if not centers or centers[-1] < last_center - 1e-6:
+    centers.append(last_center)
+
+for idx, cx in enumerate(centers, start=1):
+    x_base = cx - (joist_thick / 2.0)
+    created.append(make_joist(f"Joist_{idx}", x_base))
+
+# Deck boards running along X, 1/8" gaps; start first board shifted -1.5" in Y, rip last board to fit
+boards = []
+board_count = 0
+step = deck_width + deck_gap
+y_pos = -1.5  # shift first board toward house by 1.5"
+last_full_end = None
+while True:
+    next_y = y_pos + deck_width
+    if next_y > proj_y_in:
+        # Rip last board to remaining space (ensure minimum positive width)
+        # Place rip after a single gap following the last full board
+        rip_start = (last_full_end if last_full_end is not None else y_pos) + deck_gap
+        remaining = proj_y_in - rip_start + 1.5  # widen rip by 1.5"
+        if remaining > 0.25:
+            board_count += 1
+            rip = make_deck_board(f"Deck_{board_count}_RIP", rip_start)
+            # scale last board in Y to remaining width (no extra gap)
+            rip.Shape = Part.makeBox(inch(deck_len), inch(remaining), inch(deck_thick))
+            rip.Placement.Base.y = inch(rip_start)
+            rip.Placement.Base.z = inch(joist_depth)        # elevate to board height
+            boards.append(rip)
+        break
+    board_count += 1
+    boards.append(make_deck_board(f"Deck_{board_count}", y_pos))
+    last_full_end = next_y
+    y_pos += step
+
+if boards:
+    created.extend(boards)
+
+# Posts: four corners plus two intermediate along outboard rim (evenly spaced)
+posts = []
+z_post_base = 0.0  # bottom of posts aligned to bottom of deck joists
+posts.append(make_post("Post_Front_Left", 1.5, -1.5, z_post_base))  # inset 1.5" from end, shifted toward outboard
+posts.append(make_post("Post_Front_Right", length_x_in - post_width - 1.5, -1.5, z_post_base))
+# Outboard corner posts
+posts.append(make_post("Post_Outboard_Left", 1.5, proj_y_in - post_thick, z_post_base))
+posts.append(make_post("Post_Outboard_Right", length_x_in - post_width - 1.5, proj_y_in - post_thick, z_post_base))
+# Two intermediate along outboard rim at joist-free bays
+mid_positions = [72.75, 120.75]  # place between joist bays to avoid hangers/joists
+for i, x_mid in enumerate(mid_positions, start=1):
+    posts.append(make_post(f"Post_Outboard_Mid_{i}", x_mid, proj_y_in - post_thick, z_post_base))
+
+created.extend(posts)
+
+# Punch holes in deck boards where posts penetrate
+def cut_board_for_posts(board, posts):
+    try:
+        b = board.Shape
+    except Exception:
+        return board
+    # board footprint in local coords
+    by = board.Placement.Base.y / inch(1)
+    bw = b.BoundBox.YLength / inch(1)
+    bz = board.Placement.Base.z / inch(1)
+    cuts = []
+    for p in posts:
+        px = p.Placement.Base.x / inch(1)
+        py = p.Placement.Base.y / inch(1)
+        pz = p.Placement.Base.z / inch(1)
+        if py > by + bw or (py + post_thick) < by:
+            continue  # no overlap in Y
+        # Build a cut box slightly taller than the board to ensure clean subtraction
+        hole = Part.makeBox(inch(post_width), inch(post_thick), inch(deck_thick * 2.0))
+        hole.Placement.Base = App.Vector(inch(px), inch(py), inch(bz - deck_thick * 0.5))
+        cuts.append(hole)
+    if not cuts:
+        return board
+    try:
+        new_shape = board.Shape
+        for h in cuts:
+            new_shape = new_shape.cut(h)
+        board.Shape = new_shape
+    except Exception:
+        pass
+    return board
+
+# Hangers on house rim for each joist (skip first/last). Mount to inner faces of rims.
+hangs = []
+house_face_y = 0.0               # inner face of house rim (y=-1.5..0)
+outboard_face_y = proj_y_in      # inner face of outboard rim (y=96..97.5)
+for idx, cx in enumerate(centers, start=1):
+    if idx == 1 or idx == len(centers):
+        continue  # skip end joists
+    try:
+        # House rim hanger: extends into +Y
+        hangs.append(
+            make_hanger_helper(
+                doc,
+                f"Hanger_House_{idx}",
+                house_face_y,
+                cx,
+                joist_thick,
+                hanger_thickness,
+                hanger_height,
+                hanger_seat_depth,
+                hanger_label,
+                direction=1,
+                axis="Y",
+                debug_components=False,
+                color=(0.6, 0.6, 0.7),
+            )
+        )
+        # Outboard rim hanger: extends into -Y
+        hangs.append(
+            make_hanger_helper(
+                doc,
+                f"Hanger_Outboard_{idx}",
+                outboard_face_y,
+                cx + joist_thick,  # nudge +X by 1.5" to align outboard hanger
+                joist_thick,
+                hanger_thickness,
+                hanger_height,
+                hanger_seat_depth,
+                hanger_label,
+                direction=-1,
+                axis="Y",
+                debug_components=False,
+                color=(0.6, 0.6, 0.7),
+            )
+        )
+    except Exception as e:
+        App.Console.PrintError(f"[Deck 16x8] Hanger build failed for joist {idx}: {e}\\n")
+
+created.extend(hangs)
+App.Console.PrintMessage(f"[Deck 16x8] Built {len(hangs)} hangers (solid)\\n")
+
+# Apply post cutouts after hangers (boards may be grouped already)
+for b in boards:
+    cut_board_for_posts(b, posts)
+
+group = doc.addObject("App::DocumentObjectGroup", "Deck_Joist_Module_2x12_16x8")
+group.Label = "Deck_Joist_Module_2x12_16x8"
+joist_grp = doc.addObject("App::DocumentObjectGroup", "Deck_Joists")
+deck_grp = doc.addObject("App::DocumentObjectGroup", "Deck_Boards")
+post_grp = doc.addObject("App::DocumentObjectGroup", "Deck_Posts")
+hanger_grp = doc.addObject("App::DocumentObjectGroup", "Deck_Hardware")
+
+for obj in created:
+    name = getattr(obj, "Name", "")
+    if name.startswith("Joist_") or name.startswith("Rim_"):
+        joist_grp.addObject(obj)
+    elif name.startswith("Deck_"):
+        deck_grp.addObject(obj)
+
+for p in posts:
+    post_grp.addObject(p)
+for h in hangs:
+    hanger_grp.addObject(h)
+
+# Finalize grouping: attach sub-groups to top group; keep objects only in their sub-groups
+for sub in (joist_grp, deck_grp, post_grp, hanger_grp):
+    group.addObject(sub)
+group.Group = [joist_grp, deck_grp, post_grp, hanger_grp]
+
+doc.recompute()
+App.Console.PrintMessage(f"[Deck 16x8] Created {len(centers)} joists + 2 rims + {len(boards)} deck boards (5/4x6x16')\n")

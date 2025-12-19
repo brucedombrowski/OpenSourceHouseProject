@@ -1,0 +1,237 @@
+# FreeCAD macro: build a simple 6:12 gable roof over the 16x24 footprint (ridge along the 24' direction).
+# Produces 2x10 rafters @ 16" OC and a 2x12 ridge board (16' + 8').
+# Adjust parameters below to change pitch, spacing, or member sizes. Set base_z_in to match the top of the second-story plates.
+
+import os
+import sys
+import math
+import importlib
+import FreeCAD as App
+import Part
+
+# Ensure helper path
+_here = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_here))
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import (
+    ensure_macro_path,
+    resolve_catalog,
+    load_catalog,
+    find_stock,
+    attach_metadata,
+    inch,
+)
+
+ensure_macro_path()
+# Debug switch for birdsmouth logging (env LUMBER_NOTCH_DEBUG=1)
+DEBUG_NOTCH = os.environ.get("LUMBER_NOTCH_DEBUG", "").lower() in ("1", "true", "yes")
+
+# -----------------------
+# Parameters
+# -----------------------
+footprint_x_in = 195.5   # width (gable span) matching wall top-plate rectangle
+footprint_y_in = 288.0   # length (ridge direction)
+front_overhang_in = 96.0  # extend roof 8' over front deck
+back_overhang_in = 0.0
+pitch_rise_in = 6.0
+pitch_run_in = 12.0
+rafter_spacing_oc_in = 16.0
+rafter_stock_label = "2x10x144"   # use 12' stock to clear ridge/seat
+ridge_stock_labels = ["2x12x192", "2x12x192"]  # ridge board pieces (32' total)
+supplier = "lowes"
+# Birdsmouth parameters (world-aligned seat/notch)
+birdsmouth_seat_width_in = 3.5   # seat length along wall thickness
+birdsmouth_depth_in = 2.5        # vertical cut depth
+birdsmouth_offset_in = 0.0       # start at rafter end
+# Set this to the top of the second-story plate; tweak if your model differs.
+# With the current build macro, second_top_plate_z ≈ 240.75"; drop by birdsmouth depth so seat bears on the plate.
+base_z_in = 240.75 - birdsmouth_depth_in
+
+catalog_candidates = [
+    os.path.join(_here, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = resolve_catalog(catalog_candidates)
+rows = load_catalog(catalog_path)
+
+rafter_row = find_stock(rows, rafter_stock_label)
+if not rafter_row:
+    raise ValueError(f"Rafter label '{rafter_stock_label}' not found in catalog.")
+ridge_rows = []
+for lbl in ridge_stock_labels:
+    row = find_stock(rows, lbl)
+    if not row:
+        raise ValueError(f"Ridge label '{lbl}' not found in catalog.")
+    ridge_rows.append((lbl, row))
+
+rafter_thick_in = float(rafter_row["actual_thickness_in"])  # 1.5"
+rafter_width_in = float(rafter_row["actual_width_in"])      # depth: 9.25" for 2x10
+ridge_thick_in = float(ridge_rows[0][1]["actual_thickness_in"])  # 1.5"
+ridge_width_in = float(ridge_rows[0][1]["actual_width_in"])      # 11.25"
+
+# Geometry
+run_in = footprint_x_in / 2.0
+rise_in = run_in * (pitch_rise_in / pitch_run_in)
+rafter_len_in = float(rafter_row["length_in"])  # use full 12' stock length
+ridge_elev_in = base_z_in + rise_in
+pitch_deg = math.degrees(math.atan2(rise_in, run_in))
+ridge_face_left_x = run_in - ridge_thick_in  # board base for left side (ends at centerline)
+ridge_face_right_x = run_in  # board base for right side (starts at centerline)
+span_y_in = footprint_y_in + front_overhang_in + back_overhang_in
+y_min_in = -front_overhang_in
+y_max_in = footprint_y_in + back_overhang_in
+
+# -----------------------
+# Helpers
+# -----------------------
+doc = App.ActiveDocument or App.newDocument("Roof_Gable_6_12_16x24")
+
+
+def add_rafter(name, base_vec_in, run_sign, stock_row, stock_label):
+    """Create a rafter; run_sign=+1 for left (toward +X), -1 for right (toward -X)."""
+    target_vec = App.Vector(run_sign * run_in, 0, rise_in)
+    rot = App.Rotation(App.Vector(1, 0, 0), target_vec)
+    box = Part.makeBox(inch(rafter_len_in), inch(rafter_thick_in), inch(rafter_width_in))
+    if birdsmouth_seat_width_in > 0 and birdsmouth_depth_in > 0:
+        # Cut notch in local coords at the eave end, biting from the bottom (Z-)
+        if run_sign >= 0:
+            notch_x_local = birdsmouth_offset_in
+        else:
+            notch_x_local = rafter_len_in - birdsmouth_seat_width_in - birdsmouth_offset_in
+        notch = Part.makeBox(
+            inch(birdsmouth_seat_width_in),
+            inch(rafter_thick_in),
+            inch(birdsmouth_depth_in),
+        )
+        notch.Placement.Base = App.Vector(inch(notch_x_local), 0, -inch(birdsmouth_depth_in))
+        try:
+            box = box.cut(notch)
+        except Exception:
+            pass
+        if DEBUG_NOTCH:
+            try:
+                App.Console.PrintMessage(
+                    f"[notch-debug] {name} run_sign={run_sign} notch_x_local={notch_x_local:.3f} "
+                    f"seat_w={birdsmouth_seat_width_in} depth={birdsmouth_depth_in}\n"
+                )
+            except Exception:
+                pass
+
+    # Base placement in mm
+    base_vec_mm = App.Vector(inch(base_vec_in[0]), inch(base_vec_in[1]), inch(base_vec_in[2]))
+    if run_sign >= 0:
+        # Use top-right corner of the rafter cross-section for left side targeting
+        end_local = App.Vector(inch(rafter_len_in), inch(rafter_thick_in), inch(rafter_width_in))
+    else:
+        end_local = App.Vector(inch(rafter_len_in), 0, 0)
+    end_world_pre = base_vec_mm.add(rot.multVec(end_local))
+    if run_sign >= 0:
+        # Snap left rafters to the top-left corner of the left ridge board
+        ridge_target_x = ridge_face_left_x
+        ridge_target_z = ridge_elev_in + ridge_width_in
+    else:
+        # Snap right rafters to the outer (right) edge/top of the right ridge board
+        ridge_target_x = ridge_face_right_x + ridge_thick_in
+        ridge_target_z = ridge_elev_in + ridge_width_in
+    delta = App.Vector(inch(ridge_target_x), inch(base_vec_in[1]), inch(ridge_target_z)).sub(end_world_pre)
+    base_vec_mm = base_vec_mm.add(delta)
+
+    placement = App.Placement(base_vec_mm, rot)
+    shape_world = box.transformGeometry(placement.toMatrix())
+
+    # Notch already applied in local space; shape_world includes it after transform.
+
+    # Trim at ridge face with a world-aligned cut so ends butt the ridge boards.
+    try:
+        if run_sign >= 0:
+            # Keep region x <= ridge_face_left_x
+            keep_box = Part.makeBox(inch(ridge_face_left_x + 1000), inch(span_y_in + 24), inch(400))
+            keep_box.Placement.Base = App.Vector(inch(-1000), inch(y_min_in - 12), inch(base_z_in - 120))
+            shape_world = shape_world.common(keep_box)
+        else:
+            # Keep region x >= ridge_face_right_x
+            keep_box = Part.makeBox(inch(2000), inch(span_y_in + 24), inch(400))
+            keep_box.Placement.Base = App.Vector(inch(ridge_face_right_x), inch(y_min_in - 12), inch(base_z_in - 120))
+            shape_world = shape_world.common(keep_box)
+    except Exception:
+        pass
+
+    # Trim overlap with ridge board using a vertical cut aligned to ridge faces
+    try:
+        if run_sign >= 0:
+            ridge_cut = Part.makeBox(inch(ridge_thick_in), inch(span_y_in + 24), inch(ridge_width_in + 48))
+            ridge_cut.Placement.Base = App.Vector(inch(ridge_face_left_x), inch(y_min_in - 12), inch(ridge_elev_in - 24))
+        else:
+            ridge_cut = Part.makeBox(inch(ridge_thick_in), inch(span_y_in + 24), inch(ridge_width_in + 48))
+            ridge_cut.Placement.Base = App.Vector(inch(ridge_face_right_x), inch(y_min_in - 12), inch(ridge_elev_in - 24))
+        shape_world = shape_world.cut(ridge_cut)
+    except Exception:
+        pass
+
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = shape_world
+    obj.Placement = App.Placement()  # identity; geometry already in world coords
+    attach_metadata(obj, stock_row, stock_label, supplier=supplier)
+    if "cut_length_in" not in obj.PropertiesList:
+        obj.addProperty("App::PropertyFloat", "cut_length_in")
+    obj.cut_length_in = rafter_len_in
+    return obj
+
+
+# -----------------------
+# Build rafters
+# -----------------------
+rafters = []
+pos_y = y_min_in
+ys = []
+while pos_y < y_max_in - 1e-6:
+    ys.append(pos_y)
+    pos_y += rafter_spacing_oc_in
+if not ys or ys[-1] < y_max_in - 1e-6:
+    ys.append(y_max_in)
+
+left_slope = App.Vector(run_in, 0, rise_in)
+right_slope = App.Vector(-run_in, 0, rise_in)
+
+for idx, y in enumerate(ys, start=1):
+    base_left = (0.0, y, base_z_in)
+    base_right = (footprint_x_in + 0.75, y, base_z_in)  # shift right rafters +0.75" in X
+    rafters.append(add_rafter(f"Rafter_L_{idx}", base_left, +1, rafter_row, rafter_stock_label))
+    rafters.append(add_rafter(f"Rafter_R_{idx}", base_right, -1, rafter_row, rafter_stock_label))
+
+# -----------------------
+# Build ridge board
+# -----------------------
+ridges = []
+y_cursor = y_min_in
+for lbl, row in ridge_rows:
+    seg_len = float(row["length_in"])
+    ridge_left = doc.addObject("Part::Feature", f"Ridge_Left_{int(seg_len)}in")
+    ridge_left.Shape = Part.makeBox(inch(ridge_thick_in), inch(seg_len), inch(ridge_width_in))
+    ridge_left.Placement.Base = App.Vector(inch(ridge_face_left_x), inch(y_cursor), inch(ridge_elev_in))
+    attach_metadata(ridge_left, row, lbl, supplier=supplier)
+    ridges.append(ridge_left)
+
+    ridge_right = doc.addObject("Part::Feature", f"Ridge_Right_{int(seg_len)}in")
+    ridge_right.Shape = Part.makeBox(inch(ridge_thick_in), inch(seg_len), inch(ridge_width_in))
+    ridge_right.Placement.Base = App.Vector(inch(ridge_face_right_x), inch(y_cursor), inch(ridge_elev_in))
+    attach_metadata(ridge_right, row, lbl, supplier=supplier)
+    ridges.append(ridge_right)
+
+    y_cursor += seg_len
+
+# Group
+roof_group = doc.addObject("App::DocumentObjectGroup", "Roof_Main_Gable_6_12")
+roof_group.Label = "Roof_Main_Gable_6_12"
+for obj in rafters + ridges:
+    roof_group.addObject(obj)
+roof_group.Group = rafters + ridges
+
+doc.recompute()
+App.Console.PrintMessage(
+    f"[Roof] Built gable roof: {len(ys)} pairs of rafters ({len(rafters)} total), ridge pieces {ridge_stock_labels}\n"
+)

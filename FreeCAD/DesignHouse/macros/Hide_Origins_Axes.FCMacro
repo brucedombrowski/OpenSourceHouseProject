@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Hide all LCS (Local Coordinate System) origin markers, planes, and axes in the active document.
+
+Usage: Run this macro in FreeCAD GUI to hide all LCS origins, planes, and axes while keeping
+       all other objects visible.
+
+For Luke Dombrowski. Stay Alive.
+"""
+import FreeCAD as App
+
+doc = App.ActiveDocument
+if not doc:
+    App.Console.PrintError("[HideLCSOrigins] No active document!\n")
+    raise SystemExit(1)
+
+App.Console.PrintMessage("[HideLCSOrigins] Hiding LCS origins, planes, and axes in document '{}'...\n".format(doc.Name))
+
+hidden_lcs = 0
+hidden_planes = 0
+hidden_origins = 0
+hidden_axes = 0
+
+for obj in doc.Objects:
+    try:
+        type_id = obj.TypeId
+
+        # Hide LCS (Local Coordinate System) origin markers
+        if type_id == "PartDesign::CoordinateSystem":
+            if hasattr(obj, "Visibility"):
+                obj.Visibility = False
+            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+                obj.ViewObject.Visibility = False
+            hidden_lcs += 1
+        # Hide planes
+        elif type_id in ["PartDesign::Plane", "App::Plane"]:
+            if hasattr(obj, "Visibility"):
+                obj.Visibility = False
+            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+                obj.ViewObject.Visibility = False
+            hidden_planes += 1
+        # Hide origin objects (contains axes)
+        elif type_id == "App::Origin":
+            if hasattr(obj, "Visibility"):
+                obj.Visibility = False
+            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+                obj.ViewObject.Visibility = False
+            hidden_origins += 1
+        # Hide individual axes (X, Y, Z lines)
+        elif type_id in ["App::Line", "App::Axis"] or "Axis" in obj.Name or "Origin" in obj.Name:
+            if hasattr(obj, "Visibility"):
+                obj.Visibility = False
+            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+                obj.ViewObject.Visibility = False
+            hidden_axes += 1
+    except Exception as e:
+        App.Console.PrintWarning("[HideLCSOrigins] Failed to hide {}: {}\n".format(obj.Name, e))
+
+App.Console.PrintMessage("[HideLCSOrigins] ✓ Hidden {} LCS, {} planes, {} origins, {} axes\n".format(
+    hidden_lcs, hidden_planes, hidden_origins, hidden_axes))
+doc.recompute()

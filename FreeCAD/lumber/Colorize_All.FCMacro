@@ -1,0 +1,215 @@
+import FreeCAD as App
+
+"""
+Colorize + unhide everything in the active document with deterministic colors per length.
+Usage (from FreeCAD GUI): Tools → Macros → Colorize_All → Execute.
+"""
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("No active document.")
+
+def inch(x): return x * 25.4
+
+# Base hues by nominal cross-section; shade varies with length.
+NOMINAL_COLORS = {
+    "2x4":  (0.95, 0.60, 0.20),
+    "2x6":  (0.35, 0.65, 0.95),
+    "2x8":  (0.60, 0.80, 0.30),
+    "2x10": (0.85, 0.40, 0.30),
+    "2x12": (0.80, 0.30, 0.30),
+    "5/4x6":(0.50, 0.35, 0.20),
+    "panel":(0.40, 0.75, 0.70),
+    "hanger":(0.70, 0.70, 0.70),
+    "4x4":  (0.55, 0.45, 0.25),
+    "post": (0.55, 0.45, 0.25),
+}
+
+PALETTE = [
+    (0.90, 0.30, 0.30),
+    (0.95, 0.65, 0.30),
+    (0.40, 0.80, 0.40),
+    (0.35, 0.65, 0.95),
+    (0.65, 0.45, 0.95),
+    (0.55, 0.85, 0.90),
+    (0.75, 0.75, 0.75),
+]
+
+def length_from_obj(obj):
+    # Prefer explicit properties
+    for prop in ("cut_length_in", "length_in"):
+        try:
+            if prop in obj.PropertiesList:
+                return float(obj.__getattribute__(prop))
+        except Exception:
+            pass
+    # Try label pattern like 2x4x96
+    try:
+        lbl = obj.Label if hasattr(obj, "Label") else ""
+        if lbl and "x" in lbl:
+            parts = lbl.lower().split("x")
+            last = parts[-1]
+            try:
+                return float(last)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Fallback: longest bounding box dimension (mm -> inches)
+    try:
+        bb = obj.Shape.BoundBox
+        return max(bb.XLength, bb.YLength, bb.ZLength) / 25.4
+    except Exception:
+        return None
+
+def quantize_length(length_in):
+    if length_in is None:
+        return None
+    # Round to nearest inch to keep identical members the same shade despite tiny modeling differences
+    return round(length_in)
+
+def nominal_from_label(obj):
+    labels = []
+    try:
+        labels.append(obj.Label if hasattr(obj, "Label") else "")
+    except Exception:
+        labels.append("")
+    try:
+        labels.append(obj.Name if hasattr(obj, "Name") else "")
+    except Exception:
+        labels.append("")
+    try:
+        if "label" in getattr(obj, "PropertiesList", []):
+            labels.append(str(getattr(obj, "label")))
+    except Exception:
+        pass
+    labels = [lbl for lbl in labels if lbl]
+    for lbl in labels:
+        try:
+            low = lbl.lower()
+            if "x" in low:
+                parts = low.split("x")
+                if len(parts) >= 3:
+                    return f"{parts[0]}x{parts[1]}"
+            if "sheathing" in low or "advantech" in low:
+                return "panel"
+            if "rafter" in low:
+                return "2x12"
+            if "post" in low or "pile" in low:
+                return "post"
+            if any(key in low for key in ("joist", "joist_", "module_joists", "module_joist", "beam", "rim", "blocking", "midboard")):
+                return "2x12"
+            if "joist_2x12" in low or "beam_2x12" in low:
+                return "2x12"
+        except Exception:
+            pass
+    # Detect sheet goods by bounding box (two large dims, one thin)
+    try:
+        bb = obj.Shape.BoundBox
+        dims = sorted([bb.XLength / 25.4, bb.YLength / 25.4, bb.ZLength / 25.4])
+        if dims[0] < 1.5 and dims[1] > 40.0 and dims[2] > 40.0:
+            return "panel"
+    except Exception:
+        pass
+    # Detect hangers/panels by label keywords
+    for lbl in labels:
+        try:
+            low = lbl.lower()
+            if "hanger" in low or "hardware" in low:
+                return "hanger"
+            if "panel" in low or "plywood" in low or "advantech" in low:
+                return "panel"
+            if "deck" in low and "5/4" in low:
+                return "5/4x6"
+            if "joist" in low or "beam" in low or "rim" in low or "blocking" in low or "midboard" in low:
+                return "2x12"
+        except Exception:
+            pass
+    # Cross-section heuristic fallback: any stick with ~1.5" smallest dimension and long length => 2x12
+    try:
+        bb = obj.Shape.BoundBox
+        dims = sorted([bb.XLength / 25.4, bb.YLength / 25.4, bb.ZLength / 25.4])
+        if dims[0] < 2.1 and dims[1] < 12.6 and dims[2] > 20.0:
+            return "2x12"
+        # Generic stick catch-all: if two smallest dims are lumber-like, map to 2x12 to avoid rainbow
+        if dims[0] < 2.1 and dims[1] < 14.0:
+            return "2x12"
+    except Exception:
+        pass
+    # Try bounding box to infer cross-section (two smallest dims)
+    try:
+        bb = obj.Shape.BoundBox
+        dims = sorted([bb.XLength / 25.4, bb.YLength / 25.4, bb.ZLength / 25.4])
+        xs, ys = round(dims[0], 2), round(dims[1], 2)
+        candidates = {
+            "2x4":  (1.5, 3.5),
+            "2x6":  (1.5, 5.5),
+            "2x8":  (1.5, 7.25),
+            "2x10": (1.5, 9.25),
+            "2x12": (1.5, 11.25),
+            "5/4x6":(1.0, 5.5),
+            "4x4":  (3.5, 3.5),
+        }
+        for name, (a, b) in candidates.items():
+            if abs(xs - a) < 0.6 and abs(ys - b) < 0.6:
+                return name
+    except Exception:
+        pass
+    return None
+
+def shade_color(base, length_in):
+    max_len = 192.0
+    if length_in is None or length_in <= 0:
+        return base
+    t = max(0.0, min(1.0, 1.0 - (length_in / max_len)))
+    factor = 0.55 + 0.35 * t  # shorter = lighter
+    return tuple(min(1.0, c * factor + (1 - factor)) for c in base)
+
+def fallback_color(label: str):
+    idx = abs(hash(label.lower())) % len(PALETTE)
+    return PALETTE[idx]
+
+def ensure_visible(obj):
+    try:
+        if hasattr(obj, "Visibility"):
+            obj.Visibility = True
+    except Exception:
+        pass
+    try:
+        if hasattr(obj, "ViewObject"):
+            obj.ViewObject.Visibility = True
+    except Exception:
+        pass
+
+for obj in doc.Objects:
+    ensure_visible(obj)
+    if not hasattr(obj, "ViewObject"):
+        continue
+    try:
+        nominal = nominal_from_label(obj)
+        length_in = quantize_length(length_from_obj(obj))
+        if nominal and nominal in NOMINAL_COLORS:
+            base = NOMINAL_COLORS[nominal]
+            # Keep certain items uniform regardless of length
+            if nominal in ("post", "panel", "hanger", "2x12"):
+                length_in = None
+            obj.ViewObject.ShapeColor = shade_color(base, length_in)
+        else:
+            lbl = getattr(obj, "Label", getattr(obj, "Name", ""))
+            obj.ViewObject.ShapeColor = fallback_color(lbl)
+        obj.ViewObject.Transparency = 0
+    except Exception:
+        pass
+
+doc.recompute()
+try:
+    import FreeCADGui as Gui
+    if Gui.ActiveDocument:
+        v = Gui.ActiveDocument.ActiveView
+        v.setCameraType("Orthographic")
+        v.viewIsometric()
+        v.fitAll()
+except Exception:
+    pass
+
+App.Console.PrintMessage("[Colorize_All] Applied visibility and deterministic colors by length; fit view\n")

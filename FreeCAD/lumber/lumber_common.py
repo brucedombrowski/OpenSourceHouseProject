@@ -213,8 +213,10 @@ def make_hanger(
         flangeR.Placement.Base = App.Vector(0, inch(thick + bt), inch(z0))  # far side at Y=thick+bt
 
         assembled = seat.fuse([sideL, sideR, flangeL, flangeR])
-        tx = inch(x_pos + (bt if direction > 0 else -bt))  # shift along world X
-        ty = inch(y_center - (thick / 2.0))  # center on joist thickness
+        tx = inch(x_pos)  # rim flange at x_pos
+        # Y offset: direction=-1 needs to shift +Y by (bt + thick) to align properly
+        y_offset = (bt + thick) if direction < 0 else 0
+        ty = inch(y_center - (thick / 2.0) + y_offset)  # center on joist thickness
         assembled.Placement.Base = App.Vector(tx, ty, 0)
 
     if debug_components:

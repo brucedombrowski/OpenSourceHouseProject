@@ -1,0 +1,164 @@
+import os
+import math
+import FreeCAD as App
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception as exc:
+    raise RuntimeError(f"Pillow not available for floor plan snapshot: {exc}")
+
+"""
+Headless snapshot of first floor joist plan (top-down view).
+Inputs (env):
+  SNAPSHOT_INPUT  - FCStd path
+  SNAPSHOT_IMAGE  - PNG output
+"""
+
+input_path = os.environ.get("SNAPSHOT_INPUT")
+output_path = os.environ.get("SNAPSHOT_IMAGE")
+
+if not input_path or not os.path.isfile(input_path):
+    raise RuntimeError("SNAPSHOT_INPUT missing or file not found")
+if not output_path:
+    raise RuntimeError("SNAPSHOT_IMAGE not set")
+
+doc = App.openDocument(input_path)
+App.setActiveDocument(doc.Name)
+
+# Collect all floor joists, rims, and modules
+joists = []
+rims = []
+modules = {}
+
+for obj in doc.Objects:
+    try:
+        name = obj.Name
+        # Look for Floor_* objects (all floor modules)
+        if name.startswith("Floor_") and hasattr(obj, "Shape"):
+            bb = obj.Shape.BoundBox
+            if "_Joist_" in name and "_Rim_" not in name:
+                joists.append((name, bb))
+            elif "_Rim_" in name:
+                rims.append((name, bb))
+            # Track module assemblies
+            elif "Floor_Front" in name or "Floor_Middle" in name or "Floor_Back" in name:
+                if "_Joist" not in name and "_Rim" not in name:
+                    modules[name] = bb
+    except Exception:
+        pass
+
+App.Console.PrintMessage(f"[snapshot_floor_plan] Found {len(joists)} joists, {len(rims)} rims, {len(modules)} modules\n")
+
+if not joists and not rims:
+    App.Console.PrintError("[snapshot_floor_plan] No floor objects found!\n")
+    App.closeDocument(doc.Name)
+    raise SystemExit(1)
+
+# Compute bounding box for all floor objects
+all_boxes = [bb for name, bb in joists] + [bb for name, bb in rims]
+min_x = min(bb.XMin for bb in all_boxes)
+max_x = max(bb.XMax for bb in all_boxes)
+min_y = min(bb.YMin for bb in all_boxes)
+max_y = max(bb.YMax for bb in all_boxes)
+
+# Add padding
+pad_mm = 500.0
+img_size = 3000
+span_x = max_x - min_x
+span_y = max_y - min_y
+scale = min((img_size - 40) / (span_x + 2 * pad_mm), (img_size - 40) / (span_y + 2 * pad_mm))
+if not math.isfinite(scale) or scale <= 0:
+    scale = 1.0
+
+def map_point(x_mm, y_mm):
+    px = int(round((x_mm - min_x + pad_mm) * scale + 20))
+    py = int(round((max_y + pad_mm - y_mm) * scale + 20))
+    return px, py
+
+img = Image.new("RGB", (img_size, img_size), "white")
+draw = ImageDraw.Draw(img)
+
+# Load font
+try:
+    font = ImageFont.truetype("Arial", 28)
+    font_small = ImageFont.truetype("Arial", 20)
+except Exception:
+    font = ImageFont.load_default()
+    font_small = font
+
+# Draw joists (green)
+for name, bb in joists:
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="black", fill="#c5ffd2", width=1)
+
+# Draw rims (gray with red outline)
+for name, bb in rims:
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="red", width=2, fill="#d0d0d0")
+
+# Draw module boundaries (blue dashed lines)
+for mod_name, bb in modules.items():
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+
+    # Draw dashed rectangle for module boundary
+    dash_len = 10
+    gap_len = 5
+
+    # Top edge
+    x = xa
+    while x < xb:
+        draw.line([(x, ya), (min(x + dash_len, xb), ya)], fill="blue", width=3)
+        x += dash_len + gap_len
+
+    # Bottom edge
+    x = xa
+    while x < xb:
+        draw.line([(x, yb), (min(x + dash_len, xb), yb)], fill="blue", width=3)
+        x += dash_len + gap_len
+
+    # Left edge
+    y = ya
+    while y < yb:
+        draw.line([(xa, y), (xa, min(y + dash_len, yb))], fill="blue", width=3)
+        y += dash_len + gap_len
+
+    # Right edge
+    y = ya
+    while y < yb:
+        draw.line([(xb, y), (xb, min(y + dash_len, yb))], fill="blue", width=3)
+        y += dash_len + gap_len
+
+    # Label module at center
+    cx, cy = map_point(bb.Center.x, bb.Center.y)
+    label = mod_name.replace("Floor_", "")
+    draw.text((cx - 40, cy - 10), label, fill="blue", font=font_small)
+
+# Title and statistics
+title = "950 Surf - First Floor Joist Plan (Top View)"
+stats = f"Modules: {len(modules)} | Joists: {len(joists)} | Rims: {len(rims)}"
+draw.text((30, 30), title, fill="black", font=font)
+draw.text((30, 70), stats, fill="black", font=font_small)
+
+# Add legend
+legend_y = img_size - 120
+draw.rectangle([(30, legend_y), (60, legend_y + 30)], outline="black", fill="#c5ffd2", width=1)
+draw.text((70, legend_y + 5), "Joists", fill="black", font=font_small)
+
+draw.rectangle([(200, legend_y), (230, legend_y + 30)], outline="red", fill="#d0d0d0", width=2)
+draw.text((240, legend_y + 5), "Rims", fill="black", font=font_small)
+
+draw.line([(370, legend_y + 15), (420, legend_y + 15)], fill="blue", width=3)
+draw.text((430, legend_y + 5), "Module Boundaries", fill="black", font=font_small)
+
+img.save(output_path)
+App.Console.PrintMessage(f"[snapshot_floor_plan] Saved floor plan to {output_path}\n")
+App.closeDocument(doc.Name)

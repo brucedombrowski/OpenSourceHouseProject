@@ -1,0 +1,246 @@
+# FreeCAD macro: 72" x 80" sliding door module (8' wide).
+# Steps 1–3 match the window macro: plates + kings, jacks with built-up header + cap, and header blocks to the top plate.
+# Orientation: X=wall thickness (1.5"), Y=wall length (96"), Z vertical. Colors mirror window macro for clarity.
+
+import os
+import sys
+import importlib
+import FreeCAD as App
+import Part
+
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import ensure_macro_path, resolve_catalog, load_catalog, find_stock, attach_metadata, clear_group, inch
+
+ensure_macro_path()
+
+# Parameters
+wall_length = 96.0
+opening_width = 72.0
+opening_height = 80.0
+plate_label = "2x4x96"
+king_label = "2x4x104.625"
+jack_label = "2x4x96"  # cut to height
+jack_height = opening_height
+header_label = "2x12x96"  # cut to length
+header_height = 11.25
+ply_thickness = 0.5  # rip between header plies
+ply_label = "plywood_0.5x4x8"
+make_pressure_treated = False
+
+_macro_dir = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_macro_dir))
+catalog_candidates = [
+    os.path.join(_macro_dir, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = resolve_catalog(catalog_candidates)
+
+rows = load_catalog(catalog_path)
+
+def catalog_row(label):
+    key = label + "_PT" if make_pressure_treated else label
+    row = find_stock(rows, key)
+    if not row:
+        raise ValueError(f"Label '{key}' not found in catalog at {catalog_path}")
+    return row, key
+
+plate_row, plate_key = catalog_row(plate_label)
+king_row, king_key = catalog_row(king_label)
+jack_row, jack_key = catalog_row(jack_label)
+header_row, header_key = catalog_row(header_label)
+ply_row, ply_key = catalog_row(ply_label)
+
+plate_thick = float(plate_row["actual_thickness_in"])
+plate_width = float(plate_row["actual_width_in"])
+stud_thick = float(king_row["actual_thickness_in"])
+stud_width = float(king_row["actual_width_in"])
+stud_length = float(king_row["length_in"])
+header_thick = float(header_row["actual_thickness_in"])
+header_width = float(header_row["actual_width_in"])
+ply_width = float(ply_row["actual_width_in"])
+
+# Derived dimensions
+header_length = 93.0  # match window macro step 2/3
+header_start_y = (wall_length - header_length) / 2.0  # centers the opening
+header_z_base = plate_thick + jack_height
+cap_plate_z = header_z_base + header_height
+
+COLOR_PLATE = (1.0, 0.0, 0.0)
+COLOR_KING = (1.0, 1.0, 0.0)
+COLOR_JACK = (0.0, 1.0, 0.0)
+COLOR_HEADER = (1.0, 0.5, 0.0)
+COLOR_PLY = (0.0, 0.6, 1.0)
+COLOR_BLOCK = (0.0, 0.8, 0.8)
+USE_DEBUG_COLORS = False  # set True to force fixed colors; otherwise use catalog-driven colors
+
+doc = App.ActiveDocument or App.newDocument("Sliding_Door_72x80")
+
+def apply_debug_color(obj, color):
+    if not USE_DEBUG_COLORS or color is None:
+        return
+    try:
+        obj.ViewObject.ShapeColor = color
+    except Exception:
+        pass
+
+
+def make_plate(name, z_base):
+    box = Part.makeBox(inch(stud_width), inch(wall_length), inch(plate_thick))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, 0, inch(z_base))
+    attach_metadata(obj, plate_row, plate_key, supplier="lowes")
+    apply_debug_color(obj, COLOR_PLATE)
+    return obj
+
+created = []
+created.append(make_plate("Plate_Bottom", 0.0))
+created.append(make_plate("Plate_Top", plate_thick + stud_length))
+
+
+def make_king(name, y_base):
+    box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(stud_length))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), inch(plate_thick))
+    attach_metadata(obj, king_row, king_key, supplier="lowes")
+    apply_debug_color(obj, COLOR_KING)
+    return obj
+
+
+created.append(make_king("King_Left", 0.0))
+created.append(make_king("King_Right", wall_length - stud_thick))
+
+
+def make_jack(name, y_base):
+    box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(jack_height))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), inch(plate_thick))
+    attach_metadata(obj, jack_row, jack_key, supplier="lowes")
+    try:
+        obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{jack_height}"
+    except Exception:
+        pass
+    apply_debug_color(obj, COLOR_JACK)
+    return obj
+
+
+# Centered 72" opening: jacks sit under the built-up header
+created.append(make_jack("Jack_Left", header_start_y))
+created.append(make_jack("Jack_Right", header_start_y + header_length - stud_thick))
+
+# Additional 80" studs (qty 6) to mirror window module step layout
+stud80_positions = [
+    header_start_y,  # aligns with left jack
+    header_start_y + 7.5,
+    header_start_y + 7.5 + stud_thick,
+    header_start_y + 7.5 + stud_thick + 73.5,  # leaves 72" clear opening
+    header_start_y + 7.5 + (2 * stud_thick) + 73.5,
+    header_start_y + header_length - stud_thick,  # aligns with right jack
+]
+
+
+def make_stud80(name, y_base):
+    box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(jack_height))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), inch(plate_thick))
+    attach_metadata(obj, jack_row, jack_key, supplier="lowes")
+    try:
+        obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{jack_height}"
+    except Exception:
+        pass
+    apply_debug_color(obj, COLOR_JACK)
+    return obj
+
+
+for idx, y_base in enumerate(stud80_positions, start=1):
+    created.append(make_stud80(f"Stud80_{idx}", y_base))
+
+
+def make_header(name, y_base, thickness, color, x_base=0.0):
+    box = Part.makeBox(inch(thickness), inch(header_length), inch(header_height))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(inch(x_base), inch(y_base), inch(header_z_base))
+    attach_metadata(obj, header_row, header_key, supplier="lowes")
+    try:
+        obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{header_length}"
+    except Exception:
+        pass
+    apply_debug_color(obj, color)
+    return obj
+
+
+created.append(make_header("Header_2x12_A", header_start_y, header_thick, COLOR_HEADER, x_base=0.0))
+
+ply = Part.makeBox(inch(ply_thickness), inch(header_length), inch(header_height))
+ply_obj = doc.addObject("Part::Feature", "Header_Ply_0p5")
+ply_obj.Shape = ply
+ply_obj.Placement.Base = App.Vector(inch(header_thick), inch(header_start_y), inch(header_z_base))
+attach_metadata(ply_obj, ply_row, ply_key, supplier="lowes")
+try:
+    ply_obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{header_length}"
+except Exception:
+    pass
+apply_debug_color(ply_obj, COLOR_PLY)
+created.append(ply_obj)
+
+created.append(make_header("Header_2x12_B", header_start_y, header_thick, COLOR_HEADER, x_base=header_thick + ply_thickness))
+
+# Cap plate atop header (matching window macro Step 3)
+cap_plate = Part.makeBox(inch(stud_width), inch(header_length), inch(plate_thick))
+cap_plate_obj = doc.addObject("Part::Feature", "Header_Cap_Plate")
+cap_plate_obj.Shape = cap_plate
+cap_plate_obj.Placement.Base = App.Vector(0, inch(header_start_y), inch(cap_plate_z))
+attach_metadata(cap_plate_obj, plate_row, plate_key, supplier="lowes")
+try:
+    cap_plate_obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{header_length}"
+except Exception:
+    pass
+apply_debug_color(cap_plate_obj, COLOR_PLATE)
+created.append(cap_plate_obj)
+
+# Short blocks from header cap to top plate (16" OC)
+block_height = 11.875
+
+
+def make_block(name, y_base):
+    box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(block_height))
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = box
+    obj.Placement.Base = App.Vector(0, inch(y_base), inch(header_z_base + header_height + plate_thick))
+    attach_metadata(obj, plate_row, plate_key, supplier="lowes")
+    try:
+        obj.addProperty("App::PropertyString", "cut_length_in").cut_length_in = f"{block_height}"
+    except Exception:
+        pass
+    apply_debug_color(obj, COLOR_BLOCK)
+    return obj
+
+
+center = header_start_y + stud_thick / 2.0
+while center <= header_start_y + header_length - (stud_thick / 2.0) + 1e-6:
+    y_base = center - (stud_thick / 2.0)
+    idx = len([o for o in created if o.Name.startswith("Header_Block_")]) + 1
+    created.append(make_block(f"Header_Block_{idx}", y_base))
+    center += 16.0
+
+group_name = "Sliding_Door_72x80"
+clear_group(doc, group_name)
+group = doc.addObject("App::DocumentObjectGroup", group_name)
+group.Label = group_name
+for obj in created:
+    group.addObject(obj)
+group.Group = created
+
+App.Console.PrintMessage(
+    f"[Sliding Door 72x80] Built plates, kings, jacks, 6x80\" studs, 93\" built-up header + cap, and header blocks; opening {opening_width}\" x {opening_height}\".\n"
+)
+doc.recompute()

@@ -1,13 +1,3 @@
 label,qty,supplier,sku_lowes,url_lowes,sku_hd,url_hd
-2x12x192,52,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-16-ft-Standard/1000220445,100086492,https://www.homedepot.com/p/2-in-x-12-in-x-16-ft-Prime-Whitewood-Lumber-100086492/100007971
-hanger_LU210,76,lowes,,,,
-2x12x96,46,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-8-ft-Standard/1000220439,915595,https://www.homedepot.com/p/2-in-x-12-in-x-96-in-Prime-Whitewood-Board-915595/203927582
-panel_advantech_4x8,25,lowes,TBD,TBD,,
-2x4x192,8,lowes,1049,https://www.lowes.com/pd/2-in-x-4-in-x-16-ft-Standard/1000220407,100086472,https://www.homedepot.com/p/2-in-x-4-in-x-16-ft-Prime-Whitewood-Lumber-100086472/100007965
-2x4x104.625,68,lowes,5154,https://www.lowes.com/pd/2-in-x-4-in-x-104-625-in-Precut-Stud/1000064861,207024,https://www.homedepot.com/p/2-in-x-4-in-x-104-625-in-Prime-Stud-207024/100090191
-2x4x96,176,lowes,1049,https://www.lowes.com/pd/2-in-x-4-in-x-8-ft-Stud/1000064857,915790,https://www.homedepot.com/p/2-in-x-4-in-x-96-in-Prime-Whitewood-Stud-915790/203927600
-plywood_0.5x4x8,1,lowes,TBD,TBD,,
-2x10x144,50,lowes,47736,https://www.lowes.com/pd/2-in-x-10-in-x-12-ft-Standard/1000220435,100086484,https://www.homedepot.com/p/2-in-x-10-in-x-12-ft-Prime-Whitewood-Lumber-100086484/100007967
-2x8x120,38,lowes,1049,https://www.lowes.com/pd/2-in-x-8-in-x-10-ft-Standard/1000220423,100086473,https://www.homedepot.com/p/2-in-x-8-in-x-10-ft-Prime-Whitewood-Lumber-100086473/100007960
-deckboard_5_4x6x192_PT,36,lowes,TBD,TBD,,
-post_6x6x144_PT,6,lowes,TBD,TBD,,
+2x12x192,15,lowes,47736,https://www.lowes.com/pd/2-in-x-12-in-x-16-ft-Standard/1000220445,100086492,https://www.homedepot.com/p/2-in-x-12-in-x-16-ft-Prime-Whitewood-Lumber-100086492/100007971
+hanger_LU210,22,lowes,,,,

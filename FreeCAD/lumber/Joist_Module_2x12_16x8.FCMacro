@@ -1,316 +1,34 @@
-# FreeCAD macro: build a 16x8 joist assembly using App::Part architecture
-#
-# Key Features:
-#   - Uses App::Part (not DocumentObjectGroup) for true assembly with bounding box
-#   - Exposes bounding box for corner-to-corner snapping (no hard-coded offsets)
-#   - Optional LCS markers for visual corner reference
-#   - Deterministic placement using geometry (not magic numbers)
-#
-# Construction Sequence:
-#   1. Create rim joists (2 ends, box frame)
-#   2. Create interior joists (16" OC spacing)
-#   3. Create hanger hardware (Simpson LU210 at each joist end)
-#   4. Group into App::Part assembly with bounding box
-#
-# Orientation: X = 16' run (195"), Y = width (96"), boards stand upright (X=length, Y=thickness, Z=depth).
-#
+# FreeCAD macro: Thin wrapper for creating a 16x8 joist assembly.
+# All logic lives in joist_modules.py library.
 # For Luke Dombrowski. Stay Alive.
 
 import os
 import sys
 import FreeCAD as App
-import Part
-import importlib
 
-# Ensure this macro folder is on sys.path before importing helpers
-_here = os.path.dirname(__file__)
+# Ensure library path is accessible
+_here = os.path.dirname(__file__) if __file__ else os.getcwd()
 if _here not in sys.path:
     sys.path.append(_here)
 
-import lumber_common
-importlib.reload(lumber_common)
-from lumber_common import (
-    ensure_macro_path,
-    resolve_catalog,
-    load_catalog,
-    find_stock,
-    attach_metadata,
-    make_hanger as make_hanger_helper,
-    inch,
-    create_assembly,
-    get_assembly_bbox,
-    add_lcs_markers,
+import lumber_common as lc
+import parts
+
+# Get active document or create new one
+doc = App.ActiveDocument or App.newDocument("Joist_Module_16x8")
+
+# Resolve catalog
+catalog_path = lc.resolve_catalog([
+    os.path.join(_here, "lumber_catalog.csv"),
+    os.path.join(os.path.dirname(os.path.dirname(_here)), "FreeCAD", "lumber", "lumber_catalog.csv"),
+])
+catalog_rows = lc.load_catalog(catalog_path)
+
+# Create assembly using library function
+assembly = parts.create_joist_module_16x8(
+    doc,
+    catalog_rows,
+    assembly_name="Joist_Module_16x8"
 )
 
-ensure_macro_path()
-
-# -----------------------
-# Parameters (inches)
-# -----------------------
-_macro_dir = os.path.dirname(__file__)
-_project_root = os.path.dirname(os.path.dirname(_macro_dir))
-catalog_candidates = [
-    os.path.join(_macro_dir, "lumber_catalog.csv"),
-    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
-]
-catalog_path = resolve_catalog(catalog_candidates)
-
-stock_label = "2x12x192"     # Which catalog entry to use (e.g., 2x12x192)
-rim_label = "2x12x96"        # Rims are 8' long along Y; use 8' stock for distinct color/BOM
-module_length = 195.0        # Overall X dimension (outer edge to outer edge) = full 16' joists + 2 rims
-module_width  = 96.0         # Overall Y dimension (8')
-spacing_oc    = 16.0         # On-center spacing for interior joists (inches)
-offset_first_center = 0.00   # Joist_1 starts flush to rim (center at 0.75), see spacing logic below
-make_pressure_treated = False  # If True, append "_PT" to label when looking up catalog
-hanger_label = "hanger_LU210"
-hanger_thickness = 0.06     # approx 16ga
-hanger_height = 7.8125      # ~7-13/16" overall height
-hanger_seat_depth = 2.0     # back plate depth
-hanger_color = None         # use palette default for hardware
-
-# -----------------------
-# Helpers
-# -----------------------
-def inch(x): return x * 25.4
-
-# Board orientation: X = length, Y = thickness, Z = depth (so boards stand upright)
-def make_box(length, thickness, depth):
-    return Part.makeBox(inch(length), inch(thickness), inch(depth))
-
-# -----------------------
-# Main
-# -----------------------
-rows = load_catalog(catalog_path)
-label_to_use = stock_label + "_PT" if make_pressure_treated else stock_label
-rim_label_to_use = rim_label + "_PT" if make_pressure_treated else rim_label
-row = find_stock(rows, label_to_use)
-rim_row = find_stock(rows, rim_label_to_use)
-if not row:
-    raise ValueError(f"Label '{label_to_use}' not found in catalog at {catalog_path}")
-if not rim_row:
-    raise ValueError(f"Rim label '{rim_label_to_use}' not found in catalog at {catalog_path}")
-
-thick = float(row["actual_thickness_in"])
-width = float(row["actual_width_in"])
-stock_length = float(row["length_in"])  # 192", use full length (no cuts)
-
-doc = App.ActiveDocument or App.newDocument("Joist_Module_2x12_16x8")
-
-def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
-    # X = length, Y = thickness, Z = depth (standing upright)
-    box = make_box(length, thick, depth)
-    shape = doc.addObject("Part::Feature", name)
-    shape.Shape = box
-    shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick/2.0), 0)
-    attach_metadata(shape, row, label_to_use, supplier="lowes")
-    return shape
-
-def make_hanger(name, x_pos, y_center, facing=1):
-    h = make_hanger_helper(
-        doc,
-        name,
-        x_pos,
-        y_center,
-        thick,
-        hanger_thickness,
-        hanger_height,
-        hanger_seat_depth,
-        hanger_label,
-        direction=facing,
-        color=hanger_color,
-    )
-    if facing < 0:
-        pl = h.Placement
-        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
-        h.Placement = pl
-    return h
-
-# Rim joists at ends, running perpendicular to joists (along Y)
-def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
-    box = Part.makeBox(inch(thick), inch(length), inch(depth))  # X = thickness, Y = length, Z = depth
-    shape = doc.addObject("Part::Feature", name)
-    shape.Shape = box
-    shape.Placement.Base = App.Vector(inch(x_pos - thick/2.0), 0, 0)
-    attach_metadata(shape, rim_row, rim_label_to_use, supplier="lowes")
-    return shape
-
-created = []
-
-# Rims: left centered at 0.75, right centered at module_length - 0.75 (matching 16x16 logic)
-left_rim  = make_rim("Rim_Left", thick / 2.0, module_width); created.append(left_rim)
-right_rim = make_rim("Rim_Right", module_length - (thick / 2.0), module_width); created.append(right_rim)
-
-# Interior joists
-positions = []
-# Spacing rules:
-# - Joist_1: center at 0.75" (flush to left rim)
-# - Joist_2: center at 15.25" (15-1/4" from Joist_1)
-# - Joists 3..n: 16" OC progression
-# - Final joist: forced to center at (module_width - 0.75) to align to right rim
-first_center = thick / 2.0                     # 0.75"
-second_center = first_center + 15.25           # 15.25" from first
-positions = [first_center, second_center]
-
-# Fill remaining joists at 16" OC until near far rim
-next_center = second_center + spacing_oc
-while next_center < module_width - (thick / 2.0):
-    positions.append(next_center)
-    next_center += spacing_oc
-
-# Force final joist to align to far rim (center 0.75" from edge)
-last_center = module_width - (thick / 2.0)
-if positions[-1] != last_center:
-    positions.append(last_center)
-
-# Build joists
-for idx, y_pos in enumerate(positions, start=1):
-    created.append(make_joist(f"Joist_{idx}", y_pos, stock_length))
-
-# Add hangers on rims for interior joists only (skip first/last joist)
-# Place back plate/seat with interior face at the rim interior (seat extends -X)
-left_base_x = thick
-right_base_x = module_length - thick
-hanger_objs = []
-for idx, y_pos in enumerate(positions, start=1):
-    if idx == 1 or idx == len(positions):
-        continue
-    # Nudge hangers outward along X by flange thickness so they clear the joist edge
-    hanger_objs.append(make_hanger(f"Hanger_L_{idx}", left_base_x + hanger_thickness, y_pos, facing=1))
-    hanger_objs.append(make_hanger(f"Hanger_R_{idx}", right_base_x - hanger_thickness, y_pos, facing=-1))
-created.extend(hanger_objs)
-
-# ============================================================
-# CREATE ASSEMBLY (App::Part, not DocumentObjectGroup)
-# ============================================================
-
-App.Console.PrintMessage("[Joist_Module_16x8] Creating App::Part assembly...\n")
-
-# Clear existing assembly if rerunning
-existing = doc.getObject("Joist_Module_16x8")
-if existing:
-    doc.removeObject(existing.Name)
-    App.Console.PrintMessage("[Joist_Module_16x8] Removed existing assembly.\n")
-
-# Create assembly container (App::Part has spatial properties)
-assembly = create_assembly(doc, "Joist_Module_16x8")
-
-App.Console.PrintMessage(
-    f"[Joist_Module_16x8] Created assembly: {assembly.Name} (type: {assembly.TypeId})\n"
-)
-
-# ============================================================
-# ADD LCS MARKERS (Local Coordinate Systems for corner placement)
-# ============================================================
-
-App.Console.PrintMessage("[Joist_Module_16x8] Adding LCS markers...\n")
-
-# Origin (bottom-left corner in plan view)
-lcs_origin = assembly.newObject("PartDesign::CoordinateSystem", "LCS_Origin")
-lcs_origin.Label = "LCS_Origin"
-lcs_origin.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
-
-# Bottom-right corner
-lcs_bottom_right = assembly.newObject("PartDesign::CoordinateSystem", "LCS_BottomRight")
-lcs_bottom_right.Label = "LCS_BottomRight"
-lcs_bottom_right.Placement = App.Placement(
-    App.Vector(inch(module_length), 0, 0), App.Rotation()
-)
-
-# Top-left corner
-lcs_top_left = assembly.newObject("PartDesign::CoordinateSystem", "LCS_TopLeft")
-lcs_top_left.Label = "LCS_TopLeft"
-lcs_top_left.Placement = App.Placement(
-    App.Vector(0, inch(module_width), 0), App.Rotation()
-)
-
-# Top-right corner
-lcs_top_right = assembly.newObject("PartDesign::CoordinateSystem", "LCS_TopRight")
-lcs_top_right.Label = "LCS_TopRight"
-lcs_top_right.Placement = App.Placement(
-    App.Vector(inch(module_length), inch(module_width), 0), App.Rotation()
-)
-
-App.Console.PrintMessage("[Joist_Module_16x8] Added 4 LCS markers (corners).\n")
-
-# ============================================================
-# ADD PARTS TO ASSEMBLY
-# ============================================================
-
-App.Console.PrintMessage("[Joist_Module_16x8] Adding parts to assembly...\n")
-
-# Create hardware subgroup
-hanger_grp = assembly.newObject("App::DocumentObjectGroup", "Joist_Hardware")
-hanger_grp.Label = "Hardware"
-for h in hanger_objs:
-    hanger_grp.addObject(h)
-
-# Add all parts to assembly
-for obj in created:
-    if obj not in hanger_objs:
-        assembly.addObject(obj)
-
-# Add hardware group to assembly
-assembly.addObject(hanger_grp)
-
-App.Console.PrintMessage(
-    f"[Joist_Module_16x8] Added {len(created)} parts to assembly (including {len(hanger_objs)} hangers).\n"
-)
-
-# ============================================================
-# RECOMPUTE
-# ============================================================
-
-doc.recompute()
-
-# ============================================================
-# GET BOUNDING BOX (Proof of Concept)
-# ============================================================
-
-App.Console.PrintMessage("[Joist_Module_16x8] Computing bounding box...\n")
-
-bbox = get_assembly_bbox(assembly)
-
-App.Console.PrintMessage(
-    f"[Joist_Module_16x8] Assembly Bounding Box:\n"
-    f"  XMin: {bbox.XMin:.2f} mm, XMax: {bbox.XMax:.2f} mm, XLength: {bbox.XLength:.2f} mm\n"
-    f"  YMin: {bbox.YMin:.2f} mm, YMax: {bbox.YMax:.2f} mm, YLength: {bbox.YLength:.2f} mm\n"
-    f"  ZMin: {bbox.ZMin:.2f} mm, ZMax: {bbox.ZMax:.2f} mm, ZLength: {bbox.ZLength:.2f} mm\n"
-)
-
-# Convert to inches for sanity check
-App.Console.PrintMessage(
-    f"[Joist_Module_16x8] Assembly Dimensions (inches):\n"
-    f"  Length (X): {bbox.XLength / 25.4:.2f}\"\n"
-    f"  Width (Y): {bbox.YLength / 25.4:.2f}\"\n"
-    f"  Height (Z): {bbox.ZLength / 25.4:.2f}\"\n"
-)
-
-# ============================================================
-# CORNER COORDINATES (for snapping)
-# ============================================================
-
-App.Console.PrintMessage("[Joist_Module_16x8] Corner coordinates:\n")
-App.Console.PrintMessage(
-    f"  Bottom-Left (origin): ({bbox.XMin:.2f}, {bbox.YMin:.2f}, {bbox.ZMin:.2f})\n"
-)
-App.Console.PrintMessage(
-    f"  Bottom-Right: ({bbox.XMax:.2f}, {bbox.YMin:.2f}, {bbox.ZMin:.2f})\n"
-)
-App.Console.PrintMessage(
-    f"  Top-Left: ({bbox.XMin:.2f}, {bbox.YMax:.2f}, {bbox.ZMin:.2f})\n"
-)
-App.Console.PrintMessage(
-    f"  Top-Right: ({bbox.XMax:.2f}, {bbox.YMax:.2f}, {bbox.ZMin:.2f})\n"
-)
-
-# ============================================================
-# SUCCESS MESSAGE
-# ============================================================
-
-App.Console.PrintMessage(
-    "[Joist_Module_16x8] ✓ Assembly complete! Bounding box is accessible via get_assembly_bbox(assembly)\n"
-)
-App.Console.PrintMessage(
-    "[Joist_Module_16x8] This module can now be snapped corner-to-corner with NO hard-coded offsets.\n"
-)
-App.Console.PrintMessage("[Joist_Module_16x8] For Luke. Stay Alive.\n")
+App.Console.PrintMessage("[Joist_Module_16x8] ✓ Assembly complete! For Luke. Stay Alive.\n")
