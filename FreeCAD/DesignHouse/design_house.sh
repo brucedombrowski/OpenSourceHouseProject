@@ -60,10 +60,23 @@ LUMBER_SAVE_FCSTD="${OUT_PATH}" \
 # Optional snapshot (top view with dimensions) using GUI-capable FreeCAD (default on)
 SNAPSHOT_DEFAULT="${SNAPSHOT:-1}"
 if [[ "${SNAPSHOT_DEFAULT}" == "1" ]]; then
-  SNAP_PATH="${BUILD_DIR}/${ADDRESS}_snapshot.${TIMESTAMP}.png"
   SNAP_INPUT="${BUILD_DIR}/snapshot_input.fcstd"
-  echo "Generating snapshot at ${SNAP_PATH} ..."
   cp "${OUT_PATH}" "${SNAP_INPUT}"
+
+  # Foundation snapshot (piles + beams + blocking + lot lines)
+  FOUNDATION_SNAP="${BUILD_DIR}/${ADDRESS}_foundation.${TIMESTAMP}.png"
+  FOUNDATION_MACRO="${MACROS_DIR}/snapshot_foundation.FCMacro"
+  if [[ -f "${FOUNDATION_MACRO}" ]]; then
+    echo "Generating foundation snapshot at ${FOUNDATION_SNAP} ..."
+    SNAPSHOT_INPUT="${SNAP_INPUT}" SNAPSHOT_IMAGE="${FOUNDATION_SNAP}" \
+      PYTHONINSPECT=0 PYTHONSTARTUP= \
+      FREECAD_LOAD_3DCONNEXION=0 \
+      "${FREECAD_CMD}" -c "${FOUNDATION_MACRO}" </dev/null
+  fi
+
+  # Pile spacing snapshot (original)
+  SNAP_PATH="${BUILD_DIR}/${ADDRESS}_piles.${TIMESTAMP}.png"
+  echo "Generating pile spacing snapshot at ${SNAP_PATH} ..."
   SNAPSHOT_INPUT="${SNAP_INPUT}" SNAPSHOT_IMAGE="${SNAP_PATH}" \
     PYTHONINSPECT=0 PYTHONSTARTUP= \
     FREECAD_LOAD_3DCONNEXION=0 \
