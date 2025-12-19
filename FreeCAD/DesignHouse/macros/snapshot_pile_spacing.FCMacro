@@ -30,21 +30,21 @@ doc = App.openDocument(input_path)
 App.setActiveDocument(doc.Name)
 
 pile_boxes = []
+beam_boxes = []
 lot_box = None
 build_box = None
 for obj in doc.Objects:
-    if not obj.Name.startswith("Pile_"):
-        try:
-            if obj.Name == "Lot_Boundary":
-                lot_box = obj.Shape.BoundBox
-            elif obj.Name == "Buildable_Area":
-                build_box = obj.Shape.BoundBox
-        except Exception:
-            pass
-        continue
     try:
-        bb = obj.Shape.BoundBox
-        pile_boxes.append(bb)
+        if obj.Name == "Lot_Boundary":
+            lot_box = obj.Shape.BoundBox
+        elif obj.Name == "Buildable_Area":
+            build_box = obj.Shape.BoundBox
+        elif obj.Name.startswith("Pile_"):
+            bb = obj.Shape.BoundBox
+            pile_boxes.append(bb)
+        elif obj.Name.startswith("Beam_"):
+            bb = obj.Shape.BoundBox
+            beam_boxes.append(bb)
     except Exception:
         pass
 
@@ -109,7 +109,15 @@ if build_box:
     draw_rect(build_box, outline="#5555aa", width=2)
     draw.text(map_point(build_box.XMin, build_box.YMax), "Buildable", fill="black", font=ImageFont.load_default())
 
-# Draw piles as rectangles
+# Draw beams as rectangles (below piles for visibility)
+for bb in beam_boxes:
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    draw.rectangle([(xa, ya), (xb, yb)], outline="darkgreen", fill="#90EE90", width=2)
+
+# Draw piles as rectangles (on top of beams)
 for bb in pile_boxes:
     x0, y0 = map_point(bb.XMin, bb.YMin)
     x1, y1 = map_point(bb.XMax, bb.YMax)
@@ -123,7 +131,7 @@ try:
 except Exception:
     font = ImageFont.load_default()
 
-text_lines = [f"Piles: {len(pile_boxes)}"]
+text_lines = [f"Piles: {len(pile_boxes)}", f"Beams: {len(beam_boxes)}"]
 if spacings_x:
     text_lines.append(f"X spacing first: {spacings_x[0]/304.8:.3f} ft")
 if spacings_y:

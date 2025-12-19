@@ -314,8 +314,9 @@ def create_foundation(doc, catalog, params):
         for r in rows:
             y_center_ft = params["y_positions_ft"][r + 1]  # Middle row of trio
 
-            # Left beam (on left pile face)
-            base_x_left_in = (xi_ft * 12.0) - (pile_width_in / 2.0) - beam_thick_in - params["beam_gap_in"] / 25.4
+            # Left beam (notched into left side of pile)
+            # Left face of beam aligns with left face of pile
+            base_x_left_in = (xi_ft * 12.0) - (pile_width_in / 2.0)
             name_L = f"Beam_{int(xi_ft)}_{r}_L"
             beam_L = bc.make_beam(
                 doc, catalog, params["beam_label"], name_L,
@@ -324,8 +325,9 @@ def create_foundation(doc, catalog, params):
             )
             beam_objs.append(beam_L)
 
-            # Right beam (on right pile face)
-            base_x_right_in = (xi_ft * 12.0) + (pile_width_in / 2.0) + params["beam_gap_in"] / 25.4
+            # Right beam (notched into right side of pile)
+            # Right face of beam aligns with right face of pile
+            base_x_right_in = (xi_ft * 12.0) + (pile_width_in / 2.0) - beam_thick_in
             name_R = f"Beam_{int(xi_ft)}_{r}_R"
             beam_R = bc.make_beam(
                 doc, catalog, params["beam_label"], name_R,
@@ -335,6 +337,45 @@ def create_foundation(doc, catalog, params):
             beam_objs.append(beam_R)
 
     App.Console.PrintMessage(f"[Build_950Surf]   Created {len(beam_objs)} beams.\n")
+
+    # === NOTCH PILES FOR BEAMS ===
+    App.Console.PrintMessage("[Build_950Surf]   Notching piles for beam seating...\n")
+    # Create notch cutouts for each beam position
+    # Notch: beam_thick_in wide (X) × pile_thick_in deep (Y) × beam_depth_in tall (Z)
+    notch_count = 0
+    for pile in pile_objs:
+        pile_bb = pile.Shape.BoundBox
+
+        # Check if any beams intersect this pile in XY plane
+        for beam in beam_objs:
+            beam_bb = beam.Shape.BoundBox
+
+            # Check if beam's Y range overlaps pile's Y range
+            if beam_bb.YMax >= pile_bb.YMin and beam_bb.YMin <= pile_bb.YMax:
+                # Create notch box aligned with beam position
+                # Notch width (X): beam thickness
+                # Notch depth (Y): pile thickness (full depth through pile)
+                # Notch height (Z): beam depth
+                notch_box = Part.makeBox(
+                    bc.inch(beam_thick_in),
+                    bc.inch(pile_thick_in),
+                    bc.inch(beam_depth_in)
+                )
+                # Position notch at beam's X position, pile's Y position, beam's Z position
+                notch_box.Placement.Base = App.Vector(
+                    beam_bb.XMin,
+                    pile_bb.YMin,
+                    bc.inch(beam_base_z_in)
+                )
+
+                # Cut notch from pile
+                try:
+                    pile.Shape = pile.Shape.cut(notch_box)
+                    notch_count += 1
+                except Exception as e:
+                    App.Console.PrintWarning(f"[Build_950Surf]   Failed to notch {pile.Name}: {e}\n")
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Created {notch_count} pile notches.\n")
 
     # === GROUP FOUNDATION ===
     foundation_grp = bc.create_group(doc, "Foundation")
