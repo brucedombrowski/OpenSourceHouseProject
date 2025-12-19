@@ -138,8 +138,13 @@ def create_double_beam_assembly(
         created.append(blocking)
 
     # 3. Right beam (notched into right side of piles)
-    # Right beam is offset by pile_width_in from left beam
-    x_right_beam_ft = x_left_beam_ft + (pile_width_in / 12.0)
+    # Right beam's RIGHT FACE aligns with right side of pile
+    # Pile center is at xi_ft (passed as x_left_beam_ft + pile_width/2 - beam_thick/2)
+    # So pile center xi_ft = x_left_beam_ft + beam_thick/2 - pile_width/2 + pile_width/2 + beam_thick/2
+    # Actually simpler: right face = left face + pile_width
+    # Right beam: x_right_beam_ft + beam_thick/2 = x_left_beam_ft - beam_thick/2 + pile_width
+    # Therefore: x_right_beam_ft = x_left_beam_ft + pile_width/12 - beam_thick/12
+    x_right_beam_ft = x_left_beam_ft + (pile_width_in / 12.0) - (beam_thick_in / 12.0)
     name_right = f"{assembly_name}_Beam_R"
     beam_right = bc.make_beam(
         doc,
