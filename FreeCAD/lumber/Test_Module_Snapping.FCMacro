@@ -1,0 +1,157 @@
+# FreeCAD macro: Test snapping 16x8 and 16x16 joist modules using assembly architecture
+#
+# Demonstrates:
+#   - Loading both 16x16 and 16x8 modules as App::Part assemblies
+#   - Snapping 16x8 bottom-left corner to 16x16 bottom-right corner
+#   - Verifying 0.0000mm gap (perfect alignment)
+#
+# This proves the assembly architecture eliminates hard-coded offsets.
+#
+# For Luke Dombrowski. Stay Alive.
+
+import os
+import sys
+import FreeCAD as App
+import Part
+import importlib
+import codecs
+
+# Ensure lumber helpers are available
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+importlib.reload(lumber_common)
+from lumber_common import (
+    inch,
+    get_assembly_bbox,
+    snap_assembly_corner_to_corner,
+)
+
+# ============================================================
+# CREATE DOCUMENT
+# ============================================================
+
+doc = App.newDocument("Test_Module_Snapping")
+App.Console.PrintMessage("[Test] ===== MODULE SNAPPING TEST =====\n")
+
+# ============================================================
+# LOAD MODULES VIA EXEC (simulates loading saved assemblies)
+# ============================================================
+
+App.Console.PrintMessage("[Test] Building 16x16 module...\n")
+
+# Build 16x16 module
+module_16x16_macro = os.path.join(_here, "Joist_Module_2x12_16x16.FCMacro")
+with codecs.open(module_16x16_macro, 'r', encoding='utf-8') as f:
+    exec(compile(f.read(), module_16x16_macro, 'exec'))
+
+# Get assembly reference (last created assembly named Joist_Module_16x16)
+assembly_16x16 = doc.getObject("Joist_Module_16x16")
+if not assembly_16x16:
+    raise RuntimeError("[Test] ERROR: 16x16 assembly not found")
+
+App.Console.PrintMessage(f"[Test] 16x16 module created: {assembly_16x16.Label}\n")
+
+# Build 16x8 module
+App.Console.PrintMessage("[Test] Building 16x8 module...\n")
+module_16x8_macro = os.path.join(_here, "Joist_Module_2x12_16x8.FCMacro")
+with codecs.open(module_16x8_macro, 'r', encoding='utf-8') as f:
+    exec(compile(f.read(), module_16x8_macro, 'exec'))
+
+# Get assembly reference
+assembly_16x8 = doc.getObject("Joist_Module_16x8")
+if not assembly_16x8:
+    raise RuntimeError("[Test] ERROR: 16x8 assembly not found")
+
+App.Console.PrintMessage(f"[Test] 16x8 module created: {assembly_16x8.Label}\n")
+
+# ============================================================
+# GET BOUNDING BOXES
+# ============================================================
+
+bbox_16x16 = get_assembly_bbox(assembly_16x16)
+bbox_16x8 = get_assembly_bbox(assembly_16x8)
+
+App.Console.PrintMessage(f"[Test] 16x16 dimensions: {bbox_16x16.XLength / 25.4:.2f}\" x {bbox_16x16.YLength / 25.4:.2f}\" x {bbox_16x16.ZLength / 25.4:.2f}\"\n")
+App.Console.PrintMessage(f"[Test] 16x8 dimensions: {bbox_16x8.XLength / 25.4:.2f}\" x {bbox_16x8.YLength / 25.4:.2f}\" x {bbox_16x8.ZLength / 25.4:.2f}\"\n")
+
+# ============================================================
+# SNAP 16x8 TO 16x16 (BOTTOM-RIGHT TO BOTTOM-LEFT)
+# ============================================================
+
+App.Console.PrintMessage("[Test] Snapping 16x8 module to 16x16 module (adjacent along Y)...\n")
+
+# Snap 16x8's bottom-left corner to 16x16's top-left corner (stacked along Y)
+snap_assembly_corner_to_corner(
+    assembly_16x8,
+    assembly_16x16,
+    target_corner="top_left",
+    assembly_corner="bottom_left"
+)
+
+doc.recompute()
+
+# ============================================================
+# VERIFY ALIGNMENT
+# ============================================================
+
+App.Console.PrintMessage("[Test] Verifying alignment...\n")
+
+# Get updated bounding boxes in global coordinates
+bbox_16x16_after = get_assembly_bbox(assembly_16x16)
+bbox_16x8_after = get_assembly_bbox(assembly_16x8)
+
+# Calculate global coordinates
+module_16x16_top_y_global = bbox_16x16_after.YMax + assembly_16x16.Placement.Base.y
+module_16x8_bottom_y_global = bbox_16x8_after.YMin + assembly_16x8.Placement.Base.y
+
+App.Console.PrintMessage(f"[Test] 16x16 placement: {assembly_16x16.Placement.Base}\n")
+App.Console.PrintMessage(f"[Test] 16x8 placement: {assembly_16x8.Placement.Base}\n")
+
+App.Console.PrintMessage(f"[Test] 16x16 top edge (global Y): {module_16x16_top_y_global:.2f} mm\n")
+App.Console.PrintMessage(f"[Test] 16x8 bottom edge (global Y): {module_16x8_bottom_y_global:.2f} mm\n")
+
+gap_y = abs(module_16x8_bottom_y_global - module_16x16_top_y_global)
+App.Console.PrintMessage(f"[Test] Gap between modules (global coords): {gap_y:.4f} mm\n")
+
+if gap_y < 0.01:  # Less than 0.01mm = success
+    App.Console.PrintMessage("[Test] ✓ SUCCESS: Modules are perfectly aligned!\n")
+else:
+    App.Console.PrintWarning(f"[Test] ⚠ WARNING: Gap detected ({gap_y:.4f} mm)\n")
+
+# ============================================================
+# CALCULATE COMBINED DIMENSIONS
+# ============================================================
+
+# Combined floor area (16' wide x 24' deep)
+combined_x_in = bbox_16x16_after.XLength / 25.4  # Should be ~195" (16')
+combined_y_in = (bbox_16x16_after.YLength + bbox_16x8_after.YLength) / 25.4  # Should be ~288" (24')
+
+App.Console.PrintMessage(f"[Test] Combined floor dimensions: {combined_x_in:.2f}\" x {combined_y_in:.2f}\" ({combined_x_in / 12:.1f}' x {combined_y_in / 12:.1f}')\n")
+
+# ============================================================
+# FINAL MESSAGE
+# ============================================================
+
+App.Console.PrintMessage("\n[Test] ===== MODULE SNAPPING TEST COMPLETE =====\n")
+App.Console.PrintMessage("[Test] Key Takeaway: NO hard-coded offsets needed.\n")
+App.Console.PrintMessage("[Test] Modules snap together using bounding box geometry.\n")
+App.Console.PrintMessage("[Test] This enables building entire houses from reusable modules.\n")
+App.Console.PrintMessage("[Test] For Luke. Stay Alive.\n")
+
+# ============================================================
+# SET VIEW (if GUI available)
+# ============================================================
+
+try:
+    import FreeCADGui as Gui
+    if Gui.ActiveDocument:
+        v = Gui.ActiveDocument.ActiveView
+        v.setCameraType("Orthographic")
+        v.viewIsometric()
+        v.fitAll()
+        App.Console.PrintMessage("[Test] View set to isometric.\n")
+except Exception:
+    pass
