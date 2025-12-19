@@ -351,6 +351,20 @@ bc.recompute_once(doc)
 App.Console.PrintMessage("[Build_950Surf] Build complete!\n")
 
 # ============================================================
+# ENSURE ALL OBJECTS VISIBLE (fixes hidden-by-default issue)
+# ============================================================
+
+App.Console.PrintMessage("[Build_950Surf] Ensuring all objects visible...\n")
+for obj in doc.Objects:
+    try:
+        if hasattr(obj, "Visibility"):
+            obj.Visibility = True
+        if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+            obj.ViewObject.Visibility = True
+    except Exception:
+        pass
+
+# ============================================================
 # SET VIEW (if GUI available)
 # ============================================================
 
