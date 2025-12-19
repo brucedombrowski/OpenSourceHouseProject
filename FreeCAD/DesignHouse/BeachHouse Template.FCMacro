@@ -316,7 +316,8 @@ def create_foundation(doc, catalog, params):
 
             # Left beam (notched into left side of pile)
             # Left face of beam aligns with left face of pile
-            base_x_left_in = (xi_ft * 12.0) - (pile_width_in / 2.0)
+            # Note: make_beam() centers the beam on x_ft, so add beam_thick/2 to get left face alignment
+            base_x_left_in = (xi_ft * 12.0) - (pile_width_in / 2.0) + (beam_thick_in / 2.0)
             name_L = f"Beam_{int(xi_ft)}_{r}_L"
             beam_L = bc.make_beam(
                 doc, catalog, params["beam_label"], name_L,
@@ -327,7 +328,8 @@ def create_foundation(doc, catalog, params):
 
             # Right beam (notched into right side of pile)
             # Right face of beam aligns with right face of pile
-            base_x_right_in = (xi_ft * 12.0) + (pile_width_in / 2.0) - beam_thick_in
+            # Note: make_beam() centers the beam on x_ft, so add beam_thick/2 to get right face alignment
+            base_x_right_in = (xi_ft * 12.0) + (pile_width_in / 2.0) - (beam_thick_in / 2.0)
             name_R = f"Beam_{int(xi_ft)}_{r}_R"
             beam_R = bc.make_beam(
                 doc, catalog, params["beam_label"], name_R,
