@@ -1,0 +1,364 @@
+# FreeCAD macro: Test assembly-based corner-to-corner snapping
+# This demonstrates the power of App::Part + Part.getShape().BoundBox
+#
+# What This Tests:
+#   1. Create two joist module assemblies
+#   2. Place second module adjacent to first using ONLY bounding box coordinates
+#   3. NO hard-coded offsets (no +1.5", no -4.0", etc.)
+#   4. Deterministic, human-readable placement logic
+#
+# For Luke Dombrowski. Stay Alive.
+
+import os
+import sys
+import FreeCAD as App
+import Part
+
+# Ensure lumber helpers are available
+_here = os.path.dirname(__file__)
+if _here not in sys.path:
+    sys.path.append(_here)
+
+import lumber_common
+from lumber_common import inch
+
+# ============================================================
+# HELPER FUNCTIONS (Assembly Snapping Logic)
+# ============================================================
+
+
+def get_assembly_bbox(assembly):
+    """Get bounding box of an App::Part assembly.
+
+    Args:
+        assembly: App::Part object
+
+    Returns:
+        Part.BoundBox with XMin, XMax, YMin, YMax, ZMin, ZMax, XLength, YLength, ZLength
+
+    Note:
+        Only includes Part::Feature objects (excludes LCS, DocumentObjectGroup, etc.)
+    """
+    bbox = App.BoundBox()
+
+    def add_shapes_recursive(obj):
+        """Recursively add shapes from Part::Feature objects only."""
+        if hasattr(obj, 'Shape') and obj.TypeId == 'Part::Feature':
+            bbox.add(obj.Shape.BoundBox)
+        if hasattr(obj, 'Group'):
+            for child in obj.Group:
+                add_shapes_recursive(child)
+
+    add_shapes_recursive(assembly)
+    return bbox
+
+
+def snap_assembly_corner_to_corner(
+    assembly, target_assembly, target_corner="bottom_right", assembly_corner="bottom_left"
+):
+    """Snap assembly's corner to target assembly's corner.
+
+    Human-readable placement logic. NO hard-coded offsets.
+
+    Args:
+        assembly: App::Part to be moved
+        target_assembly: App::Part to snap to
+        target_corner: Which corner of target to snap to (bottom_left, bottom_right, top_left, top_right)
+        assembly_corner: Which corner of assembly to align (bottom_left, bottom_right, top_left, top_right)
+
+    Example:
+        # Place module2's bottom-left corner at module1's bottom-right corner
+        snap_assembly_corner_to_corner(module2, module1, "bottom_right", "bottom_left")
+    """
+    # Get bounding boxes in global coordinates
+    target_bbox = get_assembly_bbox(target_assembly)
+    assembly_bbox_local = get_assembly_bbox(assembly)
+
+    # Apply target assembly's placement to get global coordinates
+    target_placement = target_assembly.Placement.Base
+
+    # Get target corner coordinates (in global space)
+    corner_map_target = {
+        "bottom_left": (
+            target_bbox.XMin + target_placement.x,
+            target_bbox.YMin + target_placement.y,
+            target_bbox.ZMin + target_placement.z,
+        ),
+        "bottom_right": (
+            target_bbox.XMax + target_placement.x,
+            target_bbox.YMin + target_placement.y,
+            target_bbox.ZMin + target_placement.z,
+        ),
+        "top_left": (
+            target_bbox.XMin + target_placement.x,
+            target_bbox.YMax + target_placement.y,
+            target_bbox.ZMin + target_placement.z,
+        ),
+        "top_right": (
+            target_bbox.XMax + target_placement.x,
+            target_bbox.YMax + target_placement.y,
+            target_bbox.ZMin + target_placement.z,
+        ),
+    }
+
+    target_x, target_y, target_z = corner_map_target[target_corner]
+
+    # Calculate offset from assembly's origin to its corner (in local space)
+    # This is the offset we need to subtract from target position
+    corner_offset_map = {
+        "bottom_left": (assembly_bbox_local.XMin, assembly_bbox_local.YMin, assembly_bbox_local.ZMin),
+        "bottom_right": (assembly_bbox_local.XMax, assembly_bbox_local.YMin, assembly_bbox_local.ZMin),
+        "top_left": (assembly_bbox_local.XMin, assembly_bbox_local.YMax, assembly_bbox_local.ZMin),
+        "top_right": (assembly_bbox_local.XMax, assembly_bbox_local.YMax, assembly_bbox_local.ZMin),
+    }
+
+    offset_x, offset_y, offset_z = corner_offset_map[assembly_corner]
+
+    # Position assembly so its corner aligns with target corner
+    assembly.Placement.Base = App.Vector(
+        target_x - offset_x,
+        target_y - offset_y,
+        target_z - offset_z,
+    )
+
+    App.Console.PrintMessage(
+        f"[Snapping] {assembly.Label}'s {assembly_corner} → {target_assembly.Label}'s {target_corner}\n"
+    )
+    App.Console.PrintMessage(
+        f"[Snapping] Target corner at ({target_x:.2f}, {target_y:.2f}, {target_z:.2f})\n"
+    )
+    App.Console.PrintMessage(
+        f"[Snapping] Assembly placed at ({assembly.Placement.Base.x:.2f}, {assembly.Placement.Base.y:.2f}, {assembly.Placement.Base.z:.2f})\n"
+    )
+
+
+# ============================================================
+# LOAD CATALOG AND PARAMETERS
+# ============================================================
+
+_macro_dir = os.path.dirname(__file__)
+_project_root = os.path.dirname(os.path.dirname(_macro_dir))
+catalog_candidates = [
+    os.path.join(_macro_dir, "lumber_catalog.csv"),
+    os.path.join(_project_root, "FreeCAD", "lumber", "lumber_catalog.csv"),
+]
+catalog_path = lumber_common.resolve_catalog(catalog_candidates)
+rows = lumber_common.load_catalog(catalog_path)
+
+stock_label = "2x12x192"
+rim_label = "2x12x96"
+label_to_use = stock_label
+rim_label_to_use = rim_label
+
+row = lumber_common.find_stock(rows, label_to_use)
+rim_row = lumber_common.find_stock(rows, rim_label_to_use)
+
+thick = float(row["actual_thickness_in"])
+width = float(row["actual_width_in"])
+module_length = 195.0
+module_width = 96.0
+spacing_oc = 16.0
+
+doc = App.ActiveDocument or App.newDocument("Test_Assembly_Snapping")
+
+# ============================================================
+# HELPER: CREATE JOIST MODULE ASSEMBLY
+# ============================================================
+
+
+def create_joist_module_assembly(doc, name, x_offset_in=0, y_offset_in=0, z_offset_in=0):
+    """Create a 16x8 joist module assembly at specified position.
+
+    This is a simplified version for testing. Full version lives in Joist_Module_2x12_16x8_ASSEMBLY.FCMacro.
+
+    Args:
+        doc: FreeCAD document
+        name: Assembly name
+        x_offset_in, y_offset_in, z_offset_in: Initial position (inches)
+
+    Returns:
+        assembly: App::Part object
+    """
+    App.Console.PrintMessage(f"[Test] Creating assembly: {name}...\n")
+
+    # Create assembly container
+    assembly = doc.addObject("App::Part", name)
+    assembly.Label = name
+
+    # Add LCS markers
+    lcs_origin = assembly.newObject("PartDesign::CoordinateSystem", f"{name}_LCS_Origin")
+    lcs_origin.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
+
+    lcs_bottom_right = assembly.newObject(
+        "PartDesign::CoordinateSystem", f"{name}_LCS_BottomRight"
+    )
+    lcs_bottom_right.Placement = App.Placement(
+        App.Vector(inch(module_length), 0, 0), App.Rotation()
+    )
+
+    # Create simplified joists (3 joists for speed)
+    positions = [thick / 2.0, module_width / 2.0, module_width - (thick / 2.0)]
+
+    for idx, y_pos in enumerate(positions, start=1):
+        joist = doc.addObject("Part::Feature", f"{name}_Joist_{idx}")
+        joist.Shape = Part.makeBox(inch(module_length), inch(thick), inch(width))
+        joist.Placement.Base = App.Vector(
+            inch(thick), inch(y_pos - thick / 2.0), 0
+        )
+        lumber_common.attach_metadata(joist, row, label_to_use, supplier="lowes")
+        assembly.addObject(joist)
+
+    # Create rims
+    left_rim = doc.addObject("Part::Feature", f"{name}_Rim_Left")
+    left_rim.Shape = Part.makeBox(inch(thick), inch(module_width), inch(width))
+    left_rim.Placement.Base = App.Vector(inch(thick / 2.0 - thick / 2.0), 0, 0)
+    lumber_common.attach_metadata(left_rim, rim_row, rim_label_to_use, supplier="lowes")
+    assembly.addObject(left_rim)
+
+    right_rim = doc.addObject("Part::Feature", f"{name}_Rim_Right")
+    right_rim.Shape = Part.makeBox(inch(thick), inch(module_width), inch(width))
+    right_rim.Placement.Base = App.Vector(
+        inch(module_length - (thick / 2.0) - thick / 2.0), 0, 0
+    )
+    lumber_common.attach_metadata(right_rim, rim_row, rim_label_to_use, supplier="lowes")
+    assembly.addObject(right_rim)
+
+    # Position assembly at offset
+    assembly.Placement.Base = App.Vector(inch(x_offset_in), inch(y_offset_in), inch(z_offset_in))
+
+    App.Console.PrintMessage(f"[Test] Created {name} with 5 parts.\n")
+    return assembly
+
+
+# ============================================================
+# TEST 1: Create Two Modules and Snap Corner-to-Corner
+# ============================================================
+
+App.Console.PrintMessage("[Test] ===== TEST 1: Corner-to-Corner Snapping =====\n")
+
+# Clear existing objects
+for obj in doc.Objects:
+    doc.removeObject(obj.Name)
+
+# Create first module at origin
+module1 = create_joist_module_assembly(doc, "Module_1", x_offset_in=0, y_offset_in=0)
+
+# Create second module (initially at origin, will be moved)
+module2 = create_joist_module_assembly(doc, "Module_2", x_offset_in=0, y_offset_in=0)
+
+doc.recompute()
+
+# Get bounding boxes
+bbox1 = get_assembly_bbox(module1)
+bbox2 = get_assembly_bbox(module2)
+
+App.Console.PrintMessage(f"[Test] Module_1 dimensions: {bbox1.XLength / 25.4:.2f}\" x {bbox1.YLength / 25.4:.2f}\" x {bbox1.ZLength / 25.4:.2f}\"\n")
+App.Console.PrintMessage(f"[Test] Module_2 dimensions: {bbox2.XLength / 25.4:.2f}\" x {bbox2.YLength / 25.4:.2f}\" x {bbox2.ZLength / 25.4:.2f}\"\n")
+
+# Snap module2's bottom-left corner to module1's bottom-right corner
+App.Console.PrintMessage("[Test] Snapping Module_2 to Module_1 (adjacent, along X)...\n")
+snap_assembly_corner_to_corner(module2, module1, target_corner="bottom_right", assembly_corner="bottom_left")
+
+doc.recompute()
+
+# Debug: Print placements before bbox calculation
+App.Console.PrintMessage(f"[Test] Module_1 placement: {module1.Placement.Base}\n")
+App.Console.PrintMessage(f"[Test] Module_2 placement: {module2.Placement.Base}\n")
+
+# Verify placement (need to account for assembly placement in bbox calculation)
+bbox1_after = get_assembly_bbox(module1)
+bbox2_after = get_assembly_bbox(module2)
+
+# Add assembly placement offsets to get global coordinates
+module1_xmax_global = bbox1_after.XMax + module1.Placement.Base.x
+module2_xmin_global = bbox2_after.XMin + module2.Placement.Base.x
+
+App.Console.PrintMessage(f"[Test] Module_1 right edge (local): {bbox1_after.XMax:.2f} mm\n")
+App.Console.PrintMessage(f"[Test] Module_2 left edge (local): {bbox2_after.XMin:.2f} mm\n")
+App.Console.PrintMessage(f"[Test] Module_1 right edge (global): {module1_xmax_global:.2f} mm\n")
+App.Console.PrintMessage(f"[Test] Module_2 left edge (global): {module2_xmin_global:.2f} mm\n")
+
+gap = abs(module2_xmin_global - module1_xmax_global)
+App.Console.PrintMessage(f"[Test] Gap between modules (global coords): {gap:.4f} mm\n")
+
+if gap < 0.01:  # Less than 0.01mm = success
+    App.Console.PrintMessage("[Test] ✓ SUCCESS: Modules are perfectly aligned!\n")
+else:
+    App.Console.PrintWarning(f"[Test] ⚠ WARNING: Gap detected ({gap:.4f} mm)\n")
+
+# ============================================================
+# TEST 2: Create 2x2 Grid of Modules
+# ============================================================
+
+App.Console.PrintMessage("\n[Test] ===== TEST 2: 2x2 Grid of Modules =====\n")
+
+# Clear existing
+for obj in doc.Objects:
+    doc.removeObject(obj.Name)
+
+# Create 2x2 grid (bottom-left, bottom-right, top-left, top-right)
+module_bl = create_joist_module_assembly(doc, "Module_BL", x_offset_in=0, y_offset_in=0)
+module_br = create_joist_module_assembly(doc, "Module_BR", x_offset_in=0, y_offset_in=0)
+module_tl = create_joist_module_assembly(doc, "Module_TL", x_offset_in=0, y_offset_in=0)
+module_tr = create_joist_module_assembly(doc, "Module_TR", x_offset_in=0, y_offset_in=0)
+
+doc.recompute()
+
+# Snap modules into grid
+App.Console.PrintMessage("[Test] Snapping modules into 2x2 grid...\n")
+
+# Bottom row
+snap_assembly_corner_to_corner(module_br, module_bl, target_corner="bottom_right", assembly_corner="bottom_left")
+
+# Top row (aligned with bottom row)
+snap_assembly_corner_to_corner(module_tl, module_bl, target_corner="top_left", assembly_corner="bottom_left")
+snap_assembly_corner_to_corner(module_tr, module_br, target_corner="top_left", assembly_corner="bottom_left")
+
+doc.recompute()
+
+# Verify grid
+bbox_bl = get_assembly_bbox(module_bl)
+bbox_br = get_assembly_bbox(module_br)
+bbox_tl = get_assembly_bbox(module_tl)
+bbox_tr = get_assembly_bbox(module_tr)
+
+App.Console.PrintMessage("[Test] Grid verification:\n")
+App.Console.PrintMessage(f"  BL: ({bbox_bl.XMin:.2f}, {bbox_bl.YMin:.2f}) to ({bbox_bl.XMax:.2f}, {bbox_bl.YMax:.2f})\n")
+App.Console.PrintMessage(f"  BR: ({bbox_br.XMin:.2f}, {bbox_br.YMin:.2f}) to ({bbox_br.XMax:.2f}, {bbox_br.YMax:.2f})\n")
+App.Console.PrintMessage(f"  TL: ({bbox_tl.XMin:.2f}, {bbox_tl.YMin:.2f}) to ({bbox_tl.XMax:.2f}, {bbox_tl.YMax:.2f})\n")
+App.Console.PrintMessage(f"  TR: ({bbox_tr.XMin:.2f}, {bbox_tr.YMin:.2f}) to ({bbox_tr.XMax:.2f}, {bbox_tr.YMax:.2f})\n")
+
+# Check gaps
+gap_x_bottom = abs(bbox_br.XMin - bbox_bl.XMax)
+gap_x_top = abs(bbox_tr.XMin - bbox_tl.XMax)
+gap_y_left = abs(bbox_tl.YMin - bbox_bl.YMax)
+gap_y_right = abs(bbox_tr.YMin - bbox_br.YMax)
+
+App.Console.PrintMessage(f"[Test] X gaps: bottom={gap_x_bottom:.4f} mm, top={gap_x_top:.4f} mm\n")
+App.Console.PrintMessage(f"[Test] Y gaps: left={gap_y_left:.4f} mm, right={gap_y_right:.4f} mm\n")
+
+all_gaps_ok = all(g < 0.01 for g in [gap_x_bottom, gap_x_top, gap_y_left, gap_y_right])
+if all_gaps_ok:
+    App.Console.PrintMessage("[Test] ✓ SUCCESS: 2x2 grid is perfectly aligned!\n")
+else:
+    App.Console.PrintWarning("[Test] ⚠ WARNING: Some gaps detected in grid.\n")
+
+# ============================================================
+# FINAL MESSAGE
+# ============================================================
+
+App.Console.PrintMessage("\n[Test] ===== ASSEMBLY SNAPPING TESTS COMPLETE =====\n")
+App.Console.PrintMessage("[Test] Key Takeaway: NO hard-coded offsets needed.\n")
+App.Console.PrintMessage("[Test] Placement logic is deterministic and human-readable.\n")
+App.Console.PrintMessage("[Test] For Luke. Stay Alive.\n")
+
+# Set view
+try:
+    import FreeCADGui as Gui
+    if Gui.ActiveDocument:
+        v = Gui.ActiveDocument.ActiveView
+        v.setCameraType("Orthographic")
+        v.viewIsometric()
+        v.fitAll()
+except Exception:
+    pass
