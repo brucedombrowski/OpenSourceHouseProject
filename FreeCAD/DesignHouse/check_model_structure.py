@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+import FreeCAD as App
+
+# Open the latest model
+latest = sorted([f for f in __import__("os").listdir("builds") if f.endswith(".fcstd")])[-1]
+doc = App.openDocument(f"builds/{latest}")
+
+
+# Count objects by type
+def count_objects(obj, indent=0):
+    """Recursively count objects in groups."""
+    prefix = "  " * indent
+    if hasattr(obj, "Group") and obj.Group:
+        print(f"{prefix}{obj.Name} (Group with {len(obj.Group)} items)")
+        for child in obj.Group:
+            count_objects(child, indent + 1)
+    else:
+        # Get object type info
+        obj_type = "Unknown"
+        if "Pile_" in obj.Name:
+            obj_type = "Pile"
+        elif "Beam_" in obj.Name:
+            obj_type = "Beam"
+        elif "Blocking_" in obj.Name:
+            obj_type = "Blocking"
+        elif "Joist_" in obj.Name:
+            obj_type = "Joist"
+        print(f"{prefix}{obj.Name} ({obj_type})")
+
+
+# Find Foundation group
+for obj in doc.Objects:
+    if obj.Name == "Foundation":
+        print("\n=== Foundation Structure ===")
+        count_objects(obj)
+        break
+
+# Count beams and blocking
+beam_count = 0
+blocking_count = 0
+for obj in doc.Objects:
+    if "Beam_" in obj.Name:
+        beam_count += 1
+    elif "Blocking_" in obj.Name:
+        blocking_count += 1
+
+print("\n=== Total Counts ===")
+print(f"Beams: {beam_count}")
+print(f"Blocking: {blocking_count}")
+
+App.closeDocument(doc.Name)
