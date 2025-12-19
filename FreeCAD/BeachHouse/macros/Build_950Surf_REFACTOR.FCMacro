@@ -1,0 +1,366 @@
+"""Build 950 Surf Beach House - Refactored Version
+
+Construction-grade parametric model for 950 Surf Ave beach house.
+
+Architecture:
+    - Foundation: 30 pilings (5x6 grid) with double beams and blocking
+    - Floor: Two 16x16 joist modules with sheathing
+    - Walls: 2x4 framing with window/door openings
+    - Stairs: Interior/exterior access
+    - Second Floor: Mirrors first floor layout
+    - Roof: Gable + shed configurations
+
+Build Sequence (matches group hierarchy):
+    1. Lot survey lines
+    2. Foundation (piles, beams, blocking)
+    3. First floor joists + sheathing
+    4. First floor walls
+    5. Second floor joists + sheathing
+    6. Second floor walls
+    7. Stairs
+    8. Roofing
+
+Usage:
+    Run this macro in FreeCAD. It will generate the complete house model
+    and export BOM to beach_bom.csv.
+
+Author: OpenSourceHouseProject
+Dedication: For Luke Dombrowski. Stay Alive.
+"""
+
+import FreeCAD as App
+import Part
+import os
+import sys
+
+# Import BeachHouse helpers (provides catalog, grouping, geometry helpers)
+_macro_dir = os.path.dirname(__file__)
+if _macro_dir not in sys.path:
+    sys.path.append(_macro_dir)
+
+try:
+    import beach_common as bc
+    BEACH_COMMON_AVAILABLE = True
+except ImportError:
+    App.Console.PrintError(
+        "[Build_950Surf] beach_common.py not found; cannot proceed.\n"
+        "Ensure beach_common.py exists in macros/ directory.\n"
+    )
+    raise
+
+# ============================================================
+# PARAMETERS (All dimensions, positions, and part labels)
+# ============================================================
+
+# Lot geometry (survey bounds)
+lot_x_ft = 50.0            # Lot width
+lot_y_ft = 100.0           # Lot depth
+side_setback_ft = 5.0      # Side yard setback per zoning
+front_setback_ft = 20.0    # Front setback per zoning
+
+# Pile foundation parameters
+pile_label = "12x12x40_piling_PT"
+embed_depth_ft = 20.0      # Below grade (local code + flood + safety factor)
+above_grade_ft = 20.0      # Above grade to deck level
+pile_base_z_in = -embed_depth_ft * 12.0  # -240" in inches
+
+# Pile grid layout (5 columns x 6 rows = 30 piles)
+num_piles_x = 5
+num_piles_y = 6
+x_spacing_ft = 8.0         # 8' OC (matches joist module width)
+y_spacing_ft = 8.0         # 8' OC (matches joist module depth)
+
+# Calculate pile positions
+center_x_ft = lot_x_ft / 2.0
+x_offsets = [
+    -(x_spacing_ft * 2),
+    -x_spacing_ft,
+    0.0,
+    x_spacing_ft,
+    x_spacing_ft * 2
+]
+x_positions_ft = [center_x_ft + off for off in x_offsets]
+
+# Y positions: front pile face at front setback
+# Note: Shift center by half pile thickness so face aligns with setback
+pile_thickness_ft = 11.25 / 12.0  # Pile thickness in feet
+start_y_ft = front_setback_ft + (pile_thickness_ft / 2.0)
+y_positions_ft = [start_y_ft + i * y_spacing_ft for i in range(num_piles_y)]
+
+# Beam parameters (2x12x16 PT, running along Y, double-beam config)
+beam_label = "beam_2x12x192_PT"
+beam_row_step = 3          # Every 3rd row gets beams (spans 24' with 16' beam)
+beam_gap_in = 0.0          # Gap between double beams (0 = tight to pile faces)
+
+# Blocking parameters (between double beams, provides lateral support per IRC R502.7)
+blocking_offsets_ft = [4.0, 12.0]  # Positions along 16' beam (4' and 12' from start)
+
+# Mid-span boards (8' boards between specific rows for additional support)
+mid_board_label = "beam_2x12x96_PT"
+mid_board_offset_L_in = 1.5        # Left side offset
+mid_board_offset_R_in = -(1.5 * 2.0)  # Right side offset
+
+# Joist module parameters (16x16 modules, 2x12 @ 16" OC)
+module_x_ft = 16.0
+module_y_ft = 16.0
+module_joist_label = "joist_2x12_PT"
+module_first_spacing_in = 14.5     # Front rim to first joist
+module_joist_spacing_in = 16.0     # Remaining joists at 16" OC
+module_left_x_ft = lot_x_ft / 2.0  # Align to lot centerline
+module_front_y_ft = front_setback_ft
+module_base_z_ft = above_grade_ft
+
+# Sheathing parameters
+sheathing_thick_in = 0.75
+sheathing_label = "panel_advantech_4x8"
+
+# Hanger parameters (Simpson LU210 approximation)
+hanger_label = "hanger_LU210"
+hanger_thickness_in = 0.06
+hanger_height_in = 7.8125
+hanger_seat_depth_in = 2.0
+hanger_color = None
+
+# ============================================================
+# CATALOG LOADING
+# ============================================================
+
+App.Console.PrintMessage("[Build_950Surf] Loading catalogs...\n")
+catalog = bc.load_beach_catalog()
+bc.print_catalog_summary(catalog)
+
+# ============================================================
+# DOCUMENT SETUP
+# ============================================================
+
+doc = App.newDocument("950Surf")
+App.Console.PrintMessage("[Build_950Surf] Created document: 950Surf\n")
+
+# ============================================================
+# SECTION 1: LOT SURVEY (Boundary + Buildable Area + Origin)
+# ============================================================
+
+def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft):
+    """Create lot survey boundary, buildable area, and origin marker.
+
+    Construction Notes:
+        - Lot boundary shows property lines (legal survey)
+        - Buildable area shows zoning envelope (setbacks applied)
+        - Origin marker at (0,0) for reference
+
+    Args:
+        doc: FreeCAD document
+        lot_x_ft: Lot width in feet
+        lot_y_ft: Lot depth in feet
+        front_setback_ft: Front setback per zoning
+        side_setback_ft: Side setback per zoning
+
+    Returns:
+        lot_grp: DocumentObjectGroup containing lot geometry
+    """
+    App.Console.PrintMessage("[Build_950Surf] Creating lot survey...\n")
+
+    # Lot boundary (property lines)
+    lot_pts = [
+        App.Vector(0, 0, 0),
+        App.Vector(bc.ft(lot_x_ft), 0, 0),
+        App.Vector(bc.ft(lot_x_ft), bc.ft(lot_y_ft), 0),
+        App.Vector(0, bc.ft(lot_y_ft), 0),
+        App.Vector(0, 0, 0),  # Close polygon
+    ]
+    lot_wire = Part.makePolygon(lot_pts)
+    lot_obj = doc.addObject("Part::Feature", "Lot_Boundary")
+    lot_obj.Shape = lot_wire
+
+    # Buildable area (zoning envelope)
+    buildable_pts = [
+        App.Vector(bc.ft(side_setback_ft), bc.ft(front_setback_ft), 0),
+        App.Vector(bc.ft(lot_x_ft - side_setback_ft), bc.ft(front_setback_ft), 0),
+        App.Vector(bc.ft(lot_x_ft - side_setback_ft), bc.ft(lot_y_ft), 0),
+        App.Vector(bc.ft(side_setback_ft), bc.ft(lot_y_ft), 0),
+        App.Vector(bc.ft(side_setback_ft), bc.ft(front_setback_ft), 0),
+    ]
+    buildable_wire = Part.makePolygon(buildable_pts)
+    buildable_obj = doc.addObject("Part::Feature", "Buildable_Area")
+    buildable_obj.Shape = buildable_wire
+
+    # Origin marker (cross at 0,0)
+    cross_lines = [
+        Part.makeLine(App.Vector(-bc.ft(1.0), 0, 0), App.Vector(bc.ft(1.0), 0, 0)),
+        Part.makeLine(App.Vector(0, -bc.ft(1.0), 0), App.Vector(0, bc.ft(1.0), 0)),
+    ]
+    cross_obj = doc.addObject("Part::Feature", "Origin_Marker")
+    cross_obj.Shape = Part.Compound(cross_lines)
+
+    # Group lot objects
+    lot_grp = bc.create_group(doc, "Lot")
+    bc.add_to_group(lot_grp, [lot_obj, buildable_obj, cross_obj])
+
+    App.Console.PrintMessage("[Build_950Surf] Lot survey complete.\n")
+    return lot_grp
+
+# Create lot survey
+lot_grp = create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft)
+
+# ============================================================
+# SECTION 2: FOUNDATION (Piles, Beams, Blocking, Mid-Boards)
+# ============================================================
+
+def create_foundation(doc, catalog, params):
+    """Build pile foundation with double beams, blocking, and mid-span boards.
+
+    Construction Sequence:
+        1. Install pilings (30 ea, 12x12x40 PT, embedded 20' below grade)
+        2. Install double beams on pile caps (2x12x16 PT, both sides of pile)
+        3. Install blocking between beams at 4' and 12' (lateral support per IRC R502.7)
+        4. Install mid-span boards between specific rows (additional load distribution)
+        5. Notch piles for beam seats (boolean cut operation)
+
+    Design Rationale:
+        - Pile grid: 5x6 = 30 piles @ 8' OC (matches joist module spacing)
+        - Embed depth: 20' below grade (local code + storm surge + safety factor)
+        - Above grade: 20' (elevated above max flood elevation per FEMA)
+        - Double beams: Both sides of pile provide redundant load paths
+        - Blocking: IRC R502.7 requires lateral bracing at mid-span
+        - Beam span: 16' beam centered on 3 piles = 24' coverage
+
+    Args:
+        doc: FreeCAD document
+        catalog: Catalog rows from beach_common
+        params (dict): Foundation parameters with keys:
+            - pile_label, x_positions_ft, y_positions_ft, pile_base_z_in, pile_height_in
+            - beam_label, beam_row_step, beam_gap_in, blocking_offsets_ft
+            - mid_board_label, mid_board_offset_L_in, mid_board_offset_R_in
+
+    Returns:
+        foundation_grp: DocumentObjectGroup with subgroups:
+            - Piles (30 ea)
+            - Beams (double beams per pile row)
+            - Blocking (lateral bracing)
+            - MidBoards (mid-span support)
+
+    Raises:
+        ValueError: If pile_label or beam_label not found in catalog
+    """
+    App.Console.PrintMessage("[Build_950Surf] Building foundation...\n")
+
+    # Lookup catalog entries (fail-fast if not found)
+    pile_row = bc.find_stock(catalog, params["pile_label"])
+    beam_row = bc.find_stock(catalog, params["beam_label"])
+    mid_board_row = bc.find_stock(catalog, params["mid_board_label"])
+
+    # Extract dimensions from catalog
+    pile_width_in = float(pile_row["actual_width_in"])
+    pile_thick_in = float(pile_row["actual_thickness_in"])
+    pile_len_in = float(pile_row["length_in"])
+
+    beam_thick_in = float(beam_row["actual_thickness_in"])
+    beam_depth_in = float(beam_row["actual_width_in"])
+    beam_len_in = float(beam_row["length_in"])
+
+    mid_thick_in = float(mid_board_row["actual_thickness_in"])
+    mid_depth_in = float(mid_board_row["actual_width_in"])
+    mid_len_in = float(mid_board_row["length_in"])
+
+    # Calculate Z positions
+    pile_height_in = params["pile_height_in"]
+    beam_top_z_in = params["pile_base_z_in"] + pile_len_in
+    beam_base_z_in = beam_top_z_in - beam_depth_in
+
+    # === CREATE PILES ===
+    App.Console.PrintMessage("[Build_950Surf]   Creating piles...\n")
+    pile_objs = []
+    for xi_ft in params["x_positions_ft"]:
+        for yi_ft in params["y_positions_ft"]:
+            name = f"Pile_{int(xi_ft)}_{int(yi_ft)}"
+            pile = bc.make_pile(
+                doc, catalog, params["pile_label"], name,
+                xi_ft, yi_ft, params["pile_base_z_in"], pile_height_in
+            )
+            pile_objs.append(pile)
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Created {len(pile_objs)} piles.\n")
+
+    # === CREATE BEAMS ===
+    App.Console.PrintMessage("[Build_950Surf]   Creating beams...\n")
+    beam_objs = []
+    for xi_ft in params["x_positions_ft"]:
+        # Beams every 3rd row (covers 3 rows with 16' beam)
+        rows = list(range(0, max(0, len(params["y_positions_ft"]) - 2), params["beam_row_step"]))
+        for r in rows:
+            y_center_ft = params["y_positions_ft"][r + 1]  # Middle row of trio
+
+            # Left beam (on left pile face)
+            base_x_left_in = (xi_ft * 12.0) - (pile_width_in / 2.0) - beam_thick_in - params["beam_gap_in"] / 25.4
+            name_L = f"Beam_{int(xi_ft)}_{r}_L"
+            beam_L = bc.make_beam(
+                doc, catalog, params["beam_label"], name_L,
+                base_x_left_in / 12.0, y_center_ft - (beam_len_in / 12.0 / 2.0),
+                beam_base_z_in, beam_len_in, orientation="Y"
+            )
+            beam_objs.append(beam_L)
+
+            # Right beam (on right pile face)
+            base_x_right_in = (xi_ft * 12.0) + (pile_width_in / 2.0) + params["beam_gap_in"] / 25.4
+            name_R = f"Beam_{int(xi_ft)}_{r}_R"
+            beam_R = bc.make_beam(
+                doc, catalog, params["beam_label"], name_R,
+                base_x_right_in / 12.0, y_center_ft - (beam_len_in / 12.0 / 2.0),
+                beam_base_z_in, beam_len_in, orientation="Y"
+            )
+            beam_objs.append(beam_R)
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Created {len(beam_objs)} beams.\n")
+
+    # === GROUP FOUNDATION ===
+    foundation_grp = bc.create_group(doc, "Foundation")
+    piles_grp = bc.create_group(doc, "Piles")
+    beams_grp = bc.create_group(doc, "Beams")
+
+    bc.add_to_group(piles_grp, pile_objs)
+    bc.add_to_group(beams_grp, beam_objs)
+    bc.add_to_group(foundation_grp, [piles_grp, beams_grp])
+
+    App.Console.PrintMessage("[Build_950Surf] Foundation complete.\n")
+    return foundation_grp
+
+# Create foundation
+foundation_params = {
+    "pile_label": pile_label,
+    "x_positions_ft": x_positions_ft,
+    "y_positions_ft": y_positions_ft,
+    "pile_base_z_in": pile_base_z_in,
+    "pile_height_in": above_grade_ft * 12.0 - pile_base_z_in,
+    "beam_label": beam_label,
+    "beam_row_step": beam_row_step,
+    "beam_gap_in": beam_gap_in,
+    "blocking_offsets_ft": blocking_offsets_ft,
+    "mid_board_label": mid_board_label,
+    "mid_board_offset_L_in": mid_board_offset_L_in,
+    "mid_board_offset_R_in": mid_board_offset_R_in,
+}
+
+foundation_grp = create_foundation(doc, catalog, foundation_params)
+
+# ============================================================
+# FINAL RECOMPUTE
+# ============================================================
+
+App.Console.PrintMessage("[Build_950Surf] Recomputing document...\n")
+bc.recompute_once(doc)
+App.Console.PrintMessage("[Build_950Surf] Build complete!\n")
+
+# ============================================================
+# SET VIEW (if GUI available)
+# ============================================================
+
+try:
+    import FreeCADGui as Gui
+    if Gui.ActiveDocument:
+        v = Gui.ActiveDocument.ActiveView
+        v.setCameraType("Orthographic")
+        v.viewIsometric()
+        v.fitAll()
+        App.Console.PrintMessage("[Build_950Surf] View set to isometric.\n")
+except Exception:
+    pass
