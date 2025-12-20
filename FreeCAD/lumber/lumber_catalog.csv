@@ -43,3 +43,5 @@ deckboard_5_4x6x192_PT,deck,1.0,5.5,192,PT,TBD,TBD,,,,"5/4x6x16' deck board, PT;
 post_6x6x96_PT,6x6,5.5,5.5,96,PT,TBD,TBD,,,,"6x6x8' PT post for deck/porch support (placeholder SKU)"
 post_6x6x120_PT,6x6,5.5,5.5,120,PT,TBD,TBD,,,,"6x6x10' PT post for deck/porch support (placeholder SKU)"
 post_6x6x144_PT,6x6,5.5,5.5,144,PT,TBD,TBD,,,,"6x6x12' PT post for deck/porch support (placeholder SKU)"
+sill_seal_0.5x5.5x600,sill_seal,0.5,5.5,600,Foam,100086507,"https://www.homedepot.com/p/Frost-King-E-O-5-5-in-x-50-ft-Polyethylene-Foam-Sill-Sealer-SP55H/100086507",TBD,,"Closed-cell foam sill seal 1/2\"x5.5\"x50' roll; cut to length for pile penetrations"
+rebar_0.5x240,rebar,0.5,0.5,240,Steel,202091508,"https://www.homedepot.com/p/1-2-in-x-20-ft-Rebar-202091508/202091508",TBD,,"#4 rebar (1/2\" diameter) 20' lengths for concrete slab reinforcement (Grade 60)"

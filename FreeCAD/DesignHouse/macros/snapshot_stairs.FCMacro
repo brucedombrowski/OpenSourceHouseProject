@@ -1,0 +1,213 @@
+import os
+import math
+import FreeCAD as App
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception as exc:
+    raise RuntimeError(f"Pillow not available for stair snapshot: {exc}")
+
+"""
+Headless snapshot of exterior stair tread spacing (vertical rise validation).
+Inputs (env):
+  SNAPSHOT_INPUT  - FCStd path
+  SNAPSHOT_IMAGE  - PNG output
+
+Purpose:
+  Verify all stair risers have equal height (critical for building code compliance).
+  Visualize stair tread Z positions and gaps between consecutive treads.
+"""
+
+input_path = os.environ.get("SNAPSHOT_INPUT")
+output_path = os.environ.get("SNAPSHOT_IMAGE")
+
+if not input_path or not os.path.isfile(input_path):
+    raise RuntimeError("SNAPSHOT_INPUT missing or file not found")
+if not output_path:
+    raise RuntimeError("SNAPSHOT_IMAGE not set")
+
+doc = App.openDocument(input_path)
+App.setActiveDocument(doc.Name)
+
+treads = []
+
+# Find all stair tread objects (Stair_Tread_*)
+for obj in doc.Objects:
+    try:
+        name = obj.Name
+        if "Stair_Tread_" in name and hasattr(obj, "Shape"):
+            treads.append((name, obj.Shape.BoundBox))
+    except Exception:
+        pass
+
+App.Console.PrintMessage(f"[snapshot_stairs] Found {len(treads)} stair treads\n")
+if len(treads) < 2:
+    App.Console.PrintError(f"[snapshot_stairs] Not enough treads for spacing validation (found {len(treads)})\n")
+    App.closeDocument(doc.Name)
+    raise SystemExit(0)
+
+# Extract bounding boxes and sort by Z (top of tread, descending from highest to lowest)
+tread_boxes = []
+for name, bb in treads:
+    # Store: (name, bbox, tread_top_z)
+    tread_top_z = bb.ZMax  # Top surface of tread
+    tread_boxes.append((name, bb, tread_top_z))
+
+# Sort by Z descending (highest tread first = top of stairs)
+tread_boxes.sort(key=lambda t: t[2], reverse=True)
+
+# Calculate vertical spacing (rise) between consecutive tread tops
+# Rise = difference in Z between consecutive tread tops
+rises_mm = []
+for i in range(len(tread_boxes) - 1):
+    top_z = tread_boxes[i][2]      # Current tread top
+    next_z = tread_boxes[i+1][2]   # Next tread top (lower)
+    rise_mm = top_z - next_z       # Positive value (going down)
+    rises_mm.append(rise_mm)
+
+# Also calculate rise from bottom tread to slab (Z=0)
+bottom_tread_top_z = tread_boxes[-1][2]
+# For stairs descending to slab, we expect the last rise to be from bottom tread to slab
+# However, the first tread should align with floor joist top (around Z=251.25")
+# Let's also calculate the rise from slab to first (bottom) tread top
+slab_z_mm = 0.0  # Slab is at Z=0
+last_rise_to_slab_mm = bottom_tread_top_z - slab_z_mm
+rises_mm.append(last_rise_to_slab_mm)
+
+App.Console.PrintMessage(
+    f"[snapshot_stairs] {len(tread_boxes)} treads, {len(rises_mm)} rises: "
+    f"first={rises_mm[0]/25.4:.4f}\" last={rises_mm[-1]/25.4:.4f}\"\n"
+)
+
+# Validate that all rises are equal (within tolerance)
+tolerance_in = 0.01  # 0.01" tolerance (very tight for code compliance)
+min_rise_in = min(r / 25.4 for r in rises_mm)
+max_rise_in = max(r / 25.4 for r in rises_mm)
+rise_variation_in = max_rise_in - min_rise_in
+
+if rise_variation_in <= tolerance_in:
+    App.Console.PrintMessage(
+        f"[snapshot_stairs] ✓ PASS: All rises equal within {tolerance_in}\" "
+        f"(range: {min_rise_in:.4f}\" - {max_rise_in:.4f}\", variation: {rise_variation_in:.4f}\")\n"
+    )
+else:
+    App.Console.PrintWarning(
+        f"[snapshot_stairs] ⚠ WARNING: Rise variation exceeds tolerance! "
+        f"Range: {min_rise_in:.4f}\" - {max_rise_in:.4f}\" (variation: {rise_variation_in:.4f}\" > {tolerance_in}\")\n"
+    )
+
+# Create visualization (side view showing vertical Z spacing)
+# We'll draw a simplified side view with treads stacked vertically
+
+img_width = 1200
+img_height = 2400
+img = Image.new("RGB", (img_width, img_height), "white")
+draw = ImageDraw.Draw(img)
+
+# Load font for labels
+try:
+    font = ImageFont.truetype("Arial", 28)
+    font_small = ImageFont.truetype("Arial", 20)
+except Exception:
+    font = ImageFont.load_default()
+    font_small = ImageFont.load_default()
+
+# Find Z range
+all_z = [t[2] for t in tread_boxes]
+min_z = min(min(all_z), slab_z_mm)
+max_z = max(all_z)
+
+# Add padding
+pad_mm = 200.0
+span_z = max_z - min_z
+if span_z <= 0:
+    span_z = 1000.0
+
+# Scale factor (map Z range to image height)
+scale = (img_height - 200) / (span_z + 2 * pad_mm)
+if not math.isfinite(scale) or scale <= 0:
+    scale = 1.0
+
+def map_z(z_mm):
+    """Map Z coordinate to image Y (invert: high Z = top of image)"""
+    return int(round((max_z + pad_mm - z_mm) * scale + 50))
+
+# Draw title
+title = f"Exterior Stairs - Rise Validation ({len(tread_boxes)} treads, {len(rises_mm)} rises)"
+draw.text((30, 30), title, fill="black", font=font)
+
+# Draw validation summary
+if rise_variation_in <= tolerance_in:
+    status_text = f"✓ PASS: All rises equal ({min_rise_in:.4f}\" ± {rise_variation_in:.4f}\")"
+    status_color = "green"
+else:
+    status_text = f"⚠ FAIL: Rise variation {rise_variation_in:.4f}\" > {tolerance_in}\""
+    status_color = "red"
+draw.text((30, 70), status_text, fill=status_color, font=font)
+
+# Draw target rise and actual rise summary
+avg_rise_in = sum(rises_mm) / len(rises_mm) / 25.4
+draw.text((30, 110), f"Average rise: {avg_rise_in:.4f}\"", fill="black", font=font_small)
+draw.text((30, 140), f"Range: {min_rise_in:.4f}\" - {max_rise_in:.4f}\"", fill="black", font=font_small)
+
+# Draw slab (ground level at Z=0)
+slab_y = map_z(slab_z_mm)
+draw.rectangle([(100, slab_y), (900, slab_y + 20)], outline="brown", fill="#d4a373", width=3)
+draw.text((920, slab_y - 10), "Slab (Z=0')", fill="brown", font=font_small)
+
+# Draw each tread as a horizontal line at its Z position
+tread_x_start = 200
+tread_width = 400
+
+for idx, (name, bb, tread_top_z) in enumerate(tread_boxes):
+    y_pos = map_z(tread_top_z)
+
+    # Draw tread (thicker line for top surface)
+    draw.rectangle(
+        [(tread_x_start, y_pos - 8), (tread_x_start + tread_width, y_pos + 2)],
+        outline="black",
+        fill="#8B4513",  # Brown for wood treads
+        width=2
+    )
+
+    # Label tread with step number (0 = top)
+    label = f"Tread {idx}"
+    draw.text((tread_x_start + tread_width + 20, y_pos - 10), label, fill="black", font=font_small)
+
+# Draw dimension arrows for each rise (vertical spacing between consecutive treads)
+arrow_x = 120
+
+for i in range(len(rises_mm)):
+    if i < len(tread_boxes):
+        # Rise from current tread to next tread (or slab)
+        z1 = tread_boxes[i][2]
+        if i + 1 < len(tread_boxes):
+            z2 = tread_boxes[i + 1][2]
+        else:
+            z2 = slab_z_mm
+
+        y1 = map_z(z1)
+        y2 = map_z(z2)
+
+        # Draw vertical line with arrows
+        draw.line([(arrow_x, y1), (arrow_x, y2)], fill="red", width=2)
+
+        # Draw arrowheads
+        arrow_size = 8
+        draw.line([(arrow_x - arrow_size, y1 + arrow_size), (arrow_x, y1), (arrow_x + arrow_size, y1 + arrow_size)], fill="red", width=2)
+        draw.line([(arrow_x - arrow_size, y2 - arrow_size), (arrow_x, y2), (arrow_x + arrow_size, y2 - arrow_size)], fill="red", width=2)
+
+        # Label with rise dimension
+        rise_in = rises_mm[i] / 25.4
+        mid_y = (y1 + y2) / 2
+
+        # Color code: green if within tolerance, red if not
+        label_color = "green" if abs(rise_in - avg_rise_in) <= tolerance_in else "red"
+
+        rise_label = f"Rise {i}: {rise_in:.4f}\""
+        draw.text((arrow_x - 110, mid_y - 8), rise_label, fill=label_color, font=font_small)
+
+# Save image
+img.save(output_path)
+App.Console.PrintMessage(f"[snapshot_stairs] Saved image to {output_path}\n")
+App.closeDocument(doc.Name)

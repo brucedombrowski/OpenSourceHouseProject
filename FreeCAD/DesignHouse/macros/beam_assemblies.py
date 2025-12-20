@@ -78,8 +78,21 @@ def create_double_beam_assembly(
     blocking_depth_in = beam_depth_in  # Same as beam (11.25")
     blocking_spacing_ft = 2.0  # 24" OC
 
-    # Create assembly group
-    assembly = bc.create_group(doc, assembly_name)
+    # Create assembly (App::Part, not DocumentObjectGroup)
+    # Clear existing assembly if rerunning
+    existing = doc.getObject(assembly_name)
+    if existing:
+        doc.removeObject(existing.Name)
+        App.Console.PrintMessage(f"[beam_assemblies] Removed existing assembly: {assembly_name}\n")
+
+    # Create assembly container (App::Part has spatial properties)
+    assembly = doc.addObject("App::Part", assembly_name)
+    assembly.Label = assembly_name
+
+    App.Console.PrintMessage(
+        f"[beam_assemblies] Created assembly: {assembly.Name} (type: {assembly.TypeId})\n"
+    )
+
     created = []
 
     # 1. Left beam (notched into left side of piles)
@@ -159,8 +172,14 @@ def create_double_beam_assembly(
     )
     created.append(beam_right)
 
-    # Add all parts to assembly group
-    bc.add_to_group(assembly, created)
+    # Add all parts to assembly (App::Part uses addObject, not Group)
+    App.Console.PrintMessage(f"[beam_assemblies] Adding {len(created)} parts to assembly...\n")
+    for obj in created:
+        assembly.addObject(obj)
+
+    App.Console.PrintMessage(
+        f"[beam_assemblies] ✓ Assembly complete: {assembly_name} ({len(created)} parts)\n"
+    )
 
     return assembly
 

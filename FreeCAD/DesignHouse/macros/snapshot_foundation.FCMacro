@@ -38,6 +38,7 @@ App.setActiveDocument(doc.Name)
 pile_boxes = []
 beam_boxes = []
 blocking_boxes = []
+drain_pipe_boxes = []
 lot_box = None
 build_box = None
 
@@ -63,6 +64,8 @@ def find_objects_recursive(obj_list):
                     beam_boxes.append(obj.Shape.BoundBox)
                 elif "Blocking_" in obj.Name:
                     blocking_boxes.append(obj.Shape.BoundBox)
+                elif "Drain_Pipe_" in obj.Name or "Drain_Coupling_" in obj.Name:
+                    drain_pipe_boxes.append(obj.Shape.BoundBox)
         except Exception:
             pass
 
@@ -76,7 +79,8 @@ if not pile_boxes:
 
 App.Console.PrintMessage(
     f"[snapshot_foundation] Found: {len(pile_boxes)} piles, "
-    f"{len(beam_boxes)} beams, {len(blocking_boxes)} blocking pieces\n"
+    f"{len(beam_boxes)} beams, {len(blocking_boxes)} blocking pieces, "
+    f"{len(drain_pipe_boxes)} drain pipe sections\n"
 )
 
 # Calculate pile positions for spacing dimensions
@@ -86,7 +90,7 @@ spacings_x = [xs[i+1] - xs[i] for i in range(len(xs)-1)] if len(xs) > 1 else []
 spacings_y = [ys[i+1] - ys[i] for i in range(len(ys)-1)] if len(ys) > 1 else []
 
 # Compute drawing bounds
-all_boxes = list(pile_boxes) + list(beam_boxes) + list(blocking_boxes)
+all_boxes = list(pile_boxes) + list(beam_boxes) + list(blocking_boxes) + list(drain_pipe_boxes)
 if lot_box:
     all_boxes.append(lot_box)
 if build_box:
@@ -154,6 +158,44 @@ for bb in beam_boxes:
     ya, yb = sorted((y0, y1))
     draw.rectangle([(xa, ya), (xb, yb)], outline="darkgreen", fill="#90EE90", width=2)
 
+# DEBUG: Log pile position for comparison with drain pipe
+if pile_boxes:
+    # Find the northeast corner pile (max X, max Y among first few piles)
+    ne_pile = max(pile_boxes, key=lambda bb: (bb.Center.x, bb.Center.y))
+    App.Console.PrintMessage(
+        f"[DEBUG snapshot] NE corner pile: Y range {ne_pile.YMin/304.8:.5f}' to {ne_pile.YMax/304.8:.5f}', "
+        f"center={ne_pile.Center.y/304.8:.5f}'\n"
+    )
+
+# Draw drain pipes (cyan/blue, above beams but below piles)
+for i, bb in enumerate(drain_pipe_boxes):
+    # DEBUG: Log bounding box Y coordinates
+    if i == 0:  # Only log first vertical pipe
+        App.Console.PrintMessage(
+            f"[DEBUG snapshot] Drain pipe 0: Y range {bb.YMin/304.8:.5f}' to {bb.YMax/304.8:.5f}', "
+            f"center={(bb.YMin + bb.YMax)/2.0/304.8:.5f}'\n"
+        )
+        App.Console.PrintMessage(
+            f"[DEBUG snapshot] Offset from pile center: {(bb.Center.y - ne_pile.Center.y)/304.8:.5f}' "
+            f"({(bb.Center.y - ne_pile.Center.y)/25.4:.2f} inches)\n"
+        )
+
+    x0, y0 = map_point(bb.XMin, bb.YMin)
+    x1, y1 = map_point(bb.XMax, bb.YMax)
+    xa, xb = sorted((x0, x1))
+    ya, yb = sorted((y0, y1))
+    # Draw as circles for vertical pipes, rectangles for horizontal
+    if abs(xa - xb) < 5 and abs(ya - yb) < 5:  # Vertical pipe (top-down view)
+        # Draw as filled circle
+        center_x = (xa + xb) // 2
+        center_y = (ya + yb) // 2
+        radius = max(3, int((xb - xa) / 2))
+        draw.ellipse([(center_x - radius, center_y - radius),
+                      (center_x + radius, center_y + radius)],
+                     outline="#0080FF", fill="#80C0FF", width=2)
+    else:  # Horizontal pipe
+        draw.rectangle([(xa, ya), (xb, yb)], outline="#0080FF", fill="#80C0FF", width=2)
+
 # Draw piles (on top)
 for bb in pile_boxes:
     x0, y0 = map_point(bb.XMin, bb.YMin)
@@ -166,7 +208,8 @@ for bb in pile_boxes:
 text_lines = [
     f"Piles: {len(pile_boxes)}",
     f"Beams: {len(beam_boxes)}",
-    f"Blocking: {len(blocking_boxes)}"
+    f"Blocking: {len(blocking_boxes)}",
+    f"Drain: {len(drain_pipe_boxes)} sections"
 ]
 if spacings_x:
     text_lines.append(f"Pile X: {spacings_x[0]/304.8:.1f} ft OC")

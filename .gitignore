@@ -7,3 +7,10 @@ db.sqlite3
 .env
 .DS_Store
 staticfiles/
+
+# FreeCAD build artifacts (timestamped files)
+*.FCBak
+**/builds/*.fcstd
+**/builds/*.FCMacro
+**/builds/*.png
+**/builds/*.csv

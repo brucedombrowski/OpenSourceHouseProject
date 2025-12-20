@@ -1,0 +1,13 @@
+sku,description,nominal_size_in,actual_od_in,length_ft,material,schedule,price_each_usd,url,supplier
+pvc_4_sch40_10ft,4" Schedule 40 PVC Sewer Pipe,4.0,4.215,10.0,PVC,40,25.99,https://www.lowes.com/pd/4-in-x-10-ft-Sewer-Drain-PVC-Pipe/3133115,lowes
+pvc_4_sch40_coupling,4" PVC Coupling,4.0,4.5,0.5,PVC,40,3.49,https://www.lowes.com/pd/LASCO-4-in-dia-PVC-Coupling/1000180479,lowes
+pvc_4_sch40_elbow_90,4" PVC 90-Degree Elbow,4.0,4.5,0.0,PVC,40,8.99,https://www.lowes.com/pd/LASCO-4-in-dia-90-Degree-PVC-Elbow/1000180453,lowes
+pvc_4_sch40_elbow_45,4" PVC 45-Degree Elbow,4.0,4.5,0.0,PVC,40,7.99,https://www.lowes.com/pd/LASCO-4-in-dia-45-Degree-PVC-Elbow/1000180449,lowes
+pvc_4_sch40_tee,4" PVC Tee,4.0,4.5,0.0,PVC,40,12.99,https://www.lowes.com/pd/LASCO-4-in-dia-PVC-Tee/1000180497,lowes
+pvc_4_pipe_hanger,4" Pipe Hanger (Clevis),4.0,4.5,0.0,Steel,N/A,4.99,https://www.lowes.com/pd/Oatey-4-in-Steel-Pipe-Hanger/3551961,lowes
+pvc_4_pipe_strap,4" Pipe Strap (2-Hole),4.0,4.5,0.0,Steel,N/A,2.99,https://www.lowes.com/pd/Oatey-4-in-Galvanized-Steel-Pipe-Strap/3551959,lowes
+pvc_1_sch40_10ft,1" Schedule 40 PVC Water Pipe,1.0,1.315,10.0,PVC,40,8.99,https://www.lowes.com/pd/1-in-x-10-ft-Sewer-Drain-PVC-Pipe/3133109,lowes
+pvc_1_sch40_coupling,1" PVC Coupling,1.0,1.5,0.5,PVC,40,1.29,https://www.lowes.com/pd/LASCO-1-in-dia-PVC-Coupling/1000180475,lowes
+pvc_2_conduit_10ft,2" Electrical Conduit,2.0,2.375,10.0,PVC,40,12.99,https://www.lowes.com/pd/2-in-x-10-ft-Electrical-Conduit/3133111,lowes
+pvc_2_conduit_coupling,2" Conduit Coupling,2.0,2.5,0.5,PVC,40,1.99,https://www.lowes.com/pd/LASCO-2-in-dia-PVC-Coupling/1000180477,lowes
+septic_tank_1500gal,1500 Gallon Septic Tank,N/A,N/A,0.0,Concrete,N/A,1499.00,https://www.lowes.com/pd/Septic-Tank-1500-Gallon/1000179999,lowes
