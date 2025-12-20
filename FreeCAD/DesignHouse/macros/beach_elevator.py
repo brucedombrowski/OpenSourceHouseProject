@@ -121,6 +121,11 @@ def create_beach_elevator(doc, config, foundation_config=None):
     platform_top_z = bc.ft(travel_height_ft) + bc.inch(platform_thickness_in)
     railing_z = platform_top_z + bc.inch(railing_height_in)
 
+    # Platform corner coordinates (for railing positioning)
+    platform_west_x = elevator_x_ft - platform_width_ft / 2.0
+    platform_east_x = elevator_x_ft + platform_width_ft / 2.0
+    platform_south_y = elevator_y_ft - platform_depth_ft / 2.0
+
     # South railing (front, full width, runs east-west)
     south_railing = doc.addObject("Part::Feature", "Elevator_Railing_South")
     south_railing_shape = Part.makeCylinder(
@@ -128,45 +133,52 @@ def create_beach_elevator(doc, config, foundation_config=None):
     )
     south_railing_shape.Placement = App.Placement(
         App.Vector(
-            bc.ft(elevator_x_ft - platform_width_ft / 2.0),  # Start at west edge
-            bc.ft(elevator_y_ft - platform_depth_ft / 2.0),  # South edge of platform
+            bc.ft(platform_west_x),  # Start at west edge of platform
+            bc.ft(platform_south_y),  # South edge of platform
             railing_z,  # Railing height above platform
         ),
-        App.Rotation(App.Vector(0, 1, 0), 90),  # Rotate to run east-west
+        App.Rotation(App.Vector(0, 1, 0), 90),  # Rotate to run east-west (along X axis)
     )
     south_railing.Shape = south_railing_shape
     _set_color(south_railing, steel_color)
     created.append(south_railing)
 
-    # East railing (right side, full depth, runs north-south)
+    # East railing (right side, runs north from south edge)
+    # Snaps south end to south railing corner
     east_railing = doc.addObject("Part::Feature", "Elevator_Railing_East")
     east_railing_shape = Part.makeCylinder(
         bc.inch(railing_tube_dia_in / 2.0), bc.ft(platform_depth_ft)
     )
+    # Create cylinder along Y axis: start at origin, rotate to align with +Y
+    # Cylinder default: extends along +Z axis, height = platform_depth_ft
+    # Rotation (0,1,0),90° rotates around Y axis: Z→X (wrong), need (1,0,0),-90° for Z→-Y
+    # Actually: Default cylinder at origin extends +Z. Rotate Y by 90° → extends +X
+    #           Rotate X by 90° → extends +Y (what we want)
     east_railing_shape.Placement = App.Placement(
         App.Vector(
-            bc.ft(elevator_x_ft + platform_width_ft / 2.0),  # East edge of platform
-            bc.ft(elevator_y_ft - platform_depth_ft / 2.0),  # Start at south edge
-            railing_z,  # Railing height above platform
+            bc.ft(platform_east_x),  # East edge X position
+            bc.ft(platform_south_y),  # Start at south edge Y position
+            railing_z,  # Z height at railing top
         ),
-        App.Rotation(App.Vector(1, 0, 0), 90),  # Rotate to run north-south
+        App.Rotation(App.Vector(1, 0, 0), 90),  # Rotate around X by 90° makes cylinder extend +Y
     )
     east_railing.Shape = east_railing_shape
     _set_color(east_railing, steel_color)
     created.append(east_railing)
 
-    # West railing (left side, full depth, runs north-south)
+    # West railing (left side, runs north from south edge)
+    # Snaps south end to south railing corner
     west_railing = doc.addObject("Part::Feature", "Elevator_Railing_West")
     west_railing_shape = Part.makeCylinder(
         bc.inch(railing_tube_dia_in / 2.0), bc.ft(platform_depth_ft)
     )
     west_railing_shape.Placement = App.Placement(
         App.Vector(
-            bc.ft(elevator_x_ft - platform_width_ft / 2.0),  # West edge of platform
-            bc.ft(elevator_y_ft - platform_depth_ft / 2.0),  # Start at south edge
-            railing_z,  # Railing height above platform
+            bc.ft(platform_west_x),  # West edge X position
+            bc.ft(platform_south_y),  # Start at south edge Y position
+            railing_z,  # Z height at railing top
         ),
-        App.Rotation(App.Vector(1, 0, 0), 90),  # Rotate to run north-south
+        App.Rotation(App.Vector(1, 0, 0), 90),  # Rotate around X by 90° makes cylinder extend +Y
     )
     west_railing.Shape = west_railing_shape
     _set_color(west_railing, steel_color)
