@@ -22,9 +22,10 @@ BOM Handling:
 For Luke Dombrowski. Stay Alive.
 """
 
-import FreeCAD as App
-import Part
 import beach_common as bc
+import Part
+
+import FreeCAD as App
 
 
 def _set_color(obj, color):
@@ -71,7 +72,7 @@ def create_beach_elevator(doc, config, foundation_config=None):
     # CORNER POSTS (4 vertical steel tubes, 4" square)
     # ====================
     post_size_in = 4.0  # 4x4 steel tube
-    post_height_ft = travel_height_ft + 2.0  # Extend 2' above deck for overhead support
+    post_height_ft = travel_height_ft + 8.0  # Extend 8' above deck for overhead support
 
     # Corner positions (centered on elevator_x, elevator_y)
     corners = [
@@ -116,7 +117,7 @@ def create_beach_elevator(doc, config, foundation_config=None):
     railing_height_in = 42.0  # 42" handrail height (ADA)
     railing_tube_dia_in = 1.5  # 1.5" diameter steel tube
 
-    # Railing top rail position: platform top + railing height
+    # Railing top rail position: at deck level with platform (for visualization)
     platform_top_z = bc.ft(travel_height_ft) + bc.inch(platform_thickness_in)
     railing_z = platform_top_z + bc.inch(railing_height_in)
 

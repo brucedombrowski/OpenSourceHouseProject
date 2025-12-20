@@ -318,11 +318,11 @@ MATERIALS = {
 # ============================================================
 
 ELEVATOR = {
-    # Position (SE corner, south of front deck, on driveway)
-    # Front deck extends from Y=20.0' to Y=12.0' (8' south)
-    # Elevator north face must align with deck south face at Y=12.0'
-    "elevator_x_ft": 42.0,  # East side (SE corner)
-    "elevator_y_ft": 9.5,  # Center: 5'/2 = 2.5' south of Y=12.0' deck edge
+    # Position (south face of house, east edge - SE corner)
+    # Positioned at front of house for ground-level access
+    # South face = front setback line (Y=20'), east edge = right side
+    "elevator_x_ft": 42.0,  # East edge of house (SE corner)
+    "elevator_y_ft": 17.0,  # Just south of front face, accessible from grade
     # Platform dimensions
     "platform_width_ft": 4.0,  # 4' wide (ADA accessible, 48" min for wheelchair)
     "platform_depth_ft": 5.0,  # 5' deep (north face at Y=12.0', south face at Y=7.0')

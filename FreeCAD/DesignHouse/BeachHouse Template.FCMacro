@@ -726,9 +726,8 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     importlib.reload(lc)
     importlib.reload(parts)
 
-    # Load catalog
-    design_house_dir = os.path.dirname(macro_dir)
-    catalog_path = os.path.join(design_house_dir, "lumber", "lumber_catalog.csv")
+    # Load catalog (use _design_house_root which is already set correctly)
+    catalog_path = os.path.join(_design_house_root, "lumber", "lumber_catalog.csv")
     catalog_rows = lc.load_catalog(catalog_path)
     App.Console.PrintMessage(f"[Build_950Surf]   Loaded {len(catalog_rows)} catalog entries\n")
 
