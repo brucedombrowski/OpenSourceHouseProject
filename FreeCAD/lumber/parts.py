@@ -761,3 +761,220 @@ def create_joist_module_8x8(
     )
 
     return assembly
+
+
+def create_sheathing_panel(
+    doc,
+    catalog_rows,
+    name,
+    x_in,
+    y_in,
+    z_in,
+    x_size_in=None,
+    y_size_in=None,
+    panel_label="panel_advantech_4x8",
+):
+    """
+    Create a single sheathing panel (4x8 Advantech, 3/4" thick).
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        name: Object name
+        x_in: X position (inches)
+        y_in: Y position (inches)
+        z_in: Z position (inches, top of joists)
+        x_size_in: Panel X dimension (inches, default from catalog)
+        y_size_in: Panel Y dimension (inches, default from catalog)
+        panel_label: Catalog label (default: panel_advantech_4x8)
+
+    Returns:
+        Part::Feature panel object
+    """
+    panel_row = find_stock(catalog_rows, panel_label)
+    thick_in = float(panel_row["actual_thickness_in"])
+    width_in = float(panel_row["actual_width_in"])  # 48"
+    length_in = float(panel_row["length_in"])  # 96"
+
+    # Use provided size or catalog defaults
+    x_size = x_size_in if x_size_in is not None else width_in
+    y_size = y_size_in if y_size_in is not None else length_in
+
+    # Create panel box
+    box = Part.makeBox(inch(x_size), inch(y_size), inch(thick_in))
+    panel = doc.addObject("Part::Feature", name)
+    panel.Shape = box
+    panel.Placement.Base = App.Vector(inch(x_in), inch(y_in), inch(z_in))
+
+    # Attach metadata
+    attach_metadata(panel, panel_row, panel_label, supplier="lowes")
+
+    return panel
+
+
+def create_sheathing_for_floor(
+    doc,
+    catalog_rows,
+    floor_bbox,
+    z_offset_in,
+    group_name="Floor_Sheathing",
+    panel_label="panel_advantech_4x8",
+    exclude_left_ft=0.0,
+    exclude_right_ft=0.0,
+):
+    """
+    Create sheathing panels to cover a floor assembly.
+
+    Design:
+        - 4x8 Advantech panels (3/4" thick)
+        - Staggered seams (alternating columns offset by 4')
+        - Panels trimmed to fit exact floor dimensions
+        - Optional exclusion zones on left/right edges (for deck areas)
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        floor_bbox: Bounding box of floor joist assembly (from Part.getShape().BoundBox)
+        z_offset_in: Z offset above floor joists (typically joist depth, e.g., 11.25")
+        group_name: Name for sheathing group
+        panel_label: Catalog label (default: panel_advantech_4x8)
+        exclude_left_ft: Exclude sheathing from leftmost N feet (default 0.0)
+        exclude_right_ft: Exclude sheathing from rightmost N feet (default 0.0)
+
+    Returns:
+        App::Part assembly containing all sheathing panels
+    """
+    import math
+
+    panel_row = find_stock(catalog_rows, panel_label)
+    panel_width_in = float(panel_row["actual_width_in"])  # 48" (X direction)
+    panel_length_in = float(panel_row["length_in"])  # 96" (Y direction)
+
+    # Floor dimensions (mm to inches)
+    floor_x_min_in = floor_bbox.XMin / 25.4
+    floor_y_min_in = floor_bbox.YMin / 25.4
+    floor_x_span_in = floor_bbox.XLength / 25.4
+    floor_y_span_in = floor_bbox.YLength / 25.4
+    floor_z_top_in = (floor_bbox.ZMax / 25.4) + z_offset_in
+
+    # Apply exclusion zones (convert feet to inches)
+    exclude_left_in = exclude_left_ft * 12.0
+    exclude_right_in = exclude_right_ft * 12.0
+
+    # Adjust effective sheathing area
+    sheathing_x_min_in = floor_x_min_in + exclude_left_in
+    sheathing_x_span_in = floor_x_span_in - exclude_left_in - exclude_right_in
+
+    App.Console.PrintMessage(
+        f"[create_sheathing] Floor bbox (mm): X={floor_bbox.XMin:.1f} to {floor_bbox.XMax:.1f} ({floor_bbox.XLength:.1f}), "
+        f"Y={floor_bbox.YMin:.1f} to {floor_bbox.YMax:.1f} ({floor_bbox.YLength:.1f})\n"
+    )
+    App.Console.PrintMessage(
+        f'[create_sheathing] Floor dimensions: {floor_x_span_in:.2f}" x {floor_y_span_in:.2f}" '
+        f'at Z={floor_z_top_in:.2f}"\n'
+    )
+    if exclude_left_in > 0 or exclude_right_in > 0:
+        App.Console.PrintMessage(
+            f'[create_sheathing] Exclusion zones: left {exclude_left_in:.2f}", right {exclude_right_in:.2f}"\n'
+        )
+        App.Console.PrintMessage(
+            f'[create_sheathing] Sheathing area: {sheathing_x_span_in:.2f}" (from X={sheathing_x_min_in:.2f}")\n'
+        )
+    App.Console.PrintMessage(
+        f'[create_sheathing] Panel size: {panel_width_in:.2f}" x {panel_length_in:.2f}"\n'
+    )
+
+    created = []
+
+    # Calculate number of columns (panels across X direction) using sheathing area (not full floor)
+    cols = int(math.ceil(sheathing_x_span_in / panel_width_in))
+    App.Console.PrintMessage(
+        f'[create_sheathing] Calculated {cols} columns ({sheathing_x_span_in:.2f}" / {panel_width_in:.2f}")\n'
+    )
+
+    for col in range(cols):
+        x0_in = sheathing_x_min_in + (col * panel_width_in)
+
+        # Trim last column if needed
+        remaining_x_in = (sheathing_x_min_in + sheathing_x_span_in) - x0_in
+        x_size_in = min(panel_width_in, remaining_x_in)
+
+        # Stagger seams: odd columns start with 4' piece
+        stagger = col % 2 == 1
+
+        if stagger:
+            # Starter 4' piece (48" length)
+            created.append(
+                create_sheathing_panel(
+                    doc,
+                    catalog_rows,
+                    f"Panel_{col}_0",
+                    x0_in,
+                    floor_y_min_in,
+                    floor_z_top_in,
+                    x_size_in=x_size_in,
+                    y_size_in=48.0,
+                    panel_label=panel_label,
+                )
+            )
+            y_in = floor_y_min_in + 48.0
+        else:
+            y_in = floor_y_min_in
+
+        # Fill rest of column with 8' panels
+        panel_count = 0
+        max_panels_per_column = 50  # Safety limit to prevent infinite loops
+        while y_in < (floor_y_min_in + floor_y_span_in) and panel_count < max_panels_per_column:
+            remaining_y_in = (floor_y_min_in + floor_y_span_in) - y_in
+            y_size_in = min(panel_length_in, remaining_y_in)
+
+            # Safety check: if panel would be too small (< 0.1"), skip it
+            if y_size_in < 0.1:
+                break
+
+            created.append(
+                create_sheathing_panel(
+                    doc,
+                    catalog_rows,
+                    f"Panel_{col}_{int(y_in - floor_y_min_in)}",
+                    x0_in,
+                    y_in,
+                    floor_z_top_in,
+                    x_size_in=x_size_in,
+                    y_size_in=y_size_in,
+                    panel_label=panel_label,
+                )
+            )
+            y_in += panel_length_in
+            panel_count += 1
+
+        if panel_count >= max_panels_per_column:
+            App.Console.PrintWarning(
+                f"[create_sheathing] Column {col} hit max panel limit ({max_panels_per_column})\n"
+            )
+
+    # Create assembly (App::Part, not DocumentObjectGroup)
+    # Clear existing assembly if rerunning
+    existing = doc.getObject(group_name)
+    if existing:
+        doc.removeObject(existing.Name)
+        App.Console.PrintMessage(f"[create_sheathing] Removed existing assembly: {group_name}\n")
+
+    # Create assembly container (App::Part has spatial properties)
+    assembly = doc.addObject("App::Part", group_name)
+    assembly.Label = group_name
+
+    # Add all panels to assembly
+    for panel in created:
+        assembly.addObject(panel)
+
+    # Recompute to update bounding box
+    doc.recompute()
+
+    bbox = get_assembly_bbox(assembly)
+    App.Console.PrintMessage(
+        f"[create_sheathing] ✓ Created {len(created)} sheathing panels ({group_name}): "
+        f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+    )
+
+    return assembly

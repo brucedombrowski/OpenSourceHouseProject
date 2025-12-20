@@ -30,10 +30,11 @@ if [[ ! -f "${TEMPLATE_MACRO}" ]]; then
   exit 1
 fi
 
-echo "Generating 950 Surf model (lot + piles) ..."
+echo "Generating beach house model..."
 TIMESTAMP="$(date +"%Y%m%d-%H%M%S")"
 BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/builds}"
-ADDRESS="950_Surf"
+# Default address is "BeachHouse", can be overridden via ADDRESS env var
+ADDRESS="${ADDRESS:-BeachHouse}"
 
 # Clear previous builds to keep folder lean
 if [[ -d "${BUILD_DIR}" ]]; then

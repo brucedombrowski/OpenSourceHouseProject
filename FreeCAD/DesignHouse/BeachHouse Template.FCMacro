@@ -37,11 +37,17 @@ import importlib
 # Import BeachHouse helpers and config
 # Use absolute paths to work when macro is copied to builds/ folder
 _this_file = __file__ if __file__ else os.getcwd()
-_design_house_root = os.path.dirname(os.path.abspath(_this_file))
+_macro_location = os.path.dirname(os.path.abspath(_this_file))
 
-# If this macro is in builds/, go up one level to find DesignHouse root
-if os.path.basename(_design_house_root) == "builds":
-    _design_house_root = os.path.dirname(_design_house_root)
+# If this macro is in builds/, navigate to DesignHouse root
+# Structure: FreeCAD/DesignHouse/ExampleBeachHouse/builds/macro.FCMacro
+# We need to get to: FreeCAD/DesignHouse/
+if os.path.basename(_macro_location) == "builds":
+    # Go up from builds/ -> ExampleBeachHouse/ -> DesignHouse/
+    _design_house_root = os.path.dirname(os.path.dirname(_macro_location))
+else:
+    # Macro is in DesignHouse/ directly (template location)
+    _design_house_root = _macro_location
 
 _macros_dir = os.path.join(_design_house_root, "macros")
 
