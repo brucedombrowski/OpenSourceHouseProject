@@ -32,6 +32,7 @@ import FreeCAD as App
 import Part
 import os
 import sys
+import importlib
 
 # Import BeachHouse helpers and config
 # Use absolute paths to work when macro is copied to builds/ folder
@@ -53,24 +54,25 @@ try:
     import beach_common as bc
     import beam_assemblies as ba
     import septic_utilities as su
+    import beach_elevator as be
     BEACH_COMMON_AVAILABLE = True
 except ImportError:
     App.Console.PrintError(
-        "[Build_950Surf] beach_common.py, beam_assemblies.py, or septic_utilities.py not found; cannot proceed.\n"
+        "[Build_950Surf] beach_common.py, beam_assemblies.py, septic_utilities.py, or beach_elevator.py not found; cannot proceed.\n"
         "Ensure all helper modules exist in macros/ directory.\n"
     )
     raise
 
 # Import design configuration
 try:
-    from config_950_surf import LOT, FOUNDATION, FIRST_FLOOR, SEPTIC_SYSTEM, UTILITIES, BUILD
+    from config_950_surf import LOT, FOUNDATION, FIRST_FLOOR, SEPTIC_SYSTEM, UTILITIES, DECKS, DRIVEWAY, ELEVATOR, STAIRS, WALLS, BUILD
     App.Console.PrintMessage("[Build_950Surf] Loaded design configuration from config_950_surf.py\n")
 except ImportError:
     App.Console.PrintError(
         "[Build_950Surf] config_950_surf.py not found; using default parameters.\n"
     )
     # Fallback defaults
-    LOT = {"width_ft": 50.0, "depth_ft": 100.0, "front_setback_ft": 20.0, "side_setback_ft": 7.5}
+    LOT = {"width_ft": 50.0, "depth_ft": 100.0, "front_setback_ft": 20.0, "left_setback_ft": 5.0, "right_setback_ft": 5.0, "rear_setback_ft": 10.0}
     FOUNDATION = {
         "pile_grid_x": 5, "pile_grid_y": 7, "pile_spacing_x_ft": 8.0, "pile_spacing_y_ft": 8.0,
         "above_grade_ft": 20.0, "pile_size_in": 12.0, "pile_length_ft": 40.0
@@ -87,13 +89,16 @@ except ImportError:
 # Lot geometry
 lot_x_ft = LOT["width_ft"]
 lot_y_ft = LOT["depth_ft"]
-side_setback_ft = LOT["side_setback_ft"]
-front_setback_ft = LOT["front_setback_ft"]
+front_setback_ft = LOT["front_setback_ft"]  # South side
+left_setback_ft = LOT["left_setback_ft"]    # West side
+right_setback_ft = LOT["right_setback_ft"]  # East side
+rear_setback_ft = LOT["rear_setback_ft"]    # North side
 
 # Foundation
 pile_label = "12x12x40_piling_PT"
-embed_depth_ft = 20.0      # Below grade
-above_grade_ft = FOUNDATION["above_grade_ft"]
+pile_length_ft = FOUNDATION["pile_length_ft"]
+embed_depth_ft = FOUNDATION["pile_embed_depth_ft"]
+above_grade_ft = pile_length_ft - embed_depth_ft  # CALCULATED: top of foundation above grade
 pile_base_z_in = -embed_depth_ft * 12.0
 
 # Pile grid
@@ -102,51 +107,49 @@ num_piles_y = FOUNDATION["pile_grid_y"]
 x_spacing_ft = FOUNDATION["pile_spacing_x_ft"]
 y_spacing_ft = FOUNDATION["pile_spacing_y_ft"]
 
-# Calculate pile positions for 6x6 grid
-# Center the pile grid on the lot (X direction)
-# Total span: 5 gaps × 8' = 40'
+# Calculate pile positions (pile grid centered on lot in X direction)
 total_pile_span_x_ft = (num_piles_x - 1) * x_spacing_ft
 pile_start_x_ft = (lot_x_ft - total_pile_span_x_ft) / 2.0
 x_positions_ft = [pile_start_x_ft + i * x_spacing_ft for i in range(num_piles_x)]
 
 # Y positions: front pile face at front setback
-# Note: Shift center by half pile thickness so face aligns with setback
-pile_thickness_ft = 11.25 / 12.0  # 12x12 pile thickness in feet
+# Shift center by half pile thickness so face aligns with setback
+pile_thickness_ft = FOUNDATION["pile_actual_size_in"] / 12.0
 start_y_ft = front_setback_ft + (pile_thickness_ft / 2.0)
 y_positions_ft = [start_y_ft + i * y_spacing_ft for i in range(num_piles_y)]
 
-# Beam parameters (2x12x16 PT, running along Y, double-beam config)
+# Beam parameters (double-beam assemblies running along Y)
 beam_label = "beam_2x12x192_PT"
-beam_row_step = 3          # Every 3rd row gets beams (spans 24' with 16' beam)
-beam_gap_in = 0.0          # Gap between double beams (0 = tight to pile faces)
+beam_row_step = FOUNDATION["beam_row_interval"]
+beam_gap_in = FOUNDATION["beam_gap_in"]
 
-# Blocking parameters (between double beams, provides lateral support per IRC R502.7)
-blocking_offsets_ft = [4.0, 12.0]  # Positions along 16' beam (4' and 12' from start)
+# Blocking parameters (lateral support per IRC R502.7)
+blocking_offsets_ft = FOUNDATION["blocking_offsets_ft"]
 
-# Mid-span boards (8' boards between specific rows for additional support)
+# Mid-span boards (additional support between pile rows)
 mid_board_label = "beam_2x12x96_PT"
-mid_board_offset_L_in = 1.5        # Left side offset
-mid_board_offset_R_in = -(1.5 * 2.0)  # Right side offset
+mid_board_offset_L_in = FOUNDATION["mid_board_offset_left_in"]
+mid_board_offset_R_in = FOUNDATION["mid_board_offset_right_in"]
 
-# Joist module parameters (16x16 modules, 2x12 @ 16" OC)
+# Joist module parameters (from config)
 module_x_ft = 16.0
 module_y_ft = 16.0
 module_joist_label = "joist_2x12_PT"
-module_first_spacing_in = 14.5     # Front rim to first joist
-module_joist_spacing_in = 16.0     # Remaining joists at 16" OC
+module_first_spacing_in = FIRST_FLOOR["joist_first_spacing_in"]
+module_joist_spacing_in = FIRST_FLOOR["joist_spacing_oc_in"]
 module_left_x_ft = lot_x_ft / 2.0  # Align to lot centerline
 module_front_y_ft = front_setback_ft
 module_base_z_ft = above_grade_ft
 
 # Sheathing parameters
-sheathing_thick_in = 0.75
-sheathing_label = "panel_advantech_4x8"
+sheathing_thick_in = FIRST_FLOOR["sheathing_thickness_in"]
+sheathing_label = FIRST_FLOOR["sheathing_stock"]
 
-# Hanger parameters (Simpson LU210 approximation)
+# Hanger parameters (from config)
 hanger_label = "hanger_LU210"
-hanger_thickness_in = 0.06
-hanger_height_in = 7.8125
-hanger_seat_depth_in = 2.0
+hanger_thickness_in = FIRST_FLOOR["hanger_thickness_in"]
+hanger_height_in = FIRST_FLOOR["hanger_height_in"]
+hanger_seat_depth_in = FIRST_FLOOR["hanger_seat_depth_in"]
 hanger_color = None
 
 # ============================================================
@@ -168,7 +171,7 @@ App.Console.PrintMessage("[Build_950Surf] Created document: 950Surf\n")
 # SECTION 1: LOT SURVEY (Boundary + Buildable Area + Origin)
 # ============================================================
 
-def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft):
+def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, left_setback_ft, right_setback_ft, rear_setback_ft):
     """Create lot survey boundary, buildable area, and origin marker.
 
     Construction Notes:
@@ -178,10 +181,12 @@ def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft
 
     Args:
         doc: FreeCAD document
-        lot_x_ft: Lot width in feet
-        lot_y_ft: Lot depth in feet
-        front_setback_ft: Front setback per zoning
-        side_setback_ft: Side setback per zoning
+        lot_x_ft: Lot width in feet (X, east-west)
+        lot_y_ft: Lot depth in feet (Y, north-south)
+        front_setback_ft: Front (south) setback per zoning
+        left_setback_ft: Left (west) setback per zoning
+        right_setback_ft: Right (east) setback per zoning
+        rear_setback_ft: Rear (north) setback per zoning
 
     Returns:
         lot_grp: DocumentObjectGroup containing lot geometry
@@ -202,20 +207,21 @@ def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft
 
     # Buildable area (zoning envelope)
     buildable_pts = [
-        App.Vector(bc.ft(side_setback_ft), bc.ft(front_setback_ft), 0),
-        App.Vector(bc.ft(lot_x_ft - side_setback_ft), bc.ft(front_setback_ft), 0),
-        App.Vector(bc.ft(lot_x_ft - side_setback_ft), bc.ft(lot_y_ft), 0),
-        App.Vector(bc.ft(side_setback_ft), bc.ft(lot_y_ft), 0),
-        App.Vector(bc.ft(side_setback_ft), bc.ft(front_setback_ft), 0),
+        App.Vector(bc.ft(left_setback_ft), bc.ft(front_setback_ft), 0),
+        App.Vector(bc.ft(lot_x_ft - right_setback_ft), bc.ft(front_setback_ft), 0),
+        App.Vector(bc.ft(lot_x_ft - right_setback_ft), bc.ft(lot_y_ft - rear_setback_ft), 0),
+        App.Vector(bc.ft(left_setback_ft), bc.ft(lot_y_ft - rear_setback_ft), 0),
+        App.Vector(bc.ft(left_setback_ft), bc.ft(front_setback_ft), 0),
     ]
     buildable_wire = Part.makePolygon(buildable_pts)
     buildable_obj = doc.addObject("Part::Feature", "Buildable_Area")
     buildable_obj.Shape = buildable_wire
 
     # Origin marker (cross at 0,0)
+    marker_size_ft = LOT.get("origin_marker_size_ft", 1.0)
     cross_lines = [
-        Part.makeLine(App.Vector(-bc.ft(1.0), 0, 0), App.Vector(bc.ft(1.0), 0, 0)),
-        Part.makeLine(App.Vector(0, -bc.ft(1.0), 0), App.Vector(0, bc.ft(1.0), 0)),
+        Part.makeLine(App.Vector(-bc.ft(marker_size_ft), 0, 0), App.Vector(bc.ft(marker_size_ft), 0, 0)),
+        Part.makeLine(App.Vector(0, -bc.ft(marker_size_ft), 0), App.Vector(0, bc.ft(marker_size_ft), 0)),
     ]
     cross_obj = doc.addObject("Part::Feature", "Origin_Marker")
     cross_obj.Shape = Part.Compound(cross_lines)
@@ -228,7 +234,7 @@ def create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft
     return lot_grp
 
 # Create lot survey
-lot_grp = create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, side_setback_ft)
+lot_grp = create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, left_setback_ft, right_setback_ft, rear_setback_ft)
 
 # ============================================================
 # SECTION 2: SEPTIC SYSTEM (if enabled)
@@ -330,6 +336,9 @@ def create_foundation(doc, catalog, params):
     beam_16_len_ft = float(beam_16_row["length_in"]) / 12.0
     beam_8_len_ft = float(beam_8_row["length_in"]) / 12.0
 
+    # Global assembly index (increments for every assembly created)
+    assembly_idx = 0
+
     for xi_ft in params["x_positions_ft"]:
         # Create continuous beams from front to back pile
         # Place beams end-to-end starting from first pile
@@ -339,7 +348,6 @@ def create_foundation(doc, catalog, params):
 
         # Calculate beam layout: prefer 16' beams, use 8' for remainder
         y_current_ft = y_start_ft
-        assembly_idx = 0
 
         while y_current_ft < y_end_ft:
             remaining_span_ft = y_end_ft - y_current_ft
@@ -389,20 +397,30 @@ def create_foundation(doc, catalog, params):
     App.Console.PrintMessage("[Build_950Surf]   Notching piles for beam seating...\n")
     # Create notch cutouts for each beam position
     # Notch: beam_thick_in wide (X) × pile_thick_in deep (Y) × beam_depth_in tall (Z)
-    # Important: Each pile should have exactly 2 notches (left beam + right beam)
+    # Important: Each pile should have exactly 2 notches (left beam + right beam from the same assembly)
     notch_count = 0
+    pile_notch_counts = {}  # Track notches per pile for debugging
     for pile in pile_objs:
         pile_bb = pile.Shape.BoundBox
+        pile_center_x_mm = (pile_bb.XMin + pile_bb.XMax) / 2.0
         pile_center_y_mm = (pile_bb.YMin + pile_bb.YMax) / 2.0
+        pile_notches_this_pile = 0
 
-        # Check if any beams intersect this pile in XY plane
-        # Only create notches for beams whose Y range includes the pile center
+        # Each pile should only be notched by beams from ONE assembly (the one directly above it)
+        # Beams run along Y, so we check:
+        #   1. Beam's Y range includes pile center Y
+        #   2. Beam's X range overlaps pile X range (beam sits on pile)
         for beam in beam_objs:
             beam_bb = beam.Shape.BoundBox
 
-            # Check if beam's Y range contains pile center (more precise than simple overlap)
-            # This ensures we only notch for beams that actually sit on this pile
-            if beam_bb.YMin <= pile_center_y_mm <= beam_bb.YMax:
+            # Check if beam's Y range contains pile center
+            y_overlap = beam_bb.YMin <= pile_center_y_mm <= beam_bb.YMax
+
+            # Check if beam's X range overlaps pile's X range
+            # Beam sits on pile if beam's X overlaps pile's X (within pile width)
+            x_overlap = (beam_bb.XMin <= pile_bb.XMax and beam_bb.XMax >= pile_bb.XMin)
+
+            if y_overlap and x_overlap:
                 # Create notch box aligned with beam position
                 # Notch width (X): beam thickness
                 # Notch depth (Y): pile thickness (full depth through pile)
@@ -423,10 +441,22 @@ def create_foundation(doc, catalog, params):
                 try:
                     pile.Shape = pile.Shape.cut(notch_box)
                     notch_count += 1
+                    pile_notches_this_pile += 1
                 except Exception as e:
                     App.Console.PrintWarning(f"[Build_950Surf]   Failed to notch {pile.Name}: {e}\n")
 
+        pile_notch_counts[pile.Name] = pile_notches_this_pile
+
     App.Console.PrintMessage(f"[Build_950Surf]   Created {notch_count} pile notches.\n")
+
+    # Debug: Check for piles with unexpected notch counts
+    piles_with_2_notches = sum(1 for count in pile_notch_counts.values() if count == 2)
+    piles_with_more_than_2 = [name for name, count in pile_notch_counts.items() if count > 2]
+    if piles_with_more_than_2:
+        App.Console.PrintWarning(
+            f"[Build_950Surf]   WARNING: {len(piles_with_more_than_2)} piles have >2 notches: {piles_with_more_than_2[:5]}\n"
+        )
+    App.Console.PrintMessage(f"[Build_950Surf]   {piles_with_2_notches} piles have exactly 2 notches (expected: 40)\n")
 
     # === GROUP FOUNDATION ===
     foundation_grp = bc.create_group(doc, "Foundation")
@@ -462,18 +492,177 @@ foundation_grp = create_foundation(doc, catalog, foundation_params)
 # SECTION 4: UTILITIES AND CONCRETE SLAB (if enabled)
 # ============================================================
 
-if BUILD.get("include_utilities", False):
-    App.Console.PrintMessage("[Build_950Surf] === UTILITIES AND CONCRETE SLAB ===\n")
-    # Pass pile positions for slab cutouts
+if BUILD.get("include_concrete_slab", BUILD.get("include_utilities", False)):
+    App.Console.PrintMessage("[Build_950Surf] === CONCRETE SLAB ===\n")
+    # Pass pile positions for slab cutouts (use actual pile size, not nominal)
     pile_positions_ft = [(x, y) for x in x_positions_ft for y in y_positions_ft]
-    utilities_grp = su.create_utilities_slab(
+    slab_grp = su.create_concrete_slab_group(
         doc,
         UTILITIES,
         pile_positions_ft=pile_positions_ft,
-        pile_size_in=FOUNDATION["pile_size_in"]
+        pile_size_in=FOUNDATION.get("pile_actual_size_in", FOUNDATION["pile_size_in"])
     )
 else:
+    App.Console.PrintMessage("[Build_950Surf] Concrete slab skipped (disabled in BUILD config)\n")
+
+if BUILD.get("include_utilities", False):
+    App.Console.PrintMessage("[Build_950Surf] === UTILITIES ===\n")
+    # Pass STAIRS, FOUNDATION, and LOT configs for foot wash station and pile hose bibs
+    utilities_grp = su.create_utilities_group(doc, UTILITIES, stairs_config=STAIRS, foundation_config=FOUNDATION, lot_config=LOT)
+else:
     App.Console.PrintMessage("[Build_950Surf] Utilities skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 4.4: DRIVEWAY SLAB (with rebar)
+# ============================================================
+
+if BUILD.get("include_driveway", False):
+    App.Console.PrintMessage("[Build_950Surf] === DRIVEWAY ===\n")
+    # Pass UTILITIES config to create cutouts for water boxes (dependency tracking)
+    driveway_grp = su.create_driveway_slab_group(doc, DRIVEWAY, utilities_config=UTILITIES)
+else:
+    App.Console.PrintMessage("[Build_950Surf] Driveway skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 4.4: BEACH ELEVATOR (open metal lift)
+# ============================================================
+
+if BUILD.get("include_elevator", False):
+    App.Console.PrintMessage("[Build_950Surf] === BEACH ELEVATOR ===\n")
+    elevator_grp = be.create_beach_elevator(doc, ELEVATOR, foundation_config=FOUNDATION)
+else:
+    App.Console.PrintMessage("[Build_950Surf] Beach elevator skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 4.45: EXTERIOR STAIRS (from slab to floor)
+# ============================================================
+
+if BUILD.get("include_stairs", False):
+    App.Console.PrintMessage("[Build_950Surf] === EXTERIOR STAIRS ===\n")
+    stairs_grp = su.create_exterior_stairs(doc, STAIRS, floor_z_ft=above_grade_ft, slab_z_ft=0.0)
+else:
+    App.Console.PrintMessage("[Build_950Surf] Exterior stairs skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 4.5: DECK JOISTS (installed BEFORE first floor sheathing)
+# ============================================================
+
+if BUILD.get("include_deck_joists", False):
+    App.Console.PrintMessage("[Build_950Surf] Building deck joists...\n")
+
+    # Add lumber path for deck_assemblies
+    lumber_path = os.path.join(os.path.dirname(_design_house_root), "lumber")
+    if lumber_path not in sys.path:
+        sys.path.append(lumber_path)
+
+    # Import lumber_common and deck assembly modules
+    import lumber_common as lc
+    import deck_assemblies as da
+    importlib.reload(da)
+
+    # Load catalog for deck assemblies
+    catalog_path = os.path.join(lumber_path, "lumber_catalog.csv")
+    catalog_rows = lc.load_catalog(catalog_path)
+
+    deck_z_base_in = above_grade_ft * 12.0  # Same level as foundation top
+
+    # Calculate deck positions
+    # Front deck: south of front setback, rim offset aligns with front wall
+    front_deck_rim_offset_ft = DECKS["front_deck_rim_offset_in"] / 12.0
+    front_deck_y_ft = front_setback_ft + y_spacing_ft - DECKS["front_deck_depth_ft"] - front_deck_rim_offset_ft
+
+    # Rear deck: starts at back edge of floor area (calculated from module depths)
+    floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] + FIRST_FLOOR["module_16x8_depth_in"] + FIRST_FLOOR["module_16x16_depth_in"]) / 12.0
+    rear_deck_y_ft = front_setback_ft + y_spacing_ft + floor_depth_ft
+
+    # Deck X positioning: snap to first floor joists
+    # Floor width from module dimensions
+    floor_width_ft_local = (FIRST_FLOOR["module_16x16_width_in"] + FIRST_FLOOR["module_8x16_width_in"] + FIRST_FLOOR["module_16x16_width_in"]) / 12.0
+    floor_start_x_ft = (lot_x_ft - floor_width_ft_local) / 2.0  # Center floor on lot
+    deck_left_x_ft = floor_start_x_ft  # Snap deck left edge to floor left edge
+
+    deck_joist_assemblies = []
+
+    # Front deck joists (3 modules using config dimensions)
+    module_16_width_ft = DECKS["module_16_width_in"] / 12.0
+    center_module_width_ft = DECKS["center_module_width_in"] / 12.0
+
+    App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 modules from config)...\n")
+    front_deck_joists_left = da.create_deck_joists_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Joists_Left",
+        x_base=deck_left_x_ft * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(front_deck_joists_left)
+
+    front_deck_joists_center = da.create_deck_joists_8ft9in_x_8ft(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Joists_Center",
+        x_base=(deck_left_x_ft + module_16_width_ft) * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(front_deck_joists_center)
+
+    front_deck_joists_right = da.create_deck_joists_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Joists_Right",
+        x_base=(deck_left_x_ft + module_16_width_ft + center_module_width_ft) * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(front_deck_joists_right)
+
+    # Rear deck joists (3 modules using config dimensions)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear deck joists (3 modules from config)...\n")
+    rear_deck_joists_left = da.create_deck_joists_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Joists_Left",
+        x_base=deck_left_x_ft * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(rear_deck_joists_left)
+
+    rear_deck_joists_center = da.create_deck_joists_8ft9in_x_8ft(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Joists_Center",
+        x_base=(deck_left_x_ft + module_16_width_ft) * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(rear_deck_joists_center)
+
+    rear_deck_joists_right = da.create_deck_joists_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Joists_Right",
+        x_base=(deck_left_x_ft + module_16_width_ft + center_module_width_ft) * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_joist_assemblies.append(rear_deck_joists_right)
+
+    # Create Deck_Joists group
+    deck_joists_grp = bc.create_group(doc, "Deck_Joists")
+    bc.add_to_group(deck_joists_grp, deck_joist_assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf] Deck joists complete ({len(deck_joist_assemblies)} modules).\n")
+else:
+    App.Console.PrintMessage("[Build_950Surf] Deck joists skipped (disabled in BUILD config)\n")
 
 # ============================================================
 # SECTION 5: FIRST FLOOR JOISTS (Assembly-Based Modules)
@@ -539,12 +728,11 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
 
     modules = []
 
-    # Calculate lot center X position for middle modules (8x16, 8x8, 8x16)
-    # Middle modules should have their center at lot center (25' on 50' lot)
-    lot_center_x_ft = params["lot_x_ft"] / 2.0  # 25' on 50' lot
-    middle_module_width_in = 99.0  # 8' + 2 rims @ 1.5" each = 99"
-    middle_module_width_ft = middle_module_width_in / 12.0  # ~8.25'
-    middle_start_x_ft = lot_center_x_ft - (middle_module_width_ft / 2.0)  # Center the 8' module on lot
+    # Calculate lot center X position for middle modules
+    # Middle modules should have their center at lot center
+    lot_center_x_ft = params["lot_x_ft"] / 2.0
+    middle_module_width_ft = FIRST_FLOOR["module_8x16_width_in"] / 12.0
+    middle_start_x_ft = lot_center_x_ft - (middle_module_width_ft / 2.0)  # Center the module on lot
 
     # ============================================================
     # FRONT ROW (Y=20'): 16x16 + 8x16 + 16x16 = 40' wide × 16' deep
@@ -645,13 +833,10 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     return floor_grp
 
 # Create first floor joists
-# Calculate floor start position for 40' x 40' footprint
-# Floor layout: 16x16 + 8x16 + 16x16 = 40.75' wide (including rim thicknesses)
-# Floor depth: 16' + 8' + 16' = 40' deep
-# Center the floor on the 50' lot
-# Start at second row of piles (front deck space reserved for future decking)
-floor_width_ft = (195.0 + 99.0 + 195.0) / 12.0  # ~40.75'
-floor_depth_ft = (192.0 + 96.0 + 192.0) / 12.0  # 40'
+# Calculate floor start position from module dimensions in config
+# Floor layout calculated from config module dimensions
+floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] + FIRST_FLOOR["module_8x16_width_in"] + FIRST_FLOOR["module_16x16_width_in"]) / 12.0
+floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] + FIRST_FLOOR["module_16x8_depth_in"] + FIRST_FLOOR["module_16x16_depth_in"]) / 12.0
 
 floor_params = {
     "floor_base_z_ft": above_grade_ft,
@@ -661,6 +846,405 @@ floor_params = {
 }
 
 floor_grp = create_first_floor_joists(doc, catalog, floor_params, _macros_dir)
+
+# ============================================================
+# SECTION 6: FIRST FLOOR SHEATHING
+# ============================================================
+
+if BUILD.get("include_first_floor", False):
+    App.Console.PrintMessage("[Build_950Surf] Adding first floor sheathing...\n")
+
+    # Import lumber modules for sheathing
+    beachhouse_dir = os.path.dirname(_macros_dir)
+    freecad_root = os.path.dirname(beachhouse_dir)
+    lumber_path = os.path.join(freecad_root, "lumber")
+    lumber_path = os.path.abspath(lumber_path)
+
+    if lumber_path not in sys.path:
+        sys.path.append(lumber_path)
+
+    import lumber_common as lc
+    import parts
+    import importlib
+    importlib.reload(lc)
+    importlib.reload(parts)
+
+    # Load lumber catalog for sheathing panels
+    catalog_path = os.path.join(lumber_path, "lumber_catalog.csv")
+    catalog_rows = lc.load_catalog(catalog_path)
+
+    # Create a simple bounding box from known floor layout dimensions
+    # Floor is 40.75' x 40' (from params above)
+    floor_start_x_mm = bc.ft(floor_params["floor_start_x_ft"])
+    floor_start_y_mm = bc.ft(floor_params["floor_start_y_ft"])
+    floor_width_mm = bc.ft(floor_width_ft)
+    floor_depth_mm = bc.ft(floor_depth_ft)
+    joist_depth_in = FIRST_FLOOR["joist_depth_in"]
+    floor_z_top_mm = bc.ft(floor_params["floor_base_z_ft"]) + bc.inch(joist_depth_in)  # Top of joists
+
+    # Create a simple bbox-like object
+    class SimpleBBox:
+        def __init__(self, xmin, ymin, xmax, ymax, zmax):
+            self.XMin = xmin
+            self.YMin = ymin
+            self.XMax = xmax
+            self.YMax = ymax
+            self.ZMax = zmax
+            self.XLength = xmax - xmin
+            self.YLength = ymax - ymin
+
+    floor_bbox = SimpleBBox(
+        floor_start_x_mm,
+        floor_start_y_mm,
+        floor_start_x_mm + floor_width_mm,
+        floor_start_y_mm + floor_depth_mm,
+        floor_z_top_mm
+    )
+
+    # Create sheathing panels (exclude deck areas from config)
+    deck_exclusion_ft = FIRST_FLOOR["sheathing_deck_exclusion_ft"]
+    sheathing_grp = parts.create_sheathing_for_floor(
+        doc,
+        catalog_rows,
+        floor_bbox,
+        z_offset_in=0.0,  # Sheathing sits ON TOP of joists
+        group_name="First_Floor_Sheathing",
+        panel_label=FIRST_FLOOR["sheathing_stock"],
+        exclude_left_ft=deck_exclusion_ft,
+        exclude_right_ft=deck_exclusion_ft,
+    )
+
+    App.Console.PrintMessage("[Build_950Surf] First floor sheathing complete.\n")
+
+    # Create top-level First_Floor group to organize joists and sheathing
+    # (walls will be added to this group later)
+    first_floor_parent = bc.create_group(doc, "First_Floor")
+    bc.add_to_group(first_floor_parent, [floor_grp, sheathing_grp])
+    App.Console.PrintMessage("[Build_950Surf] First floor joists and sheathing organized.\n")
+
+# ============================================================
+# SECTION 7: WALLS
+# ============================================================
+
+if BUILD.get("include_walls", False):
+    App.Console.PrintMessage("[Build_950Surf] Building walls...\n")
+
+    # Import wall assembly module
+    import wall_assemblies as wa
+    importlib.reload(wa)
+
+    # Wall positioning parameters
+    # Walls sit on top of floor sheathing
+    joist_depth_in = FIRST_FLOOR["joist_depth_in"]
+    sheathing_thickness_in = FIRST_FLOOR["sheathing_thickness_in"]
+    wall_z_base_in = (floor_params["floor_base_z_ft"] * 12.0) + joist_depth_in + sheathing_thickness_in
+
+    # Front wall: aligned with sheathing, offset from config
+    sheathing_x_start_ft = floor_params["floor_start_x_ft"] + deck_exclusion_ft
+    sheathing_y_start_ft = floor_params["floor_start_y_ft"]
+
+    # Wall positioning from config
+    wall_offset_ft = WALLS["front_wall_offset_from_sheathing_ft"]
+    front_wall_x_start_ft = sheathing_x_start_ft + wall_offset_ft
+    front_wall_y_ft = sheathing_y_start_ft
+
+    # Wall assemblies are created in default orientation (Y = wall length)
+    # Then rotated 90° around Z to run along X (front of house)
+    # After rotation: X = wall length (along front), Y = wall thickness (depth into house), Z = vertical
+
+    # Front wall module positions (left to right, 8' each)
+    # Module layout: Window | Door | Door | Window
+    wall_assemblies = []
+
+    # Get wall module width from config
+    wall_module_width_ft = WALLS["wall_module_width_ft"]
+
+    # Helper to rotate wall 90° around Z axis
+    def rotate_wall_90(wall, x_offset_ft):
+        """Rotate wall 90° CCW around Z axis and snap bottom-left corner to sheathing"""
+        # Wall is created at origin with orientation: X=thickness, Y=length, Z=vertical
+        # Rotate 90° CCW around Z: new orientation is X=length, Y=thickness, Z=vertical
+        wall.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
+
+        # Snap bottom-left corner of wall to sheathing
+        wall_x_ft = front_wall_x_start_ft + x_offset_ft
+        wall_y_ft_corner = front_wall_y_ft
+
+        wall.Placement.Base = App.Vector(
+            bc.ft(wall_x_ft),
+            bc.ft(wall_y_ft_corner),
+            bc.inch(wall_z_base_in)
+        )
+
+    # Left module (window wall)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall left module (window)...\n")
+    wall_left = wa.create_window_wall_double_3x5(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Wall_Left",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,  # Will be positioned after rotation
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_wall_90(wall_left, x_offset_ft=0.0)
+    wall_assemblies.append(wall_left)
+
+    # Left-center module (sliding door)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall left-center module (door)...\n")
+    wall_left_center = wa.create_sliding_door_72x80(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Wall_LeftCenter",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_wall_90(wall_left_center, x_offset_ft=wall_module_width_ft)
+    wall_assemblies.append(wall_left_center)
+
+    # Right-center module (sliding door)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall right-center module (door)...\n")
+    wall_right_center = wa.create_sliding_door_72x80(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Wall_RightCenter",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_wall_90(wall_right_center, x_offset_ft=wall_module_width_ft * 2.0)
+    wall_assemblies.append(wall_right_center)
+
+    # Right module (window wall)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall right module (window)...\n")
+    wall_right = wa.create_window_wall_double_3x5(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Wall_Right",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_wall_90(wall_right, x_offset_ft=wall_module_width_ft * 3.0)
+    wall_assemblies.append(wall_right)
+
+    # Create Front_Wall group to organize all wall assemblies
+    front_wall_grp = bc.create_group(doc, "Front_Wall")
+    bc.add_to_group(front_wall_grp, wall_assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf] Front wall complete ({len(wall_assemblies)} modules).\n")
+
+# ============================================================
+# SECTION 8: REAR WALL (mirror of front wall)
+# ============================================================
+
+if BUILD.get("include_walls", False):
+    App.Console.PrintMessage("[Build_950Surf] Building rear wall...\n")
+
+    # Rear wall positioning: mirror of front wall, at back edge of sheathing
+    # Sheathing depth from floor module depths
+    sheathing_depth_ft = floor_depth_ft
+    rear_wall_x_start_ft = front_wall_x_start_ft
+    rear_wall_y_ft = sheathing_y_start_ft + sheathing_depth_ft  # Back edge of sheathing
+    rear_wall_assemblies = []
+
+    # Get wall thickness from config
+    wall_thickness_in = WALLS["wall_thickness_in"]
+
+    # Helper to rotate and position rear wall
+    def rotate_rear_wall_90(wall, x_offset_ft):
+        """Rotate wall 90° CCW around Z axis and position at rear of house"""
+        wall.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
+
+        # Position at rear edge, accounting for wall thickness
+        wall_x_ft = rear_wall_x_start_ft + x_offset_ft
+        wall_y_ft_corner = rear_wall_y_ft - (wall_thickness_in / 12.0)
+
+        wall.Placement.Base = App.Vector(
+            bc.ft(wall_x_ft),
+            bc.ft(wall_y_ft_corner),
+            bc.inch(wall_z_base_in)
+        )
+
+    # Left module (window wall)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall left module (window)...\n")
+    rear_left = wa.create_window_wall_double_3x5(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Wall_Left",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_rear_wall_90(rear_left, x_offset_ft=0.0)
+    rear_wall_assemblies.append(rear_left)
+
+    # Left-center module (sliding door)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall left-center module (door)...\n")
+    rear_left_center = wa.create_sliding_door_72x80(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Wall_LeftCenter",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_rear_wall_90(rear_left_center, x_offset_ft=wall_module_width_ft)
+    rear_wall_assemblies.append(rear_left_center)
+
+    # Right-center module (sliding door)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall right-center module (door)...\n")
+    rear_right_center = wa.create_sliding_door_72x80(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Wall_RightCenter",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_rear_wall_90(rear_right_center, x_offset_ft=wall_module_width_ft * 2.0)
+    rear_wall_assemblies.append(rear_right_center)
+
+    # Right module (window wall)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall right module (window)...\n")
+    rear_right = wa.create_window_wall_double_3x5(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Wall_Right",
+        x_base=0.0,
+        y_base=0.0,
+        z_base=0.0,
+        make_pressure_treated=False,
+        use_debug_colors=False,
+    )
+    rotate_rear_wall_90(rear_right, x_offset_ft=wall_module_width_ft * 3.0)
+    rear_wall_assemblies.append(rear_right)
+
+    # Create Rear_Wall group
+    rear_wall_grp = bc.create_group(doc, "Rear_Wall")
+    bc.add_to_group(rear_wall_grp, rear_wall_assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf] Rear wall complete ({len(rear_wall_assemblies)} modules).\n")
+
+    # Add both walls to First_Floor parent group
+    bc.add_to_group(first_floor_parent, [front_wall_grp, rear_wall_grp])
+    App.Console.PrintMessage("[Build_950Surf] Walls organized under First_Floor.\n")
+
+# ============================================================
+# SECTION 9: DECK SURFACE (boards and posts, installed AFTER walls)
+# ============================================================
+
+if BUILD.get("include_deck_surface", False):
+    App.Console.PrintMessage("[Build_950Surf] Building deck surface (boards, no posts)...\n")
+
+    deck_surface_assemblies = []
+
+    # Front deck surface (3 modules using config dimensions)
+    # Only outermost modules get edge boards
+    App.Console.PrintMessage("[Build_950Surf]   Creating front deck surface (3 modules from config)...\n")
+    front_deck_surface_left = da.create_deck_surface_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Surface_Left",
+        x_base=deck_left_x_ft * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=True,   # Outermost left edge
+        include_right_edge=False,  # Interior edge
+    )
+    deck_surface_assemblies.append(front_deck_surface_left)
+
+    front_deck_surface_center = da.create_deck_surface_8ft9in_x_8ft(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Surface_Center",
+        x_base=(deck_left_x_ft + module_16_width_ft) * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=False,  # Interior (no edge boards on center module)
+        include_right_edge=False,
+    )
+    deck_surface_assemblies.append(front_deck_surface_center)
+
+    front_deck_surface_right = da.create_deck_surface_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Surface_Right",
+        x_base=(deck_left_x_ft + module_16_width_ft + center_module_width_ft) * 12.0,
+        y_base=front_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=False,  # Interior edge
+        include_right_edge=True,   # Outermost right edge
+    )
+    deck_surface_assemblies.append(front_deck_surface_right)
+
+    # Rear deck surface (3 modules using config dimensions)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear deck surface (3 modules from config)...\n")
+    rear_deck_surface_left = da.create_deck_surface_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Surface_Left",
+        x_base=deck_left_x_ft * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=True,   # Outermost left edge
+        include_right_edge=False,  # Interior edge
+    )
+    deck_surface_assemblies.append(rear_deck_surface_left)
+
+    rear_deck_surface_center = da.create_deck_surface_8ft9in_x_8ft(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Surface_Center",
+        x_base=(deck_left_x_ft + module_16_width_ft) * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=False,  # Interior (no edge boards on center module)
+        include_right_edge=False,
+    )
+    deck_surface_assemblies.append(rear_deck_surface_center)
+
+    rear_deck_surface_right = da.create_deck_surface_16x8(
+        doc,
+        catalog_rows,
+        assembly_name="Rear_Deck_Surface_Right",
+        x_base=(deck_left_x_ft + module_16_width_ft + center_module_width_ft) * 12.0,
+        y_base=rear_deck_y_ft * 12.0,
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        include_left_edge=False,  # Interior edge
+        include_right_edge=True,   # Outermost right edge
+    )
+    deck_surface_assemblies.append(rear_deck_surface_right)
+
+    # TODO: Add perpendicular deck boards on ~4' overhangs (left and right of walls)
+
+    # Create Deck_Surface group
+    deck_surface_grp = bc.create_group(doc, "Deck_Surface")
+    bc.add_to_group(deck_surface_grp, deck_surface_assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf] Deck surface complete ({len(deck_surface_assemblies)} modules).\n")
+else:
+    App.Console.PrintMessage("[Build_950Surf] Deck surface skipped (disabled in BUILD config)\n")
 
 # ============================================================
 # FINAL RECOMPUTE
