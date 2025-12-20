@@ -516,8 +516,9 @@ def create_pile_sill_seal(
     # Attach BOM metadata for material tracking
     # Load catalog to get sill seal row
     catalog_candidates = [
-        os.path.join(SCRIPT_DIR, "..", "..", "lumber", "lumber_catalog.csv"),
-        os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), "lumber", "lumber_catalog.csv"),
+        os.path.join(
+            SCRIPT_DIR, "..", "lumber", "lumber_catalog.csv"
+        ),  # DesignHouse/lumber/lumber_catalog.csv
     ]
     catalog_path = None
     for candidate in catalog_candidates:
@@ -2203,8 +2204,9 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
     import math
 
     catalog_candidates = [
-        os.path.join(SCRIPT_DIR, "..", "..", "lumber", "lumber_catalog.csv"),
-        os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), "lumber", "lumber_catalog.csv"),
+        os.path.join(
+            SCRIPT_DIR, "..", "lumber", "lumber_catalog.csv"
+        ),  # DesignHouse/lumber/lumber_catalog.csv
     ]
     catalog_path = None
     for candidate in catalog_candidates:

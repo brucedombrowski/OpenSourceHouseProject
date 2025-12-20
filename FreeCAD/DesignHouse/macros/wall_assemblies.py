@@ -24,6 +24,7 @@ import os
 import sys
 
 import Part
+
 import FreeCAD as App
 
 # Add lumber directory to path for imports

@@ -24,11 +24,12 @@ import Part
 
 import FreeCAD as App
 
-# Import shared lumber helpers (lives at FreeCAD/lumber)
+# Import shared lumber helpers (lives at DesignHouse/macros)
 _macro_dir = os.path.dirname(__file__)
-_lumber_dir = os.path.abspath(os.path.join(_macro_dir, "..", "..", "lumber"))
-if _lumber_dir not in sys.path:
-    sys.path.append(_lumber_dir)
+_design_house_dir = os.path.dirname(_macro_dir)
+_lumber_dir = os.path.join(_design_house_dir, "lumber")
+if _macro_dir not in sys.path:
+    sys.path.append(_macro_dir)
 
 try:
     import lumber_common as lc

@@ -569,18 +569,13 @@ else:
 if BUILD.get("include_deck_joists", False):
     App.Console.PrintMessage("[Build_950Surf] Building deck joists...\n")
 
-    # Add lumber path for deck_assemblies
-    lumber_path = os.path.join(os.path.dirname(_design_house_root), "lumber")
-    if lumber_path not in sys.path:
-        sys.path.append(lumber_path)
-
-    # Import lumber_common and deck assembly modules
+    # Import deck assembly modules (already in sys.path via _macros_dir)
     import lumber_common as lc
     import deck_assemblies as da
     importlib.reload(da)
 
     # Load catalog for deck assemblies
-    catalog_path = os.path.join(lumber_path, "lumber_catalog.csv")
+    catalog_path = os.path.join(_design_house_root, "lumber", "lumber_catalog.csv")
     catalog_rows = lc.load_catalog(catalog_path)
 
     deck_z_base_in = above_grade_ft * 12.0  # Same level as foundation top
@@ -725,23 +720,15 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     if not macro_dir:
         macro_dir = os.getcwd()
 
-    # macro_dir is BeachHouse/macros
-    # Need to go: macros -> BeachHouse -> FreeCAD -> lumber
-    beachhouse_dir = os.path.dirname(macro_dir)
-    freecad_root = os.path.dirname(beachhouse_dir)
-    lumber_path = os.path.join(freecad_root, "lumber")
-    lumber_path = os.path.abspath(lumber_path)
-
-    if lumber_path not in sys.path:
-        sys.path.append(lumber_path)
-
+    # Import parts modules (already in sys.path via _macros_dir)
     import lumber_common as lc
     import parts
     importlib.reload(lc)
     importlib.reload(parts)
 
     # Load catalog
-    catalog_path = os.path.join(lumber_path, "lumber_catalog.csv")
+    design_house_dir = os.path.dirname(macro_dir)
+    catalog_path = os.path.join(design_house_dir, "lumber", "lumber_catalog.csv")
     catalog_rows = lc.load_catalog(catalog_path)
     App.Console.PrintMessage(f"[Build_950Surf]   Loaded {len(catalog_rows)} catalog entries\n")
 
@@ -873,15 +860,7 @@ floor_grp = create_first_floor_joists(doc, catalog, floor_params, _macros_dir)
 if BUILD.get("include_first_floor", False):
     App.Console.PrintMessage("[Build_950Surf] Adding first floor sheathing...\n")
 
-    # Import lumber modules for sheathing
-    beachhouse_dir = os.path.dirname(_macros_dir)
-    freecad_root = os.path.dirname(beachhouse_dir)
-    lumber_path = os.path.join(freecad_root, "lumber")
-    lumber_path = os.path.abspath(lumber_path)
-
-    if lumber_path not in sys.path:
-        sys.path.append(lumber_path)
-
+    # Import lumber modules for sheathing (already in sys.path via _macros_dir)
     import lumber_common as lc
     import parts
     import importlib
@@ -889,7 +868,7 @@ if BUILD.get("include_first_floor", False):
     importlib.reload(parts)
 
     # Load lumber catalog for sheathing panels
-    catalog_path = os.path.join(lumber_path, "lumber_catalog.csv")
+    catalog_path = os.path.join(_design_house_root, "lumber", "lumber_catalog.csv")
     catalog_rows = lc.load_catalog(catalog_path)
 
     # Create a simple bounding box from known floor layout dimensions

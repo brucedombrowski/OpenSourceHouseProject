@@ -8,8 +8,10 @@ Construction sequence:
 """
 
 import os
-import FreeCAD as App
+
 import Part
+
+import FreeCAD as App
 
 try:
     import lumber_common as lc
