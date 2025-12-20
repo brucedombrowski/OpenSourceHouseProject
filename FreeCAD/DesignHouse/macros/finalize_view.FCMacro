@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Finalize View - Standalone utility macro
+
+Show all model objects, hide helper objects (origins, axes, planes),
+and set camera to isometric view with fit-all.
+
+Usage:
+    Run this macro manually in FreeCAD GUI when you need to clean up the view.
+    Useful after importing models or when helper objects are cluttering the view.
+
+For Luke Dombrowski. Stay Alive.
+"""
+
+import FreeCAD as App
+
+# Get active document
+doc = App.ActiveDocument
+if not doc:
+    App.Console.PrintError("[finalize_view] No active document. Please open a document first.\n")
+else:
+    App.Console.PrintMessage("[finalize_view] Finalizing view (show model, hide origins/axes)...\n")
+
+    # Show all model objects, hide LCS (Local Coordinate System) helpers
+    helper_count = 0
+    model_count = 0
+
+    for obj in doc.Objects:
+        try:
+            type_id = obj.TypeId
+            is_helper = (
+                type_id == "PartDesign::CoordinateSystem"
+                or type_id in ["PartDesign::Plane", "App::Plane", "App::Origin", "App::Line", "App::Axis"]
+                or "Axis" in obj.Name
+                or "Origin" in obj.Name
+            )
+
+            # Set visibility (hide helpers, show everything else)
+            if hasattr(obj, "Visibility"):
+                obj.Visibility = not is_helper
+            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+                obj.ViewObject.Visibility = not is_helper
+
+            if is_helper:
+                helper_count += 1
+            else:
+                model_count += 1
+        except Exception as e:
+            App.Console.PrintWarning(f"[finalize_view] Failed to process {obj.Name}: {e}\n")
+
+    App.Console.PrintMessage(f"[finalize_view] Showed {model_count} model objects, hid {helper_count} helpers\n")
+
+    # Set camera view (if GUI available)
+    try:
+        import FreeCADGui as Gui
+        if Gui.ActiveDocument:
+            v = Gui.ActiveDocument.ActiveView
+            v.setCameraType("Orthographic")
+            v.viewIsometric()
+            v.fitAll()
+            App.Console.PrintMessage("[finalize_view] Camera set to isometric and fit.\n")
+        else:
+            App.Console.PrintWarning("[finalize_view] No active view (running headless?)\n")
+    except ImportError:
+        App.Console.PrintWarning("[finalize_view] GUI not available (running headless)\n")
+    except Exception as e:
+        App.Console.PrintError(f"[finalize_view] Failed to set view: {e}\n")
+
+    App.Console.PrintMessage("[finalize_view] Done!\n")
