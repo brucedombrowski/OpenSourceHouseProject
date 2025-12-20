@@ -1253,34 +1253,31 @@ bc.recompute_once(doc)
 App.Console.PrintMessage("[Build_950Surf] Build complete!\n")
 
 # ============================================================
-# ENSURE ALL OBJECTS VISIBLE (fixes hidden-by-default issue)
+# FINALIZE VIEW (show all, hide helpers, fit camera)
 # ============================================================
 
-App.Console.PrintMessage("[Build_950Surf] Ensuring all objects visible (except LCS origins, planes, and axes)...\n")
+App.Console.PrintMessage("[Build_950Surf] Finalizing view (show model, hide origins/axes)...\n")
+
+# Show all model objects, hide LCS (Local Coordinate System) helpers
 for obj in doc.Objects:
     try:
         type_id = obj.TypeId
-        # Hide LCS (Local Coordinate System) origin markers, planes, origins, and axes
-        if (type_id == "PartDesign::CoordinateSystem" or
-            type_id in ["PartDesign::Plane", "App::Plane", "App::Origin", "App::Line", "App::Axis"] or
-            "Axis" in obj.Name or "Origin" in obj.Name):
-            if hasattr(obj, "Visibility"):
-                obj.Visibility = False
-            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
-                obj.ViewObject.Visibility = False
-        else:
-            # Make everything else visible
-            if hasattr(obj, "Visibility"):
-                obj.Visibility = True
-            if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
-                obj.ViewObject.Visibility = True
+        is_helper = (
+            type_id == "PartDesign::CoordinateSystem"
+            or type_id in ["PartDesign::Plane", "App::Plane", "App::Origin", "App::Line", "App::Axis"]
+            or "Axis" in obj.Name
+            or "Origin" in obj.Name
+        )
+
+        # Set visibility (hide helpers, show everything else)
+        if hasattr(obj, "Visibility"):
+            obj.Visibility = not is_helper
+        if hasattr(obj, "ViewObject") and hasattr(obj.ViewObject, "Visibility"):
+            obj.ViewObject.Visibility = not is_helper
     except Exception:
         pass
 
-# ============================================================
-# SET VIEW (if GUI available)
-# ============================================================
-
+# Set camera view (if GUI available)
 try:
     import FreeCADGui as Gui
     if Gui.ActiveDocument:
@@ -1288,7 +1285,7 @@ try:
         v.setCameraType("Orthographic")
         v.viewIsometric()
         v.fitAll()
-        App.Console.PrintMessage("[Build_950Surf] View set to isometric.\n")
+        App.Console.PrintMessage("[Build_950Surf] Camera set to isometric and fit.\n")
 except Exception:
     pass
 
