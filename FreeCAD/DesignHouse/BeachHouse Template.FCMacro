@@ -853,6 +853,43 @@ floor_params = {
 floor_grp = create_first_floor_joists(doc, catalog, floor_params, _macros_dir)
 
 # ============================================================
+# SECTION 5.5: STAIR OPENING (Cut joists for stairs)
+# ============================================================
+
+if BUILD.get("include_stairs", False):
+    App.Console.PrintMessage("[Build_950Surf] Creating stair opening in floor joists...\n")
+
+    # Get list of joists to remove from config
+    joists_to_remove = STAIRS.get("opening_joists_to_remove", [])
+
+    if joists_to_remove:
+        # Remove conflicting joists and their hangers
+        objects_removed = 0
+        for obj_name in joists_to_remove:
+            obj = doc.getObject(obj_name)
+            if obj:
+                App.Console.PrintMessage(f"[Build_950Surf]   Removing {obj_name} for stair opening...\n")
+                doc.removeObject(obj_name)
+                objects_removed += 1
+
+                # Also remove associated hangers (try both naming conventions)
+                hanger_front = doc.getObject(f"{obj_name}_Hanger_Front")
+                hanger_back = doc.getObject(f"{obj_name}_Hanger_Back")
+                if hanger_front:
+                    doc.removeObject(hanger_front.Name)
+                    objects_removed += 1
+                if hanger_back:
+                    doc.removeObject(hanger_back.Name)
+                    objects_removed += 1
+
+        App.Console.PrintMessage(f"[Build_950Surf]   Removed {objects_removed} objects for stair opening\n")
+
+        # TODO: Add headers to frame stair opening (double joists on sides)
+        # This will be implemented in a future update
+    else:
+        App.Console.PrintMessage("[Build_950Surf]   No joists specified for removal in stair opening config\n")
+
+# ============================================================
 # SECTION 6: FIRST FLOOR SHEATHING
 # ============================================================
 

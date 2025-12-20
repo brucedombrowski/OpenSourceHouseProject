@@ -282,6 +282,11 @@ STAIRS = {
     "tread_width_ft": 3.0,  # Stair width (36" minimum per IRC R311.7.1)
     "tread_stock": "2x12x96_PT",  # Tread material (2x12 PT lumber)
     "descending_direction": "north",  # Stairs descend toward north (-Y direction)
+    # Stair opening in floor joists (joists to remove for stair clearance)
+    "opening_joists_to_remove": [
+        "Floor_Front_Right_16x16_Joist_1",  # Conflicts with stair opening
+        # Additional joists will be added as identified
+    ],
 }
 
 # ============================================================
