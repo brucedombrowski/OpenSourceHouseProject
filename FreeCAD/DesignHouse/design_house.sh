@@ -53,6 +53,7 @@ echo "Using FreeCADCmd at: ${FREECAD_CMD}"
 
 PYTHONINSPECT=0 PYTHONSTARTUP= \
 FREECAD_LOAD_3DCONNEXION=0 \
+BEACH_CONFIG="${BEACH_CONFIG:-}" \
 BEACH_BOM_PATH="${BUILD_DIR}/beach_bom.${TIMESTAMP}.csv" \
 LUMBER_SAVE_FCSTD="${OUT_PATH}" \
   "${FREECAD_CMD}" -c "${MACRO_OUT}" </dev/null
@@ -89,6 +90,17 @@ if [[ "${SNAPSHOT_DEFAULT}" == "1" ]]; then
     PYTHONINSPECT=0 PYTHONSTARTUP= \
     FREECAD_LOAD_3DCONNEXION=0 \
     "${FREECAD_CMD}" -c "${SNAP_JOIST_MACRO}" </dev/null
+
+  # Stair rise validation snapshot
+  SNAP_STAIRS_MACRO="${MACROS_DIR}/snapshot_stairs.FCMacro"
+  if [[ -f "${SNAP_STAIRS_MACRO}" ]]; then
+    STAIRS_SNAPSHOT="${BUILD_DIR}/${ADDRESS}_stairs.${TIMESTAMP}.png"
+    echo "Generating stairs snapshot at ${STAIRS_SNAPSHOT} ..."
+    SNAPSHOT_INPUT="${SNAP_INPUT}" SNAPSHOT_IMAGE="${STAIRS_SNAPSHOT}" \
+      PYTHONINSPECT=0 PYTHONSTARTUP= \
+      FREECAD_LOAD_3DCONNEXION=0 \
+      "${FREECAD_CMD}" -c "${SNAP_STAIRS_MACRO}" </dev/null
+  fi
 
   # Floor plan snapshot (top-down view) - DISABLED (hangs on large models)
   # To generate manually: SNAPSHOT_INPUT="builds/950_Surf.*.fcstd" SNAPSHOT_IMAGE="builds/floor_plan.png" FreeCADCmd macros/snapshot_floor_plan.FCMacro

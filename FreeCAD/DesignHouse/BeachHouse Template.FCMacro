@@ -64,23 +64,36 @@ except ImportError:
     raise
 
 # Import design configuration
+# BEACH_CONFIG env var MUST point to a config file (e.g., "ExampleBeachHouse/config.py")
+beach_config_path = os.environ.get("BEACH_CONFIG", "")
+
+if not beach_config_path:
+    App.Console.PrintError("[BeachHouse] ERROR: BEACH_CONFIG environment variable not set.\n")
+    App.Console.PrintError("[BeachHouse] Please set BEACH_CONFIG to your config file path.\n")
+    App.Console.PrintError("[BeachHouse] Example: export BEACH_CONFIG=ExampleBeachHouse/config.py\n")
+    raise RuntimeError("BEACH_CONFIG environment variable not set")
+
+# Load config from specified path
 try:
-    from config_950_surf import LOT, FOUNDATION, FIRST_FLOOR, SEPTIC_SYSTEM, UTILITIES, DECKS, DRIVEWAY, ELEVATOR, STAIRS, WALLS, BUILD
-    App.Console.PrintMessage("[Build_950Surf] Loaded design configuration from config_950_surf.py\n")
-except ImportError:
-    App.Console.PrintError(
-        "[Build_950Surf] config_950_surf.py not found; using default parameters.\n"
-    )
-    # Fallback defaults
-    LOT = {"width_ft": 50.0, "depth_ft": 100.0, "front_setback_ft": 20.0, "left_setback_ft": 5.0, "right_setback_ft": 5.0, "rear_setback_ft": 10.0}
-    FOUNDATION = {
-        "pile_grid_x": 5, "pile_grid_y": 7, "pile_spacing_x_ft": 8.0, "pile_spacing_y_ft": 8.0,
-        "above_grade_ft": 20.0, "pile_size_in": 12.0, "pile_length_ft": 40.0
-    }
-    FIRST_FLOOR = {"start_x_ft": 9.0, "start_y_ft": 20.0, "base_z_ft": 20.0}
-    SEPTIC_SYSTEM = {"tank_x_ft": 25.0, "tank_y_ft": 85.0}
-    UTILITIES = {"slab_thickness_in": 6.0}
-    BUILD = {"include_lot_survey": True, "include_foundation": True, "include_first_floor": True, "include_septic_system": False, "include_utilities": False}
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("beach_config", beach_config_path)
+    beach_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(beach_config)
+    LOT = beach_config.LOT
+    FOUNDATION = beach_config.FOUNDATION
+    FIRST_FLOOR = beach_config.FIRST_FLOOR
+    SEPTIC_SYSTEM = beach_config.SEPTIC_SYSTEM
+    UTILITIES = beach_config.UTILITIES
+    DECKS = beach_config.DECKS
+    DRIVEWAY = beach_config.DRIVEWAY
+    ELEVATOR = beach_config.ELEVATOR
+    STAIRS = beach_config.STAIRS
+    WALLS = beach_config.WALLS
+    BUILD = beach_config.BUILD
+    App.Console.PrintMessage(f"[BeachHouse] Loaded design configuration from {beach_config_path}\n")
+except Exception as e:
+    App.Console.PrintError(f"[BeachHouse] Failed to load config from {beach_config_path}: {e}\n")
+    raise
 
 # ============================================================
 # EXTRACT PARAMETERS FROM CONFIG
