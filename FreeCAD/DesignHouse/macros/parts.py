@@ -220,6 +220,438 @@ def create_joist_module_16x16(
     return assembly
 
 
+def create_joist_module_16x16_stair_cutout(
+    doc,
+    catalog_rows,
+    assembly_name="Joist_Module_16x16_StairCutout",
+    stock_label="2x12x192",
+    make_pressure_treated=False,
+    hanger_label="hanger_LU210",
+    stair_config=None,
+):
+    """
+    Create a 16x16 joist assembly with stair opening cutout.
+
+    This is a specialized version of create_joist_module_16x16 that:
+    - Shortens joists that conflict with stair headroom clearance (80" IRC min)
+    - Adds a rim joist at the stair cutout edge to frame the opening
+    - Removes hangers for shortened joists (they're no longer full-span)
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        assembly_name: Unique name for this assembly instance
+        stock_label: Stock label for joists (default: 2x12x192)
+        make_pressure_treated: If True, append "_PT" to labels
+        hanger_label: Hardware label (default: hanger_LU210)
+        stair_config: Dict with stair parameters (from config.STAIRS):
+            - stair_y_snap_ft: Y position where stairs start (top tread south edge)
+            - tread_run_in: Tread depth (10" typical)
+            - tread_rise_in: Riser height (7.25" typical)
+            - headroom_clearance_in: Required vertical clearance (80" IRC min)
+            - stair_width_ft: Stair width (3.0' = 36" typical)
+
+    Returns:
+        App::Part assembly object
+    """
+    # Default headroom clearance if not specified
+    if stair_config is None:
+        stair_config = {}
+    # Note: headroom_clearance_in available from stair_config if needed for future calculations
+
+    # Parameters (inches) - same as create_joist_module_16x16
+    module_length = 195.0  # Overall X dimension (16' + 2 rims @ 1.5" each)
+    module_width = 192.0  # Overall Y dimension (16')
+    spacing_oc = 16.0  # On-center spacing for interior joists
+    hanger_thickness = 0.06  # ~16ga
+    hanger_height = 7.8125  # ~7-13/16"
+    hanger_seat_depth = 2.0
+    hanger_color = None
+
+    # Resolve stock
+    label_to_use = stock_label + "_PT" if make_pressure_treated else stock_label
+    row = find_stock(catalog_rows, label_to_use)
+    if not row:
+        raise ValueError(f"Stock '{label_to_use}' not found in catalog")
+
+    thick = float(row["actual_thickness_in"])
+    width = float(row["actual_width_in"])
+    stock_length = float(row["length_in"])
+
+    # Helper functions (same as create_joist_module_16x16)
+    def make_box(length, thickness, depth):
+        return Part.makeBox(inch(length), inch(thickness), inch(depth))
+
+    def make_joist(name, y_pos, length=module_length, depth=width, thick=thick):
+        box = make_box(length, thick, depth)
+        shape = doc.addObject("Part::Feature", name)
+        shape.Shape = box
+        # Place joists inside rims: start at X=thick (left rim's right face)
+        shape.Placement.Base = App.Vector(inch(thick), inch(y_pos - thick / 2.0), 0)
+        attach_metadata(shape, row, label_to_use, supplier="lowes")
+        return shape
+
+    def make_rim(name, x_pos, length=module_width, depth=width, thick=thick):
+        box = Part.makeBox(inch(thick), inch(length), inch(depth))
+        shape = doc.addObject("Part::Feature", name)
+        shape.Shape = box
+        shape.Placement.Base = App.Vector(inch(x_pos - thick / 2.0), 0, 0)
+        attach_metadata(shape, row, label_to_use, supplier="lowes")
+        return shape
+
+    def make_hanger(name, x_pos, y_center, facing=1):
+        h = make_hanger_helper(
+            doc,
+            name,
+            x_pos,
+            y_center,
+            thick,
+            hanger_thickness,
+            hanger_height,
+            hanger_seat_depth,
+            hanger_label,
+            direction=facing,
+            color=hanger_color,
+        )
+        if facing < 0:
+            pl = h.Placement
+            pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
+            h.Placement = pl
+        return h
+
+    created = []
+
+    # Rims (4 sides) - same as create_joist_module_16x16
+    # Left/Right rims: run along Y direction (module_width = 192")
+    created.append(make_rim(f"{assembly_name}_Rim_Left", thick / 2.0, module_width))
+    created.append(
+        make_rim(f"{assembly_name}_Rim_Right", module_length - (thick / 2.0), module_width)
+    )
+    # Front/Back rims: run along X direction (module_length - 2*thick = 192")
+    created.append(
+        make_joist(f"{assembly_name}_Rim_Front", thick / 2.0, length=module_length - 2 * thick)
+    )
+    created.append(
+        make_joist(
+            f"{assembly_name}_Rim_Back",
+            module_width - (thick / 2.0),
+            length=module_length - 2 * thick,
+        )
+    )
+
+    # Calculate joist positions (same as create_joist_module_16x16)
+    positions = []
+    first_spacing = 14.5  # Distance from front rim center to first joist center
+    first_center = thick / 2.0 + first_spacing
+    positions.append(first_center)
+
+    # Remaining joists at 16" OC
+    y_pos = first_center + spacing_oc
+    while y_pos <= module_width - thick / 2.0 - spacing_oc:
+        positions.append(y_pos)
+        y_pos += spacing_oc
+
+    # Calculate which joists need to be shortened for stair headroom
+    # Stairs descend north (in +Y direction from stair_y_snap_ft)
+    # Need to check if joist bottom interferes with headroom envelope
+
+    # Extract stair dimensions (some reserved for future headroom calculations)
+    # stair_y_snap_ft = stair_config.get("stair_y_snap_ft", 28.125)  # Top tread south edge
+    # tread_run_in = stair_config.get("tread_run_in", 10.0)  # For headroom envelope calc
+    # tread_rise_in = stair_config.get("tread_rise_in", 7.25)  # For headroom envelope calc
+    stair_width_ft = stair_config.get("stair_width_ft", 3.0)
+
+    # Convert stair_y_snap_ft to inches (this is in the module's LOCAL coordinate system)
+    # The module starts at Y=0, and the front rim is at Y=thick/2
+    # We need to find where stair_y_snap_ft falls within this module
+    # ASSUMPTION: stair_y_snap_ft is measured from the module's origin
+    # So we need to convert it to module-local coordinates
+
+    # Calculate how many joists need to be shortened for stair opening
+    # Stairs descend diagonally, requiring headroom clearance along the entire descent path
+    # With 80" headroom, 7.25" rise, and stairs descending north from Y=28.125'
+    # Need to account for treads + headroom envelope extending into floor area
+
+    stair_cutout_length_in = stair_width_ft * 12.0  # Width of stair opening (36")
+
+    # Estimate joists to shorten based on headroom requirements
+    # Each joist is 16" OC, first at 14.5" from front rim
+    # For 80" headroom over ~20' descent, need approximately 7-8 joists shortened
+    # This accounts for the diagonal headroom envelope as stairs descend
+    joists_to_shorten_count = 8  # Shorten first 8 joists for adequate stair headroom
+
+    # Calculate stair rim position FIRST (needed for shortened joist length)
+    #
+    # ALGORITHM (verified with user measurements):
+    # 1. Shortened joists end 10 7/8" before the simple cutout calculation
+    # 2. This positions the stair rim to align with pile structure below
+    # 3. The offset accounts for pile grid geometry and structural load transfer
+    #
+    # Given:
+    # - Module length: 195" (left rim center to right rim center)
+    # - Stair opening width: 36" (stair_cutout_length_in)
+    # - Left rim right face at X=thick (1.5")
+    # - User-verified offset: 10.875" (10 7/8") for pile alignment
+    #
+    # Calculate positions:
+    # - Base calculation: module_length - stair_cutout_length_in - thick = 157.5"
+    # - Apply pile alignment offset: 157.5" - 10.875" = 146.625"
+    # - This is where shortened joists end (their right face)
+
+    # Pile alignment offset from user verification (10 7/8")
+    pile_alignment_offset_in = 10.875
+
+    # Shortened joist right end position (where they stop)
+    shortened_joist_end_x = (
+        module_length - stair_cutout_length_in - thick - pile_alignment_offset_in
+    )
+
+    # Shortened joist length (from left rim right face to their end)
+    shortened_joist_length = shortened_joist_end_x - thick
+
+    # Stair rim sits just after the shortened joists
+    # Rim left face aligns with shortened joist right ends
+    stair_rim_left_face_x = shortened_joist_end_x
+    stair_rim_x = stair_rim_left_face_x  # Left face of rim (used directly in Placement.Base)
+
+    App.Console.PrintMessage(
+        f'[parts] Stair cutout: shortening first {joists_to_shorten_count} joists to {shortened_joist_length:.1f}" for stairs\n'
+    )
+
+    # Interior joists - shorten the ones that interfere with stairs
+    hanger_objs = []
+    left_base_x = thick  # Left rim's right face
+    right_base_x = module_length - thick  # Right rim's left face
+
+    for idx, y_pos in enumerate(positions, start=1):
+        if idx <= joists_to_shorten_count:
+            # Shortened joist for stair opening
+            # Joist runs from left rim to stair cutout rim (shortened length)
+            created.append(
+                make_joist(
+                    f"{assembly_name}_Joist_{idx}",
+                    y_pos,
+                    length=shortened_joist_length,
+                )
+            )
+            # Add hanger only on LEFT rim (right end is open for stairs)
+            hanger_objs.append(
+                make_hanger(f"{assembly_name}_Hanger_L_{idx}", left_base_x, y_pos, facing=1)
+            )
+        else:
+            # Full-length joist (not affected by stair opening)
+            created.append(make_joist(f"{assembly_name}_Joist_{idx}", y_pos, stock_length))
+            # Add hangers on both rims
+            hanger_objs.append(
+                make_hanger(f"{assembly_name}_Hanger_L_{idx}", left_base_x, y_pos, facing=1)
+            )
+            hanger_objs.append(
+                make_hanger(f"{assembly_name}_Hanger_R_{idx}", right_base_x, y_pos, facing=-1)
+            )
+
+    created.extend(hanger_objs)
+
+    # Add stair cutout rim joist (frames the stair opening)
+    # CRITICAL: Stair rim position was calculated above (stair_rim_x) before creating joists
+    # This ensures shortened joists end exactly at the rim's left face
+
+    # Rim spans from front rim back face to first uncut joist front face
+    # Front rim center is at Y=thick/2, so back face is at Y=thick
+    # First uncut joist is at positions[joists_to_shorten_count], front face is thick/2 before center
+    front_rim_back_face_y = thick  # Front rim back face
+    first_uncut_joist_y = positions[
+        joists_to_shorten_count
+    ]  # 9th joist center (index 8, since we cut first 8)
+    first_uncut_joist_front_face_y = (
+        first_uncut_joist_y - thick / 2.0
+    )  # Front face of first uncut joist
+
+    # Rim starts at front rim back face and extends to first uncut joist front face
+    stair_rim_y_start = front_rim_back_face_y
+    stair_rim_y_end = first_uncut_joist_front_face_y
+    stair_rim_length = stair_rim_y_end - stair_rim_y_start
+
+    stair_rim = doc.addObject("Part::Feature", f"{assembly_name}_Rim_Stair")
+    stair_rim_box = Part.makeBox(inch(thick), inch(stair_rim_length), inch(width))
+    stair_rim.Shape = stair_rim_box
+    stair_rim.Placement.Base = App.Vector(inch(stair_rim_x), inch(stair_rim_y_start), 0)
+    attach_metadata(stair_rim, row, label_to_use, supplier="lowes")
+    created.append(stair_rim)
+
+    # Add hangers on stair rim
+    # TWO sets of hangers:
+    # 1. Hangers facing LEFT (-1) for the shortened joists (connect to their cut ends)
+    # 2. Hangers facing RIGHT (+1) for the full-length joists (connect to their continuous span)
+
+    # Hangers for shortened joists (face left toward cut ends)
+    # Only the shortened joists connect to the stair rim
+    for idx in range(1, joists_to_shorten_count + 1):
+        y_pos = positions[idx - 1]
+        hanger_objs.append(
+            make_hanger(
+                f"{assembly_name}_Hanger_StairLeft_{idx}",
+                stair_rim_x,  # Left face of stair rim (connects to shortened joist ends)
+                y_pos,
+                facing=-1,  # Face left toward shortened joist ends
+            )
+        )
+
+    # Full-length joists (9+) do NOT connect to stair rim - they already have hangers on left+right rims
+    # Stair rim ends at first uncut joist's front face, creating the opening
+
+    # Add hangers at stair rim ends to connect it to front rim and first uncut joist
+    # South end: connects stair rim to front rim
+    hanger_objs.append(
+        make_hanger(
+            f"{assembly_name}_Hanger_StairRim_South",
+            stair_rim_x,  # Left face of stair rim
+            stair_rim_y_start,  # South end (front rim connection)
+            facing=-1,  # Face south toward front rim
+        )
+    )
+    # North end: connects stair rim to first uncut joist
+    hanger_objs.append(
+        make_hanger(
+            f"{assembly_name}_Hanger_StairRim_North",
+            stair_rim_x,  # Left face of stair rim
+            stair_rim_y_end,  # North end (first uncut joist connection)
+            facing=1,  # Face north toward first uncut joist
+        )
+    )
+
+    # ====================
+    # STAIR RIM RIGHT (east side of stair opening, aligned with tread east edge)
+    # ====================
+    # Second stair rim on right (east) side of stair tread
+    # Positioned so its EAST face aligns with tread east edge
+    tread_width_ft = stair_config.get("tread_width_ft", 3.0)  # 3' stair width
+
+    # Geometry (MODULE-LOCAL coordinates):
+    # - Left stair rim left face: stair_rim_x
+    # - Left stair rim east face: stair_rim_x + thick
+    # - Tread west face: stair_rim_x + thick (aligns with left rim east face)
+    # - Tread east face: stair_rim_x + thick + tread_width
+    # - Right stair rim east face: stair_rim_x + thick + tread_width (aligns with tread east face)
+    # - Right stair rim left face: stair_rim_x + thick + tread_width - thick = stair_rim_x + tread_width
+    stair_rim_right_x = stair_rim_x + (tread_width_ft * 12.0)  # MODULE-LOCAL, left face position
+
+    # Same length as left stair rim (spans from front rim to first uncut joist)
+    stair_rim_right = doc.addObject("Part::Feature", f"{assembly_name}_Rim_Stair_Right")
+    stair_rim_right_box = Part.makeBox(inch(thick), inch(stair_rim_length), inch(width))
+    stair_rim_right.Shape = stair_rim_right_box
+    stair_rim_right.Placement.Base = App.Vector(inch(stair_rim_right_x), inch(stair_rim_y_start), 0)
+    attach_metadata(stair_rim_right, row, label_to_use, supplier="lowes")
+    created.append(stair_rim_right)
+
+    # Hangers at right stair rim ends
+    hanger_objs.append(
+        make_hanger(
+            f"{assembly_name}_Hanger_StairRimRight_South",
+            stair_rim_right_x,
+            stair_rim_y_start,
+            facing=-1,  # Face south toward front rim
+        )
+    )
+    hanger_objs.append(
+        make_hanger(
+            f"{assembly_name}_Hanger_StairRimRight_North",
+            stair_rim_right_x,
+            stair_rim_y_end,
+            facing=1,  # Face north toward first uncut joist
+        )
+    )
+
+    # ====================
+    # BABY JOISTS (between right stair rim and outer right rim)
+    # ====================
+    # Short joists spanning from right stair rim (east face) to outer right rim (left face)
+    # These frame the right side of the stair opening
+    baby_joist_start_x = stair_rim_right_x + thick  # Right stair rim east face
+    baby_joist_end_x = right_base_x  # Outer right rim left face
+    baby_joist_length = baby_joist_end_x - baby_joist_start_x
+
+    # Create baby joists for the shortened joist positions (only the first joists_to_shorten_count)
+    for idx in range(1, joists_to_shorten_count + 1):
+        y_pos = positions[idx - 1]
+
+        # Create baby joist
+        baby_joist = doc.addObject("Part::Feature", f"{assembly_name}_BabyJoist_{idx}")
+        baby_joist_box = Part.makeBox(inch(baby_joist_length), inch(thick), inch(width))
+        baby_joist.Shape = baby_joist_box
+        baby_joist.Placement.Base = App.Vector(
+            inch(baby_joist_start_x),
+            inch(y_pos - thick / 2.0),  # Center on Y position
+            0,
+        )
+        attach_metadata(baby_joist, row, label_to_use, supplier="lowes")
+        created.append(baby_joist)
+
+    App.Console.PrintMessage(
+        f'[parts] Added {joists_to_shorten_count} baby joists ({baby_joist_length:.1f}" long) between right stair rim and outer rim\n'
+    )
+
+    # Create assembly (same structure as create_joist_module_16x16)
+    App.Console.PrintMessage(f"[parts] Creating stair-cutout assembly '{assembly_name}'...\n")
+
+    # Remove existing assembly if present
+    existing = doc.getObject(assembly_name)
+    if existing:
+        doc.removeObject(existing.Name)
+        App.Console.PrintMessage(f"[parts] Removed existing assembly '{assembly_name}'.\n")
+
+    assembly = create_assembly(doc, assembly_name)
+
+    # Add LCS markers
+    lcs_origin = assembly.newObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_Origin")
+    lcs_origin.Label = "LCS_Origin"
+    lcs_origin.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
+
+    lcs_bottom_right = assembly.newObject(
+        "PartDesign::CoordinateSystem", f"{assembly_name}_LCS_BottomRight"
+    )
+    lcs_bottom_right.Label = "LCS_BottomRight"
+    lcs_bottom_right.Placement = App.Placement(
+        App.Vector(inch(module_length), 0, 0), App.Rotation()
+    )
+
+    lcs_top_left = assembly.newObject(
+        "PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopLeft"
+    )
+    lcs_top_left.Label = "LCS_TopLeft"
+    lcs_top_left.Placement = App.Placement(App.Vector(0, inch(module_width), 0), App.Rotation())
+
+    lcs_top_right = assembly.newObject(
+        "PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopRight"
+    )
+    lcs_top_right.Label = "LCS_TopRight"
+    lcs_top_right.Placement = App.Placement(
+        App.Vector(inch(module_length), inch(module_width), 0), App.Rotation()
+    )
+
+    # Create hardware subgroup
+    hanger_grp = assembly.newObject("App::DocumentObjectGroup", f"{assembly_name}_Hardware")
+    hanger_grp.Label = "Hardware"
+    for h in hanger_objs:
+        hanger_grp.addObject(h)
+
+    # Add all parts to assembly
+    for obj in created:
+        if obj not in hanger_objs:
+            assembly.addObject(obj)
+
+    # Add hardware group to assembly
+    assembly.addObject(hanger_grp)
+
+    doc.recompute()
+
+    bbox = get_assembly_bbox(assembly)
+    App.Console.PrintMessage(
+        f'[parts] ✓ Stair-cutout assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+    )
+
+    return assembly
+
+
 def create_joist_module_16x8(
     doc,
     catalog_rows,

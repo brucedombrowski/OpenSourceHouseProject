@@ -53,20 +53,69 @@ LOT = {
 # ============================================================
 # FOUNDATION
 # ============================================================
-
+#
+# DESIGN RATIONALE - Pile Placement Strategy
+# ==========================================
+#
+# Goals:
+#   1. Maximize house size for lot width (40' usable between setbacks)
+#   2. Support 4' deck overhangs on east and west sides
+#   3. Maximize pile spacing for ground-level usability (covered patio)
+#   4. Maintain structural integrity for 2-story, 40'×60' house with 9' walls
+#
+# House Dimensions:
+#   - Total footprint: 40' wide × 60' deep (east-west × north-south)
+#   - Two stories with 9' ceiling height per floor
+#   - 4' decking extends beyond pile line on east and west sides
+#   - Foundation spans from front setback (Y=20') to rear setback area
+#
+# Pile Placement Logic (X direction - East/West):
+#   - Outside faces of outermost pile columns align with setback lines
+#   - West pile column: west face at X = left_setback_ft (5')
+#   - East pile column: east face at X = lot_width - right_setback_ft (45')
+#   - Interior piles evenly spaced between edge columns
+#   - 5 pile columns total → 4 bays @ ~9.76' each (calculated at runtime)
+#
+#   Calculation:
+#     pile_half_thickness = 11.25" / 24 = 0.46875'
+#     west_pile_center = left_setback + pile_half = 5.46875'
+#     east_pile_center = lot_width - right_setback - pile_half = 44.53125'
+#     usable_span = east_center - west_center = 39.0625'
+#     x_spacing = usable_span / (num_piles_x - 1) = 39.0625 / 4 = 9.765625'
+#
+# Pile Placement Logic (Y direction - North/South):
+#   - Front pile row: front face at front setback line (Y=20')
+#   - 7 pile rows at 10' O.C. for 20' LVL beam spans
+#   - Total pile field depth: 60' (rows 1-7 spanning Y=20' to Y=80')
+#
+# Structural Considerations:
+#   - LVL beams (1.75"×11.875"×20') span 20' between piles (3 piles per span)
+#   - Each girder line has 3 segments: rows 1-3, 3-5, 5-7
+#   - Piles at segment boundaries (rows 3, 5) get full-width notches
+#   - Endpoint piles (rows 1, 7) get corner notches
+#   - Through-bolts connect beams to piles (2 bolts per connection)
+#
+# Covered Patio Usability:
+#   - ~10' pile spacing in Y direction provides clear spans for parking/patio
+#   - ~10' pile spacing in X direction minimizes visual obstruction
+#   - 20' clear height under house (40' piles - 20' embedment)
+#
 FOUNDATION = {
     # Pile grid (calculated: grid_x × grid_y = total piles, footprint spans)
-    "pile_spacing_x_ft": 8.0,  # Pile spacing in X direction
-    "pile_spacing_y_ft": 8.0,  # Pile spacing in Y direction
-    "pile_grid_x": 5,  # Number of piles in X direction
-    "pile_grid_y": 8,  # Number of piles in Y direction (includes rear deck row)
+    # NOTE: pile_spacing_x_ft is CALCULATED at runtime based on setbacks and pile count
+    # Outside pile faces align with setback lines, interior piles evenly spaced
+    "pile_spacing_x_ft": 9.765625,  # CALCULATED: ~9' 9-3/16" (see rationale above)
+    "pile_spacing_y_ft": 10.0,  # Pile spacing in Y direction (10' OC for 20' LVL beams)
+    "pile_grid_x": 5,  # Number of piles in X direction (east-west)
+    "pile_grid_y": 7,  # Number of piles in Y direction (7 rows for LVL beam system)
     "pile_size_in": 12.0,  # Pile cross-section nominal
     "pile_actual_size_in": 11.25,  # Pile actual dimensions
     "pile_length_ft": 40.0,  # Pile length
     "pile_embed_depth_ft": 20.0,  # Embed depth below grade (local code + storm surge + safety factor)
-    # Beams (double-beam assemblies with blocking)
-    "beam_stock": "2x12x192",  # Beam stock label (16' beams)
-    "beam_stock_short": "2x12x96",  # Short beam stock (8' beams)
+    # LVL beams (2-ply laminated assemblies)
+    "lvl_label": "lvl_1.75x11.875x240",  # LVL catalog key (1.75"×11.875"×20')
+    "beam_stock": "2x12x192",  # OLD: Beam stock label (16' beams) - DEPRECATED
+    "beam_stock_short": "2x12x96",  # OLD: Short beam stock (8' beams) - DEPRECATED
     "beam_pressure_treated": True,  # Use PT lumber for beams
     "beam_row_interval": 3,  # Every Nth pile row gets beams
     "beam_gap_in": 0.0,  # Gap between double beams (0 = tight to pile faces)
@@ -272,21 +321,33 @@ STAIRS = {
     # Running along east side of house, descending north (south to north)
     # Top tread south edge snaps to north edge of Floor_Front_Right_16x16 Rim_Front
     # Finished floor to finished floor (slab top to joist top, excludes deck boards)
-    "stair_x_ft": 44.0
-    - (
-        (5.5 + 1.5) / 12.0
-    ),  # X position shifted 7.0" west for deck board width (5.5") + rim joist thickness (1.5") = 43.417'
+    # Foundation alignment (critical for load transfer):
+    # - Stair rim joist left face aligns with pile east face (X = 41.46875' global, minus 2x thick for joist clearance)
+    # - Shortened joists end at pile east face - 2x thickness (creating stair opening)
+    # - Stair rim joist sits at pile east face (west face at X = 41.34375', east face at X = 41.46875')
+    # - Stair tread west face snaps to rim joist east face (X = 41.46875', pile east face)
+    # - Load path: treads → stringers → rim joist → pile (direct attachment at pile face)
+    #
+    # Calculated positions (global coordinates):
+    #   Pile_41_28 center: X = 41' (pile grid position)
+    #   Pile_41_28 east face: X = 41.46875' (pile center + width/2 = 41' + 11.25"/24)
+    #   Shortened joist right end: X = 41.34375' (pile east face - thick = 41.46875' - 1.5"/12)
+    #   Stair rim joist left face: X = 41.34375' (flush with shortened joist ends)
+    #   Stair rim joist center: X = 41.40625' (left face + thick/2 = 41.34375' + 0.75"/12)
+    #   Stair rim joist east face: X = 41.46875' (aligned with pile east face)
+    #   Stair tread west face: X = 41.46875' (snapped to rim east face = pile east face)
+    "stair_x_ft": 41.0
+    + (
+        11.25 / 24.0
+    ),  # West face aligned with Pile_41_28 east face = 41.46875' (pile center + width/2)
     "stair_y_snap_ft": 28.125,  # Y position where top tread south edge meets rim north edge (28' + 1.5")
     "tread_rise_in": 7.25,  # Riser height (7.25" per IRC R311.7.5.1 max 7-3/4")
     "tread_run_in": 10.0,  # Tread depth (10" minimum per IRC R311.7.5.2)
     "tread_width_ft": 3.0,  # Stair width (36" minimum per IRC R311.7.1)
     "tread_stock": "2x12x96_PT",  # Tread material (2x12 PT lumber)
     "descending_direction": "north",  # Stairs descend toward north (-Y direction)
-    # Stair opening in floor joists (joists to remove for stair clearance)
-    "opening_joists_to_remove": [
-        "Floor_Front_Right_16x16_Joist_1",  # Conflicts with stair opening
-        # Additional joists will be added as identified
-    ],
+    # Headroom clearance (IRC R311.7.2 requires minimum 80" vertical clearance)
+    "headroom_clearance_in": 80.0,  # 6'8" minimum headroom from tread to joist bottom
 }
 
 # ============================================================
@@ -341,17 +402,17 @@ ELEVATOR = {
 BUILD = {
     # What to include in build
     "include_lot_survey": True,
-    "include_septic_system": True,  # Septic tank, leach field, drain lines
-    "include_utilities": True,  # Concrete slab, plumbing/electrical stub-ups
-    "include_driveway": True,  # Driveway slab with rebar
-    "include_elevator": True,  # Beach house elevator (open metal lift)
-    "include_foundation": True,
-    "include_deck_joists": True,  # Deck joists, rims, hangers (installed BEFORE sheathing)
-    "include_first_floor": True,
-    "include_walls": True,  # Front and rear walls (4 x 8' modules each: Window | Door | Door | Window)
-    "include_deck_surface": True,  # Deck boards and posts (installed AFTER walls)
+    "include_septic_system": False,  # DISABLED FOR TESTING: Septic tank, leach field, drain lines
+    "include_utilities": False,  # DISABLED FOR TESTING: Concrete slab, plumbing/electrical stub-ups
+    "include_driveway": False,  # DISABLED FOR TESTING: Driveway slab with rebar
+    "include_elevator": False,  # DISABLED FOR TESTING: Beach house elevator (open metal lift)
+    "include_foundation": True,  # TEST LVL BEAM SYSTEM
+    "include_deck_joists": False,  # DISABLED FOR TESTING: Deck joists, rims, hangers (installed BEFORE sheathing)
+    "include_first_floor": False,  # DISABLED FOR TESTING
+    "include_walls": False,  # DISABLED FOR TESTING: Front and rear walls (4 x 8' modules each: Window | Door | Door | Window)
+    "include_deck_surface": False,  # DISABLED FOR TESTING: Deck boards and posts (installed AFTER walls)
     "include_second_floor": False,  # Not yet implemented
-    "include_stairs": True,  # Exterior stairs from slab to first floor
+    "include_stairs": False,  # DISABLED FOR TESTING: Exterior stairs from slab to first floor
     "include_roof": False,  # Not yet implemented
     # Output options
     "save_fcstd": True,

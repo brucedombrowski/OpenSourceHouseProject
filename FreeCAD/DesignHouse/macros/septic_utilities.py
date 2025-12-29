@@ -41,6 +41,57 @@ if SCRIPT_DIR not in sys.path:
 import beach_common as bc  # noqa: E402
 
 
+def calculate_pile_positions(foundation_config, lot_config):
+    """
+    Calculate pile X and Y positions using consistent logic.
+
+    X Direction (East-West):
+        - West pile: west face aligns with left setback line
+        - East pile: east face aligns with right setback line
+        - Interior piles: evenly spaced between
+
+    Y Direction (North-South):
+        - Front pile: south face aligns with front setback line
+        - Remaining piles: spaced at pile_spacing_y_ft intervals
+
+    Args:
+        foundation_config: Foundation configuration dict
+        lot_config: Lot configuration dict
+
+    Returns:
+        Tuple of (x_positions_ft, y_positions_ft, x_spacing_ft, y_spacing_ft)
+    """
+    # Extract config values
+    pile_grid_x = foundation_config["pile_grid_x"]
+    pile_grid_y = foundation_config["pile_grid_y"]
+    y_spacing_ft = foundation_config["pile_spacing_y_ft"]
+    actual_pile_size_in = foundation_config.get("pile_actual_size_in", 11.25)
+
+    lot_width_ft = lot_config["width_ft"]
+    left_setback_ft = lot_config.get("left_setback_ft", 5.0)
+    right_setback_ft = lot_config.get("right_setback_ft", 5.0)
+    front_setback_ft = lot_config["front_setback_ft"]
+
+    # Pile thickness for face alignment
+    pile_thickness_ft = actual_pile_size_in / 12.0
+    pile_half_thickness_ft = pile_thickness_ft / 2.0
+
+    # X positions: outside faces align with setback lines
+    west_pile_center_x_ft = left_setback_ft + pile_half_thickness_ft
+    east_pile_center_x_ft = lot_width_ft - right_setback_ft - pile_half_thickness_ft
+    if pile_grid_x > 1:
+        x_spacing_ft = (east_pile_center_x_ft - west_pile_center_x_ft) / (pile_grid_x - 1)
+    else:
+        x_spacing_ft = 0.0
+    x_positions_ft = [west_pile_center_x_ft + i * x_spacing_ft for i in range(pile_grid_x)]
+
+    # Y positions: front pile face at front setback
+    start_y_ft = front_setback_ft + pile_half_thickness_ft
+    y_positions_ft = [start_y_ft + i * y_spacing_ft for i in range(pile_grid_y)]
+
+    return x_positions_ft, y_positions_ft, x_spacing_ft, y_spacing_ft
+
+
 def create_pipe_hanger(doc, x_ft, y_ft, z_ft, pipe_od_in, pile_size_in=12.0):
     """
     Create a pipe hanger/clamp to attach vertical drain pipe to pile.
@@ -1550,28 +1601,21 @@ def create_foot_wash_station(doc, config, foundation_config, lot_config):
     Returns:
         List of Part::Feature objects (foot wash supply line and fixture)
     """
-    # Use same pile positioning logic as pile hose bibs
+    # Use consistent pile positioning logic
     water_x_ft = config.get("water_lateral_x_ft", 37.0)
     water_depth_in = config["water_service_depth_in"]
     branch_diameter_in = 0.75
 
-    pile_spacing_x_ft = foundation_config["pile_spacing_x_ft"]
-    pile_spacing_y_ft = foundation_config["pile_spacing_y_ft"]
-    pile_grid_x = foundation_config["pile_grid_x"]
     actual_pile_size_in = foundation_config.get("pile_actual_size_in", 11.25)
 
-    lot_width_ft = lot_config["width_ft"]
-    front_setback_ft = lot_config["front_setback_ft"]
-    total_pile_span_x_ft = (pile_grid_x - 1) * pile_spacing_x_ft
-    pile_start_x_ft = (lot_width_ft - total_pile_span_x_ft) / 2.0
-    pile_thickness_ft = actual_pile_size_in / 12.0
-    pile_start_y_ft = front_setback_ft + (pile_thickness_ft / 2.0)
+    # Calculate pile positions using shared helper
+    x_positions_ft, y_positions_ft, _, _ = calculate_pile_positions(foundation_config, lot_config)
 
     # Pile 5,6 position (column 4, row 5 in 0-based indexing)
     pile_i = 4
     pile_j = 5
-    pile_center_x_ft = pile_start_x_ft + (pile_i * pile_spacing_x_ft)
-    pile_center_y_ft = pile_start_y_ft + (pile_j * pile_spacing_y_ft)
+    pile_center_x_ft = x_positions_ft[pile_i]
+    pile_center_y_ft = y_positions_ft[pile_j]
 
     # North face position
     stub_x_ft = pile_center_x_ft
@@ -1660,23 +1704,12 @@ def create_pile_hose_bibs(doc, utilities_config, foundation_config, lot_config):
     branch_diameter_in = 0.75  # 3/4" branch for hose bibs
 
     # Foundation pile configuration
-    pile_spacing_x_ft = foundation_config["pile_spacing_x_ft"]  # 8'
-    pile_spacing_y_ft = foundation_config["pile_spacing_y_ft"]  # 8'
-    pile_grid_x = foundation_config["pile_grid_x"]  # 5 piles
-    pile_size_in = foundation_config.get("pile_size_in", 12.0)  # 12" nominal
     actual_pile_size_in = foundation_config.get("pile_actual_size_in", 11.25)  # 11.25" actual
 
-    # Calculate pile start positions (same logic as in BeachHouse Template.FCMacro)
-    lot_width_ft = lot_config["width_ft"]  # 50'
-    front_setback_ft = lot_config["front_setback_ft"]  # 20'
-
-    # X start: center piles on lot width
-    total_pile_span_x_ft = (pile_grid_x - 1) * pile_spacing_x_ft  # 4 gaps × 8' = 32'
-    pile_start_x_ft = (lot_width_ft - total_pile_span_x_ft) / 2.0  # (50' - 32') / 2 = 9'
-
-    # Y start: front setback + pile center offset
-    pile_thickness_ft = actual_pile_size_in / 12.0
-    pile_start_y_ft = front_setback_ft + (pile_thickness_ft / 2.0)  # 20' + 0.46875' = 20.46875'
+    # Calculate pile positions using shared helper
+    x_positions_ft, y_positions_ft, _, y_spacing_ft = calculate_pile_positions(
+        foundation_config, lot_config
+    )
 
     # Color: blue for water
     water_color = (0.2, 0.4, 0.8)
@@ -1708,9 +1741,9 @@ def create_pile_hose_bibs(doc, utilities_config, foundation_config, lot_config):
         pile_j = bib_config["pile_j"]
         face = bib_config["face"]
 
-        # Calculate pile center position
-        pile_center_x_ft = pile_start_x_ft + (pile_i * pile_spacing_x_ft)
-        pile_center_y_ft = pile_start_y_ft + (pile_j * pile_spacing_y_ft)
+        # Get pile center position from calculated arrays
+        pile_center_x_ft = x_positions_ft[pile_i]
+        pile_center_y_ft = y_positions_ft[pile_j]
 
         # Calculate stub-up position at pile face
         if face == "west":
@@ -2303,7 +2336,9 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             bc.inch(tread_thick_in),  # Thickness (Z direction, 1.5")
         )
         tread_box.Placement.Base = App.Vector(
-            bc.ft(x_ft) - bc.inch(tread_length_in / 2.0),  # Center on X position
+            bc.ft(
+                x_ft
+            ),  # West face at X position (aligned with stair rim east face = pile east face)
             bc.inch(tread_y_south_in),  # Y position south edge (moving north with each step)
             bc.inch(tread_z_bottom_in),  # Z position bottom of tread (descending)
         )

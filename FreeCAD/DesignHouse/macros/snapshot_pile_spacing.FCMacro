@@ -40,8 +40,14 @@ for obj in doc.Objects:
         elif obj.Name == "Buildable_Area":
             build_box = obj.Shape.BoundBox
         elif obj.Name.startswith("Pile_"):
+            # Only include actual pile objects (square cross-section, tall)
             bb = obj.Shape.BoundBox
-            pile_boxes.append(bb)
+            # Piles are ~11.25" square (285.75mm) and tall (40'+ = 12000mm+)
+            # Filter out any non-pile objects that happen to start with "Pile_"
+            if bb.ZLength > 1000 and abs(bb.XLength - bb.YLength) < 50:
+                pile_boxes.append(bb)
+            else:
+                App.Console.PrintMessage(f"[snapshot_pile_spacing] Skipping non-pile object: {obj.Name} ({bb.XLength:.1f}x{bb.YLength:.1f}x{bb.ZLength:.1f}mm)\n")
         elif obj.Name.startswith("Beam_"):
             bb = obj.Shape.BoundBox
             beam_boxes.append(bb)
@@ -53,8 +59,13 @@ if not pile_boxes:
     App.closeDocument(doc.Name)
     raise SystemExit(0)
 
-xs = sorted({bb.Center.x for bb in pile_boxes})
-ys = sorted({bb.Center.y for bb in pile_boxes})
+# Round positions to nearest 0.1mm to eliminate floating point noise
+# (0.1mm ≈ 0.004" - well below construction tolerance)
+def round_mm(val):
+    return round(val, 1)
+
+xs = sorted({round_mm(bb.Center.x) for bb in pile_boxes})
+ys = sorted({round_mm(bb.Center.y) for bb in pile_boxes})
 App.Console.PrintMessage(f"[snapshot_pile_spacing] Piles={len(pile_boxes)}, xs={len(xs)}, ys={len(ys)}\n")
 spacings_x = [xs[i+1] - xs[i] for i in range(len(xs)-1)]
 spacings_y = [ys[i+1] - ys[i] for i in range(len(ys)-1)]
@@ -140,28 +151,46 @@ text = " | ".join(text_lines) if text_lines else "Pile spacing snapshot"
 draw.text((30, 30), text, fill="black", font=font)
 
 # Dimension helpers
-def draw_h_dim(y_mm, x0_mm, x1_mm, label):
+def draw_h_dim(y_mm, x0_mm, x1_mm, label, text_offset_y=0):
     p0 = map_point(x0_mm, y_mm)
     p1 = map_point(x1_mm, y_mm)
     draw.line([p0, p1], fill="red", width=3)
-    mid = ((p0[0]+p1[0])//2, (p0[1]+p1[1])//2 - 10)
-    draw.text(mid, label, fill="red", font=font)
+    # Position text centered on line, offset below
+    mid_x = (p0[0] + p1[0]) // 2
+    mid_y = (p0[1] + p1[1]) // 2 + 20 + text_offset_y  # Below the line
+    draw.text((mid_x - 40, mid_y), label, fill="red", font=font)
 
-def draw_v_dim(x_mm, y0_mm, y1_mm, label):
+def draw_v_dim(x_mm, y0_mm, y1_mm, label, text_offset_x=0):
     p0 = map_point(x_mm, y0_mm)
     p1 = map_point(x_mm, y1_mm)
     draw.line([p0, p1], fill="red", width=3)
-    mid = (p0[0]+6, (p0[1]+p1[1])//2 - 10)
-    draw.text(mid, label, fill="red", font=font)
+    # Position text centered on line, offset to the left
+    mid_y = (p0[1] + p1[1]) // 2
+    draw.text((p0[0] - 120 + text_offset_x, mid_y - 10), label, fill="red", font=font)
 
 # Draw per-gap X dimensions (center to center)
+# Show full precision, use ~ prefix if not a clean number
+def format_ft(mm_val):
+    ft_val = mm_val / 304.8
+    # Check if it's a clean number (within 0.001 of a 1/8" increment)
+    eighths = ft_val * 96
+    if abs(eighths - round(eighths)) < 0.1:
+        return f"{ft_val:.2f} ft"
+    else:
+        return f"~{ft_val:.2f} ft"
+
+# Stagger text vertically to avoid overlap (35 pixels per row)
+text_row_height = 35
 gap_y_mm = min_y - pad_mm * 0.2
 for i, gap in enumerate(spacings_x):
-    draw_h_dim(gap_y_mm - i * 40, xs[i], xs[i+1], f"{gap/304.8:.2f} ft")
-# Draw per-gap Y dimensions
+    # Stagger: even indices on row 0, odd on row 1
+    row = i % 2
+    draw_h_dim(gap_y_mm, xs[i], xs[i+1], format_ft(gap), text_offset_y=row * text_row_height)
+
+# Draw per-gap Y dimensions (all aligned on same X)
 gap_x_mm = min_x - pad_mm * 0.25
 for i, gap in enumerate(spacings_y):
-    draw_v_dim(gap_x_mm - i * 40, ys[i], ys[i+1], f"{gap/304.8:.2f} ft")
+    draw_v_dim(gap_x_mm, ys[i], ys[i+1], format_ft(gap))
 
 # Offsets to lot edges if lot is present
 if lot_box:
@@ -175,10 +204,12 @@ if lot_box:
     offset_right = lot_right - (xs[-1] + half_w_mm)
     offset_front = (ys[0] - half_t_mm) - lot_front
     offset_back = lot_back - (ys[-1] + half_t_mm)
-    draw_h_dim(min_y - pad_mm * 0.6, lot_left, lot_left + offset_left, f"Offset left: {offset_left/304.8:.2f} ft")
-    draw_h_dim(min_y - pad_mm * 0.65, lot_right - offset_right, lot_right, f"Offset right: {offset_right/304.8:.2f} ft")
-    draw_v_dim(min_x - pad_mm * 0.6, lot_front, lot_front + offset_front, f"Offset front: {offset_front/304.8:.2f} ft")
-    draw_v_dim(min_x - pad_mm * 0.65, lot_back - offset_back, lot_back, f"Offset back: {offset_back/304.8:.2f} ft")
+    # Use same format_ft function for offsets
+    # Offset labels on separate rows from pile spacing labels
+    draw_h_dim(gap_y_mm, lot_left, lot_left + offset_left, f"Offset left: {format_ft(offset_left)}", text_offset_y=2 * text_row_height)
+    draw_h_dim(gap_y_mm, lot_right - offset_right, lot_right, f"Offset right: {format_ft(offset_right)}", text_offset_y=2 * text_row_height)
+    draw_v_dim(gap_x_mm, lot_front, lot_front + offset_front, f"Offset front: {format_ft(offset_front)}")
+    draw_v_dim(gap_x_mm, lot_back - offset_back, lot_back, f"Offset back: {format_ft(offset_back)}")
 
 img.save(output_path)
 App.Console.PrintMessage(f"[snapshot_pile_spacing] Saved image to {output_path}\n")

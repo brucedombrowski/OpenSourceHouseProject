@@ -61,11 +61,14 @@ try:
     import beam_assemblies as ba
     import septic_utilities as su
     import beach_elevator as be
+    import pile_connections as pc
     BEACH_COMMON_AVAILABLE = True
 except ImportError:
     App.Console.PrintError(
-        "[Build_950Surf] beach_common.py, beam_assemblies.py, septic_utilities.py, or beach_elevator.py not found; cannot proceed.\n"
-        "Ensure all helper modules exist in macros/ directory.\n"
+        "[Build_950Surf] Required modules not found; cannot proceed.\n"
+        "Ensure all helper modules exist in macros/ directory:\n"
+        "  - beach_common.py, beam_assemblies.py, septic_utilities.py\n"
+        "  - beach_elevator.py, pile_connections.py\n"
     )
     raise
 
@@ -123,18 +126,27 @@ pile_base_z_in = -embed_depth_ft * 12.0
 # Pile grid
 num_piles_x = FOUNDATION["pile_grid_x"]
 num_piles_y = FOUNDATION["pile_grid_y"]
-x_spacing_ft = FOUNDATION["pile_spacing_x_ft"]
 y_spacing_ft = FOUNDATION["pile_spacing_y_ft"]
 
-# Calculate pile positions (pile grid centered on lot in X direction)
-total_pile_span_x_ft = (num_piles_x - 1) * x_spacing_ft
-pile_start_x_ft = (lot_x_ft - total_pile_span_x_ft) / 2.0
-x_positions_ft = [pile_start_x_ft + i * x_spacing_ft for i in range(num_piles_x)]
+# Pile thickness (for face alignment calculations)
+pile_thickness_ft = FOUNDATION["pile_actual_size_in"] / 12.0
+pile_half_thickness_ft = pile_thickness_ft / 2.0
+
+# X positions: outside faces of outside columns align with setback lines
+# West pile: west face at left setback line, so center = left_setback + half_thickness
+# East pile: east face at right setback line, so center = lot_width - right_setback - half_thickness
+# Interior piles: evenly spaced between west and east piles
+west_pile_center_x_ft = left_setback_ft + pile_half_thickness_ft
+east_pile_center_x_ft = lot_x_ft - right_setback_ft - pile_half_thickness_ft
+if num_piles_x > 1:
+    x_spacing_ft = (east_pile_center_x_ft - west_pile_center_x_ft) / (num_piles_x - 1)
+else:
+    x_spacing_ft = 0.0
+x_positions_ft = [west_pile_center_x_ft + i * x_spacing_ft for i in range(num_piles_x)]
 
 # Y positions: front pile face at front setback
 # Shift center by half pile thickness so face aligns with setback
-pile_thickness_ft = FOUNDATION["pile_actual_size_in"] / 12.0
-start_y_ft = front_setback_ft + (pile_thickness_ft / 2.0)
+start_y_ft = front_setback_ft + pile_half_thickness_ft
 y_positions_ft = [start_y_ft + i * y_spacing_ft for i in range(num_piles_y)]
 
 # Beam parameters (double-beam assemblies running along Y)
@@ -270,65 +282,55 @@ else:
 # ============================================================
 
 def create_foundation(doc, catalog, params):
-    """Build pile foundation with double beams, blocking, and mid-span boards.
+    """Build pile foundation with LVL beam assemblies.
 
     Construction Sequence:
-        1. Install pilings (30 ea, 12x12x40 PT, embedded 20' below grade)
-        2. Install double beams on pile caps (2x12x16 PT, both sides of pile)
-        3. Install blocking between beams at 4' and 12' (lateral support per IRC R502.7)
-        4. Install mid-span boards between specific rows (additional load distribution)
-        5. Notch piles for beam seats (boolean cut operation)
+        1. Install pilings (35 ea, 12x12x40 PT, embedded 20' below grade)
+        2. Install LVL beam assemblies (1.75"×depth×20' 2-ply, centered on piles)
+        3. Notch piles for beam seats (single 3.5" wide notch per pile)
 
     Design Rationale:
-        - Pile grid: 5x6 = 30 piles @ 8' OC (matches joist module spacing)
+        - Pile grid: 5×7 = 35 piles @ 10' OC (efficient use of 20' LVL stock)
         - Embed depth: 20' below grade (local code + storm surge + safety factor)
         - Above grade: 20' (elevated above max flood elevation per FEMA)
-        - Double beams: Both sides of pile provide redundant load paths
-        - Blocking: IRC R502.7 requires lateral bracing at mid-span
-        - Beam span: 16' beam centered on 3 piles = 24' coverage
+        - LVL beams: 2-ply laminated (3.5" total width) centered on piles
+        - Three 20' segments per girder: rows 1-3, 3-5, 5-7
+        - Single notch per pile: 3.5" wide × depth deep
 
     Args:
         doc: FreeCAD document
         catalog: Catalog rows from beach_common
         params (dict): Foundation parameters with keys:
             - pile_label, x_positions_ft, y_positions_ft, pile_base_z_in, pile_height_in
-            - beam_label, beam_row_step, beam_gap_in, blocking_offsets_ft
-            - mid_board_label, mid_board_offset_L_in, mid_board_offset_R_in
+            - lvl_label (e.g., "lvl_1.75x11.875x240")
 
     Returns:
         foundation_grp: DocumentObjectGroup with subgroups:
-            - Piles (30 ea)
-            - Beams (double beams per pile row)
-            - Blocking (lateral bracing)
-            - MidBoards (mid-span support)
+            - Piles (35 ea)
+            - LVL_Beam_Assemblies (15 assemblies: 5 girders × 3 segments each)
 
     Raises:
-        ValueError: If pile_label or beam_label not found in catalog
+        ValueError: If pile_label or lvl_label not found in catalog
     """
-    App.Console.PrintMessage("[Build_950Surf] Building foundation...\n")
+    App.Console.PrintMessage("[Build_950Surf] Building foundation with LVL beams...\n")
 
     # Lookup catalog entries (fail-fast if not found)
     pile_row = bc.find_stock(catalog, params["pile_label"])
-    beam_row = bc.find_stock(catalog, params["beam_label"])
-    mid_board_row = bc.find_stock(catalog, params["mid_board_label"])
+    lvl_row = bc.find_stock(catalog, params["lvl_label"])
 
     # Extract dimensions from catalog
     pile_width_in = float(pile_row["actual_width_in"])
     pile_thick_in = float(pile_row["actual_thickness_in"])
     pile_len_in = float(pile_row["length_in"])
 
-    beam_thick_in = float(beam_row["actual_thickness_in"])
-    beam_depth_in = float(beam_row["actual_width_in"])
-    beam_len_in = float(beam_row["length_in"])
-
-    mid_thick_in = float(mid_board_row["actual_thickness_in"])
-    mid_depth_in = float(mid_board_row["actual_width_in"])
-    mid_len_in = float(mid_board_row["length_in"])
+    lvl_ply_thick_in = float(lvl_row["actual_thickness_in"])  # 1.75"
+    lvl_depth_in = float(lvl_row["actual_width_in"])  # Variable (11.875", 24", etc.)
+    lvl_total_width_in = lvl_ply_thick_in * 2  # 3.5" (2 plies)
 
     # Calculate Z positions
     pile_height_in = params["pile_height_in"]
     beam_top_z_in = params["pile_base_z_in"] + pile_len_in
-    beam_base_z_in = beam_top_z_in - beam_depth_in
+    beam_base_z_in = beam_top_z_in - lvl_depth_in
 
     # === CREATE PILES ===
     App.Console.PrintMessage("[Build_950Surf]   Creating piles...\n")
@@ -344,147 +346,70 @@ def create_foundation(doc, catalog, params):
 
     App.Console.PrintMessage(f"[Build_950Surf]   Created {len(pile_objs)} piles.\n")
 
-    # === CREATE DOUBLE BEAM ASSEMBLIES WITH BLOCKING ===
-    App.Console.PrintMessage("[Build_950Surf]   Creating double beam assemblies...\n")
-    beam_assemblies = []
-    beam_objs = []  # Keep track of individual beam objects for notching
+    # === CREATE LVL BEAM ASSEMBLIES ===
+    App.Console.PrintMessage("[Build_950Surf]   Creating LVL beam assemblies (3 segments per girder)...\n")
+    lvl_assemblies = []
 
-    # Available beam lengths (long to short preference)
-    beam_16_row = bc.find_stock(catalog, params["beam_label"])
-    beam_8_row = bc.find_stock(catalog, params["mid_board_label"])
-    beam_16_len_ft = float(beam_16_row["length_in"]) / 12.0
-    beam_8_len_ft = float(beam_8_row["length_in"]) / 12.0
-
-    # Global assembly index (increments for every assembly created)
-    assembly_idx = 0
-
-    for xi_ft in params["x_positions_ft"]:
-        # Create continuous beams from front to back pile
-        # Place beams end-to-end starting from first pile
-        y_start_ft = params["y_positions_ft"][0]  # Start at first pile
-        y_end_ft = params["y_positions_ft"][-1]   # End at last pile
-        total_span_ft = y_end_ft - y_start_ft
-
-        # Calculate beam layout: prefer 16' beams, use 8' for remainder
-        y_current_ft = y_start_ft
-
-        while y_current_ft < y_end_ft:
-            remaining_span_ft = y_end_ft - y_current_ft
-
-            # Choose assembly type: use 16' if it fits, otherwise use 8'
-            if remaining_span_ft >= beam_16_len_ft:
-                beam_len_ft = beam_16_len_ft
-                # Calculate left beam X position
-                # Left beam's LEFT FACE aligns with left side of pile
-                # Pile center is at xi_ft, pile left edge is at xi_ft - pile_width/2
-                # make_beam() centers beam on x_left_beam_ft, so we need:
-                # x_left_beam_ft - beam_thick/2 = xi_ft - pile_width/2
-                # Therefore: x_left_beam_ft = xi_ft - pile_width/2 + beam_thick/2
-                x_left_beam_ft = xi_ft - (pile_width_in / 12.0 / 2.0) + (beam_thick_in / 12.0 / 2.0)
-                assembly = ba.create_double_beam_16ft(
-                    doc, catalog,
-                    x_left_beam_ft, y_current_ft, beam_base_z_in,
-                    assembly_idx=assembly_idx,
-                    pile_width_in=pile_width_in,
-                    pile_y_positions_ft=params["y_positions_ft"]
-                )
-            else:
-                beam_len_ft = beam_8_len_ft
-                # Calculate left beam X position (same logic as 16')
-                x_left_beam_ft = xi_ft - (pile_width_in / 12.0 / 2.0) + (beam_thick_in / 12.0 / 2.0)
-                assembly = ba.create_double_beam_8ft(
-                    doc, catalog,
-                    x_left_beam_ft, y_current_ft, beam_base_z_in,
-                    assembly_idx=assembly_idx,
-                    pile_width_in=pile_width_in,
-                    pile_y_positions_ft=params["y_positions_ft"]
-                )
-
-            beam_assemblies.append(assembly)
-
-            # Extract beam objects from assembly for notching (skip blocking)
-            for obj in assembly.Group:
-                if "Beam_" in obj.Name:
-                    beam_objs.append(obj)
-
-            y_current_ft += beam_len_ft
-            assembly_idx += 1
-
-    App.Console.PrintMessage(f"[Build_950Surf]   Created {len(beam_assemblies)} double beam assemblies.\n")
-
-    # === NOTCH PILES FOR BEAMS ===
-    App.Console.PrintMessage("[Build_950Surf]   Notching piles for beam seating...\n")
-    # Create notch cutouts for each beam position
-    # Notch: beam_thick_in wide (X) × pile_thick_in deep (Y) × beam_depth_in tall (Z)
-    # Important: Each pile should have exactly 2 notches (left beam + right beam from the same assembly)
-    notch_count = 0
-    pile_notch_counts = {}  # Track notches per pile for debugging
-    for pile in pile_objs:
-        pile_bb = pile.Shape.BoundBox
-        pile_center_x_mm = (pile_bb.XMin + pile_bb.XMax) / 2.0
-        pile_center_y_mm = (pile_bb.YMin + pile_bb.YMax) / 2.0
-        pile_notches_this_pile = 0
-
-        # Each pile should only be notched by beams from ONE assembly (the one directly above it)
-        # Beams run along Y, so we check:
-        #   1. Beam's Y range includes pile center Y
-        #   2. Beam's X range overlaps pile X range (beam sits on pile)
-        for beam in beam_objs:
-            beam_bb = beam.Shape.BoundBox
-
-            # Check if beam's Y range contains pile center
-            y_overlap = beam_bb.YMin <= pile_center_y_mm <= beam_bb.YMax
-
-            # Check if beam's X range overlaps pile's X range
-            # Beam sits on pile if beam's X overlaps pile's X (within pile width)
-            x_overlap = (beam_bb.XMin <= pile_bb.XMax and beam_bb.XMax >= pile_bb.XMin)
-
-            if y_overlap and x_overlap:
-                # Create notch box aligned with beam position
-                # Notch width (X): beam thickness
-                # Notch depth (Y): pile thickness (full depth through pile)
-                # Notch height (Z): beam depth
-                notch_box = Part.makeBox(
-                    bc.inch(beam_thick_in),
-                    bc.inch(pile_thick_in),
-                    bc.inch(beam_depth_in)
-                )
-                # Position notch at beam's X position, pile's Y position, beam's Z position
-                notch_box.Placement.Base = App.Vector(
-                    beam_bb.XMin,
-                    pile_bb.YMin,
-                    bc.inch(beam_base_z_in)
-                )
-
-                # Cut notch from pile
-                try:
-                    pile.Shape = pile.Shape.cut(notch_box)
-                    notch_count += 1
-                    pile_notches_this_pile += 1
-                except Exception as e:
-                    App.Console.PrintWarning(f"[Build_950Surf]   Failed to notch {pile.Name}: {e}\n")
-
-        pile_notch_counts[pile.Name] = pile_notches_this_pile
-
-    App.Console.PrintMessage(f"[Build_950Surf]   Created {notch_count} pile notches.\n")
-
-    # Debug: Check for piles with unexpected notch counts
-    piles_with_2_notches = sum(1 for count in pile_notch_counts.values() if count == 2)
-    piles_with_more_than_2 = [name for name, count in pile_notch_counts.items() if count > 2]
-    if piles_with_more_than_2:
-        App.Console.PrintWarning(
-            f"[Build_950Surf]   WARNING: {len(piles_with_more_than_2)} piles have >2 notches: {piles_with_more_than_2[:5]}\n"
+    # Validate pile count (must be 7 for standard 3-segment pattern)
+    if len(params["y_positions_ft"]) != 7:
+        raise ValueError(
+            f"LVL beam system requires 7 pile rows, got {len(params['y_positions_ft'])}"
         )
-    App.Console.PrintMessage(f"[Build_950Surf]   {piles_with_2_notches} piles have exactly 2 notches (expected: 40)\n")
+
+    # Create 3 LVL segments for each girder line (5 girders × 3 segments = 15 assemblies)
+    # Determine LVL placement side: west girders on west face, east girders on east face
+    middle_x_ft = (params["x_positions_ft"][0] + params["x_positions_ft"][-1]) / 2.0
+
+    for girder_idx, xi_ft in enumerate(params["x_positions_ft"]):
+        # West girders (X < middle): place LVL on west face of pile
+        # East girders (X > middle): place LVL on east face of pile
+        # Middle girder (X = middle): use west face for simplicity
+        lvl_side = "west" if xi_ft <= middle_x_ft else "east"
+
+        assemblies = ba.create_lvl_beam_segments_for_girder(
+            doc,
+            catalog,
+            x_girder_ft=xi_ft,
+            y_pile_positions_ft=params["y_positions_ft"],
+            z_base_in=beam_base_z_in,
+            lvl_label=params["lvl_label"],
+            girder_idx=girder_idx,
+            side=lvl_side,
+        )
+        lvl_assemblies.extend(assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Created {len(lvl_assemblies)} LVL beam assemblies.\n")
+
+    # === PILE-TO-BEAM CONNECTIONS (notches + bolts) ===
+    # Delegate to pile_connections module for notching and bolt creation
+    # This handles:
+    #   - Notch type detection (endpoint corner vs middle/boundary full-width)
+    #   - Segment boundary detection (where two LVL segments meet)
+    #   - Threaded rod placement with proper Y positioning (centered on notched half)
+    #   - Rod X positioning (centered on pile with protrusion on both ends)
+    #   - Rod Z positioning (equal thirds: 1/3 and 2/3 of beam depth)
+    notch_count, notched_piles, anchor_bolts_created = pc.create_all_pile_connections(
+        doc,
+        catalog,
+        pile_objs,
+        lvl_assemblies,
+        pile_width_in,
+        pile_thick_in,
+        lvl_total_width_in,
+        lvl_depth_in,
+        beam_base_z_in,
+    )
 
     # === GROUP FOUNDATION ===
     foundation_grp = bc.create_group(doc, "Foundation")
     piles_grp = bc.create_group(doc, "Piles")
-    beam_assemblies_grp = bc.create_group(doc, "Beam_Assemblies")
+    lvl_beam_assemblies_grp = bc.create_group(doc, "LVL_Beam_Assemblies")
+    anchor_bolts_grp = bc.create_group(doc, "Anchor_Bolts")
 
     bc.add_to_group(piles_grp, pile_objs)
-    bc.add_to_group(beam_assemblies_grp, beam_assemblies)
-    bc.add_to_group(foundation_grp, [piles_grp, beam_assemblies_grp])
+    bc.add_to_group(lvl_beam_assemblies_grp, lvl_assemblies)
+    bc.add_to_group(anchor_bolts_grp, anchor_bolts_created)
+    bc.add_to_group(foundation_grp, [piles_grp, lvl_beam_assemblies_grp, anchor_bolts_grp])
 
     App.Console.PrintMessage("[Build_950Surf] Foundation complete.\n")
     return foundation_grp
@@ -496,13 +421,7 @@ foundation_params = {
     "y_positions_ft": y_positions_ft,
     "pile_base_z_in": pile_base_z_in,
     "pile_height_in": above_grade_ft * 12.0 - pile_base_z_in,
-    "beam_label": beam_label,
-    "beam_row_step": beam_row_step,
-    "beam_gap_in": beam_gap_in,
-    "blocking_offsets_ft": blocking_offsets_ft,
-    "mid_board_label": mid_board_label,
-    "mid_board_offset_L_in": mid_board_offset_L_in,
-    "mid_board_offset_R_in": mid_board_offset_R_in,
+    "lvl_label": FOUNDATION.get("lvl_label", "lvl_1.75x11.875x240"),  # LVL beam catalog key
 }
 
 foundation_grp = create_foundation(doc, catalog, foundation_params)
@@ -622,6 +541,10 @@ if BUILD.get("include_deck_joists", False):
         z_base=deck_z_base_in,
         supplier="lowes",
     )
+    # Snap center module to right edge of left module
+    lc.snap_assembly_corner_to_corner(
+        front_deck_joists_center, front_deck_joists_left, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
     deck_joist_assemblies.append(front_deck_joists_center)
 
     front_deck_joists_right = da.create_deck_joists_16x8(
@@ -632,6 +555,10 @@ if BUILD.get("include_deck_joists", False):
         y_base=front_deck_y_ft * 12.0,
         z_base=deck_z_base_in,
         supplier="lowes",
+    )
+    # Snap right module to right edge of center module
+    lc.snap_assembly_corner_to_corner(
+        front_deck_joists_right, front_deck_joists_center, target_corner="bottom_right", assembly_corner="bottom_left"
     )
     deck_joist_assemblies.append(front_deck_joists_right)
 
@@ -657,6 +584,10 @@ if BUILD.get("include_deck_joists", False):
         z_base=deck_z_base_in,
         supplier="lowes",
     )
+    # Snap center module to right edge of left module
+    lc.snap_assembly_corner_to_corner(
+        rear_deck_joists_center, rear_deck_joists_left, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
     deck_joist_assemblies.append(rear_deck_joists_center)
 
     rear_deck_joists_right = da.create_deck_joists_16x8(
@@ -667,6 +598,10 @@ if BUILD.get("include_deck_joists", False):
         y_base=rear_deck_y_ft * 12.0,
         z_base=deck_z_base_in,
         supplier="lowes",
+    )
+    # Snap right module to right edge of center module
+    lc.snap_assembly_corner_to_corner(
+        rear_deck_joists_right, rear_deck_joists_center, target_corner="bottom_right", assembly_corner="bottom_left"
     )
     deck_joist_assemblies.append(rear_deck_joists_right)
 
@@ -761,10 +696,21 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     modules.append(front_left)
 
     # Front-Right 16x16 (snap to RIGHT of middle)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Front-Right 16x16...\n")
-    front_right = parts.create_joist_module_16x16(
-        doc, catalog_rows, assembly_name="Floor_Front_Right_16x16", make_pressure_treated=False
-    )
+    # Use stair-cutout version if stairs are enabled
+    if BUILD.get("include_stairs", False):
+        App.Console.PrintMessage("[Build_950Surf]   Creating Front-Right 16x16 (STAIR CUTOUT)...\n")
+        front_right = parts.create_joist_module_16x16_stair_cutout(
+            doc,
+            catalog_rows,
+            assembly_name="Floor_Front_Right_16x16",
+            make_pressure_treated=False,
+            stair_config=STAIRS,
+        )
+    else:
+        App.Console.PrintMessage("[Build_950Surf]   Creating Front-Right 16x16...\n")
+        front_right = parts.create_joist_module_16x16(
+            doc, catalog_rows, assembly_name="Floor_Front_Right_16x16", make_pressure_treated=False
+        )
     lc.snap_assembly_corner_to_corner(front_right, front_middle, target_corner="bottom_right", assembly_corner="bottom_left")
     modules.append(front_right)
 
@@ -843,51 +789,27 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
 floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] + FIRST_FLOOR["module_8x16_width_in"] + FIRST_FLOOR["module_16x16_width_in"]) / 12.0
 floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] + FIRST_FLOOR["module_16x8_depth_in"] + FIRST_FLOOR["module_16x16_depth_in"]) / 12.0
 
-floor_params = {
-    "floor_base_z_ft": above_grade_ft,
-    "floor_start_x_ft": (lot_x_ft - floor_width_ft) / 2.0,  # Center on lot
-    "floor_start_y_ft": front_setback_ft + y_spacing_ft,  # Start at second row of piles
-    "lot_x_ft": lot_x_ft,  # Pass lot width for center calculation
-}
+if BUILD.get("include_first_floor", False):
+    floor_params = {
+        "floor_base_z_ft": above_grade_ft,
+        "floor_start_x_ft": (lot_x_ft - floor_width_ft) / 2.0,  # Center on lot
+        "floor_start_y_ft": front_setback_ft + y_spacing_ft,  # Start at second row of piles
+        "lot_x_ft": lot_x_ft,  # Pass lot width for center calculation
+    }
 
-floor_grp = create_first_floor_joists(doc, catalog, floor_params, _macros_dir)
+    floor_grp = create_first_floor_joists(doc, catalog, floor_params, _macros_dir)
+else:
+    App.Console.PrintMessage("[Build_950Surf] First floor joists skipped (disabled in BUILD config)\n")
 
 # ============================================================
-# SECTION 5.5: STAIR OPENING (Cut joists for stairs)
+# SECTION 5.5: STAIR OPENING (integrated into floor joist assembly above)
 # ============================================================
-
-if BUILD.get("include_stairs", False):
-    App.Console.PrintMessage("[Build_950Surf] Creating stair opening in floor joists...\n")
-
-    # Get list of joists to remove from config
-    joists_to_remove = STAIRS.get("opening_joists_to_remove", [])
-
-    if joists_to_remove:
-        # Remove conflicting joists and their hangers
-        objects_removed = 0
-        for obj_name in joists_to_remove:
-            obj = doc.getObject(obj_name)
-            if obj:
-                App.Console.PrintMessage(f"[Build_950Surf]   Removing {obj_name} for stair opening...\n")
-                doc.removeObject(obj_name)
-                objects_removed += 1
-
-                # Also remove associated hangers (try both naming conventions)
-                hanger_front = doc.getObject(f"{obj_name}_Hanger_Front")
-                hanger_back = doc.getObject(f"{obj_name}_Hanger_Back")
-                if hanger_front:
-                    doc.removeObject(hanger_front.Name)
-                    objects_removed += 1
-                if hanger_back:
-                    doc.removeObject(hanger_back.Name)
-                    objects_removed += 1
-
-        App.Console.PrintMessage(f"[Build_950Surf]   Removed {objects_removed} objects for stair opening\n")
-
-        # TODO: Add headers to frame stair opening (double joists on sides)
-        # This will be implemented in a future update
-    else:
-        App.Console.PrintMessage("[Build_950Surf]   No joists specified for removal in stair opening config\n")
+# Stair opening is now created directly in the Floor_Front_Right_16x16 module
+# using create_joist_module_16x16_stair_cutout() when BUILD["include_stairs"] = True
+# This approach:
+# - Shortens joists that conflict with stair headroom
+# - Adds a rim joist at the stair cutout edge to frame the opening
+# - Places hangers on both sides of the stair rim (shortened joists + full-length joists)
 
 # ============================================================
 # SECTION 6: FIRST FLOOR SHEATHING
@@ -1214,6 +1136,10 @@ if BUILD.get("include_deck_surface", False):
         include_left_edge=False,  # Interior (no edge boards on center module)
         include_right_edge=False,
     )
+    # Snap center surface to left surface (matches joist snapping)
+    lc.snap_assembly_corner_to_corner(
+        front_deck_surface_center, front_deck_surface_left, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
     deck_surface_assemblies.append(front_deck_surface_center)
 
     front_deck_surface_right = da.create_deck_surface_16x8(
@@ -1226,6 +1152,10 @@ if BUILD.get("include_deck_surface", False):
         supplier="lowes",
         include_left_edge=False,  # Interior edge
         include_right_edge=True,   # Outermost right edge
+    )
+    # Snap right surface to center surface (matches joist snapping)
+    lc.snap_assembly_corner_to_corner(
+        front_deck_surface_right, front_deck_surface_center, target_corner="bottom_right", assembly_corner="bottom_left"
     )
     deck_surface_assemblies.append(front_deck_surface_right)
 
@@ -1255,6 +1185,10 @@ if BUILD.get("include_deck_surface", False):
         include_left_edge=False,  # Interior (no edge boards on center module)
         include_right_edge=False,
     )
+    # Snap center surface to left surface (matches joist snapping)
+    lc.snap_assembly_corner_to_corner(
+        rear_deck_surface_center, rear_deck_surface_left, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
     deck_surface_assemblies.append(rear_deck_surface_center)
 
     rear_deck_surface_right = da.create_deck_surface_16x8(
@@ -1268,7 +1202,28 @@ if BUILD.get("include_deck_surface", False):
         include_left_edge=False,  # Interior edge
         include_right_edge=True,   # Outermost right edge
     )
+    # Snap right surface to center surface (matches joist snapping)
+    lc.snap_assembly_corner_to_corner(
+        rear_deck_surface_right, rear_deck_surface_center, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
     deck_surface_assemblies.append(rear_deck_surface_right)
+
+    # Perpendicular deck boards over stair opening (running north-south)
+    # Position: stair rim east face (pile east face = 41.46875')
+    App.Console.PrintMessage("[Build_950Surf]   Creating perpendicular deck boards over stair opening...\n")
+    stair_rim_east_face_x_ft = 41.0 + (11.25 / 24.0)  # Pile_41_28 east face = 41.46875'
+    stair_y_snap_ft = STAIRS["stair_y_snap_ft"]  # Top tread south edge position
+    stair_deck_surface_perpendicular = da.create_deck_surface_perpendicular_over_stair(
+        doc,
+        catalog_rows,
+        assembly_name="Deck_Surface_Stair_Perpendicular",
+        stair_config=STAIRS,
+        x_base=stair_rim_east_face_x_ft * 12.0,  # Position at stair rim east face
+        y_base=stair_y_snap_ft * 12.0,  # Y position where boards start (front rim north edge)
+        z_base=deck_z_base_in,
+        supplier="lowes",
+    )
+    deck_surface_assemblies.append(stair_deck_surface_perpendicular)
 
     # TODO: Add perpendicular deck boards on ~4' overhangs (left and right of walls)
 

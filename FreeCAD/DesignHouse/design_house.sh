@@ -36,6 +36,12 @@ BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/builds}"
 # Default address is "BeachHouse", can be overridden via ADDRESS env var
 ADDRESS="${ADDRESS:-BeachHouse}"
 
+# Default config to ExampleBeachHouse/config.py if not set
+if [[ -z "${BEACH_CONFIG:-}" ]]; then
+  BEACH_CONFIG="${SCRIPT_DIR}/ExampleBeachHouse/config.py"
+  echo "Using default config: ${BEACH_CONFIG}"
+fi
+
 # Clear previous builds to keep folder lean
 if [[ -d "${BUILD_DIR}" ]]; then
   rm -rf "${BUILD_DIR:?}/"* 2>/dev/null || true

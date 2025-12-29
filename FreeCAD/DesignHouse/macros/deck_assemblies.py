@@ -1123,3 +1123,107 @@ def create_deck_16x8(
     )
 
     return assembly
+
+
+def create_deck_surface_perpendicular_over_stair(
+    doc,
+    catalog_rows,
+    assembly_name="Deck_Surface_Stair_Perpendicular",
+    stair_config=None,
+    x_base=0.0,
+    y_base=0.0,
+    z_base=0.0,
+    supplier="lowes",
+):
+    """
+    Create perpendicular deck boards (running north-south) over stair opening.
+
+    Design:
+        - Deck boards run perpendicular (north-south) to span across stair opening
+        - Boards start at stair rim east face (west end of boards)
+        - Extend east to cover stair area (tread width = 3')
+        - Match standard deck board spacing (1/8" gaps)
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Catalog data
+        assembly_name: Name for the assembly
+        stair_config: STAIRS config dict with keys:
+            - tread_width_ft: Stair width (3.0' typical, determines board length)
+            - stair_y_snap_ft: Y position where top tread south edge meets rim
+        x_base, y_base, z_base: Position offsets (inches)
+        supplier: Supplier preference
+
+    Returns:
+        App::Part assembly containing perpendicular deck boards
+    """
+    if stair_config is None:
+        raise ValueError("stair_config required for perpendicular stair deck boards")
+
+    # Parameters
+    deck_label = "deckboard_5_4x6x192_PT"  # 16' boards (will be cut to length)
+    tread_width_ft = stair_config.get("tread_width_ft", 3.0)  # 3' stair width
+    stair_y_snap_ft = stair_config.get("stair_y_snap_ft", 0.0)  # Top tread south edge
+
+    # Find stock
+    deck_row = lc.find_stock(catalog_rows, deck_label)
+    if not deck_row:
+        raise ValueError(f"Deck board label '{deck_label}' not found in catalog.")
+
+    # Dimensions
+    deck_thick = float(deck_row["actual_thickness_in"])  # 1.0" for 5/4
+    deck_width = float(deck_row["actual_width_in"])  # 5.5" actual
+    board_length_in = tread_width_ft * 12.0  # 36" (cut to stair width)
+    gap_in = 0.125  # 1/8" gap between boards
+
+    # Coverage area: front rim (28') to back of stair opening
+    # Deck boards span from front rim north edge to where stairs descend
+    # For now, cover 8' depth (typical front deck depth)
+    coverage_depth_in = 96.0  # 8' (will extend north from front rim)
+
+    # Calculate number of boards needed
+    board_pitch = deck_width + gap_in  # 5.5" + 0.125" = 5.625"
+    num_boards = int(coverage_depth_in / board_pitch) + 1
+
+    # Create assembly
+    assembly = lc.create_assembly(doc, assembly_name)
+    boards = []
+
+    # Create boards running north-south (perpendicular to main deck boards)
+    for i in range(num_boards):
+        y_offset_in = stair_y_snap_ft * 12.0 + (i * board_pitch)
+
+        board = doc.addObject("Part::Feature", f"{assembly_name}_Board_{i+1}")
+        board_box = Part.makeBox(
+            lc.inch(board_length_in),  # Length in X direction (east-west, 3' stair width)
+            lc.inch(deck_width),  # Width in Y direction (north-south, 5.5" nominal)
+            lc.inch(deck_thick),  # Thickness in Z direction (1.0")
+        )
+        board_box.Placement.Base = App.Vector(
+            0.0,  # X position (will be offset by x_base in assembly placement)
+            lc.inch(
+                y_offset_in - (stair_y_snap_ft * 12.0)
+            ),  # Y position relative to assembly origin
+            0.0,  # Z position (will be offset by z_base in assembly placement)
+        )
+        board.Shape = board_box
+
+        # Attach metadata
+        lc.attach_metadata(board, deck_row, deck_label, supplier=supplier)
+        boards.append(board)
+
+    # Add all boards to assembly
+    for board in boards:
+        assembly.addObject(board)
+
+    # Apply global position offset
+    assembly.Placement.Base = App.Vector(lc.inch(x_base), lc.inch(y_base), lc.inch(z_base))
+
+    doc.recompute()
+
+    App.Console.PrintMessage(
+        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"({len(boards)} perpendicular deck boards over stair opening)\n"
+    )
+
+    return assembly
