@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Build 950 Surf Beach House - Refactored Version
 
 Construction-grade parametric model for 950 Surf Ave beach house.
@@ -40,11 +41,11 @@ _this_file = __file__ if __file__ else os.getcwd()
 _macro_location = os.path.dirname(os.path.abspath(_this_file))
 
 # If this macro is in builds/, navigate to DesignHouse root
-# Structure: FreeCAD/DesignHouse/ExampleBeachHouse/builds/macro.FCMacro
+# Structure: FreeCAD/DesignHouse/builds/macro.FCMacro
 # We need to get to: FreeCAD/DesignHouse/
 if os.path.basename(_macro_location) == "builds":
-    # Go up from builds/ -> ExampleBeachHouse/ -> DesignHouse/
-    _design_house_root = os.path.dirname(os.path.dirname(_macro_location))
+    # Go up from builds/ -> DesignHouse/
+    _design_house_root = os.path.dirname(_macro_location)
 else:
     # Macro is in DesignHouse/ directly (template location)
     _design_house_root = _macro_location
@@ -621,7 +622,7 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     """Build first floor using reusable joist module assemblies with snapping.
 
     Construction Sequence:
-        1. Load joist module macros (16x16, 16x8 assemblies)
+        1. Load joist module macros (16x16 assemblies)
         2. Create module instances and position via snapping
         3. NO hard-coded offsets - uses bounding box geometry
 
@@ -630,9 +631,16 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
         - Assembly snapping ensures perfect alignment (0.0000mm gaps)
         - Clean hierarchy: Floor → Module (assembly) → Joists + Hardware
 
-    Floor Layout (simplified proof-of-concept):
-        - Front row: Two 16x16 modules side-by-side (32' x 16')
-        - This demonstrates assembly snapping with no magic numbers
+    Floor Layout (3×3 grid pattern):
+        - Grid uses (row, col) naming like piles: Floor_R{row}_C{col}
+        - Row 1 (front), Row 2 (center), Row 3 (back)
+        - Col 1 (left/west), Col 2 (middle), Col 3 (right/east)
+
+        Row 1 (front):  16x16 + 16x16 + 16x16 = 48' wide × 16' deep
+        Row 2 (center): 16x16 + 16x16 + 16x16 = 48' wide × 16' deep
+        Row 3 (back):   16x16 + 16x16 + 16x16 = 48' wide × 16' deep
+
+        Total: 48' wide × 48' deep (9 identical modules)
 
     Args:
         doc: FreeCAD document
@@ -645,7 +653,6 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     Returns:
         floor_grp: DocumentObjectGroup containing floor assemblies
     """
-    import codecs
     import importlib
 
     App.Console.PrintMessage("[Build_950Surf] Building first floor joists (assembly-based)...\n")
@@ -668,109 +675,61 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
 
     modules = []
 
-    # Calculate lot center X position for middle modules
-    # Middle modules should have their center at lot center
-    lot_center_x_ft = params["lot_x_ft"] / 2.0
-    middle_module_width_ft = FIRST_FLOOR["module_8x16_width_in"] / 12.0
-    middle_start_x_ft = lot_center_x_ft - (middle_module_width_ft / 2.0)  # Center the module on lot
+    # Calculate floor start position (centered on lot)
+    module_width_ft = FIRST_FLOOR["module_16x16_width_in"] / 12.0
+    floor_width_ft = module_width_ft * 3  # 3 columns × 16' = 48'
+    floor_start_x_ft = (params["lot_x_ft"] - floor_width_ft) / 2.0  # Center on lot
 
     # ============================================================
-    # FRONT ROW (Y=20'): 16x16 + 8x16 + 16x16 = 40' wide × 16' deep
+    # CREATE FLOOR MODULES IN 3×3 GRID PATTERN
+    # All modules are 16'×16' for uniform construction
+    # Grid: 3 rows × 3 columns = 9 modules = 48' × 48'
+    # Row 1 = front (south), Row 2 = center, Row 3 = back (north)
+    # Col 1 = left (west), Col 2 = middle, Col 3 = right (east)
     # ============================================================
-    App.Console.PrintMessage("[Build_950Surf]   === FRONT ROW ===\n")
 
-    # Front-Middle 8x16 (START HERE - placed at lot center)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Front-Middle 8x16 (at lot center)...\n")
-    front_middle = parts.create_joist_module_8x16(
-        doc, catalog_rows, assembly_name="Floor_Front_Middle_8x16", make_pressure_treated=False
-    )
-    lc.place_assembly_at(front_middle, x_ft=middle_start_x_ft, y_ft=params["floor_start_y_ft"], z_ft=params["floor_base_z_ft"])
-    modules.append(front_middle)
+    # Store modules by grid position for snapping reference
+    grid = {}  # grid[(row, col)] = module
 
-    # Front-Left 16x16 (snap to LEFT of middle)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Front-Left 16x16...\n")
-    front_left = parts.create_joist_module_16x16(
-        doc, catalog_rows, assembly_name="Floor_Front_Left_16x16", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(front_left, front_middle, target_corner="bottom_left", assembly_corner="bottom_right")
-    modules.append(front_left)
+    for row in range(1, 4):  # Rows 1, 2, 3 (front, center, back)
+        row_name = {1: "Front", 2: "Center", 3: "Back"}[row]
+        App.Console.PrintMessage(f"[Build_950Surf]   === ROW {row} ({row_name.upper()}) ===\n")
 
-    # Front-Right 16x16 (snap to RIGHT of middle)
-    # Use stair-cutout version if stairs are enabled
-    if BUILD.get("include_stairs", False):
-        App.Console.PrintMessage("[Build_950Surf]   Creating Front-Right 16x16 (STAIR CUTOUT)...\n")
-        front_right = parts.create_joist_module_16x16_stair_cutout(
-            doc,
-            catalog_rows,
-            assembly_name="Floor_Front_Right_16x16",
-            make_pressure_treated=False,
-            stair_config=STAIRS,
-        )
-    else:
-        App.Console.PrintMessage("[Build_950Surf]   Creating Front-Right 16x16...\n")
-        front_right = parts.create_joist_module_16x16(
-            doc, catalog_rows, assembly_name="Floor_Front_Right_16x16", make_pressure_treated=False
-        )
-    lc.snap_assembly_corner_to_corner(front_right, front_middle, target_corner="bottom_right", assembly_corner="bottom_left")
-    modules.append(front_right)
+        for col in range(1, 4):  # Columns 1, 2, 3 (left, middle, right)
+            col_name = {1: "Left", 2: "Middle", 3: "Right"}[col]
+            assembly_name = f"Floor_R{row}_C{col}_16x16"
 
-    # ============================================================
-    # MIDDLE ROW (Y=36'): 16x8 + 8x8 + 16x8 = 40' wide × 8' deep
-    # ============================================================
-    App.Console.PrintMessage("[Build_950Surf]   === MIDDLE ROW ===\n")
+            # Special case: Row 1, Col 3 may need stair cutout
+            if row == 1 and col == 3 and BUILD.get("include_stairs", False):
+                App.Console.PrintMessage(f"[Build_950Surf]   Creating {assembly_name} (STAIR CUTOUT)...\n")
+                module = parts.create_joist_module_16x16_stair_cutout(
+                    doc,
+                    catalog_rows,
+                    assembly_name=assembly_name,
+                    make_pressure_treated=False,
+                    stair_config=STAIRS,
+                )
+            else:
+                App.Console.PrintMessage(f"[Build_950Surf]   Creating {assembly_name}...\n")
+                module = parts.create_joist_module_16x16(
+                    doc, catalog_rows, assembly_name=assembly_name, make_pressure_treated=False
+                )
 
-    # Middle-Center 8x8 (placed at lot center, behind front-middle)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Middle-Center 8x8 (at lot center)...\n")
-    middle_center = parts.create_joist_module_8x8(
-        doc, catalog_rows, assembly_name="Floor_Middle_Center_8x8", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(middle_center, front_middle, target_corner="top_left", assembly_corner="bottom_left")
-    modules.append(middle_center)
+            # Position module using snapping
+            if row == 1 and col == 1:
+                # First module (R1,C1): place at absolute position (anchor for entire floor)
+                lc.place_assembly_at(module, x_ft=floor_start_x_ft, y_ft=params["floor_start_y_ft"], z_ft=params["floor_base_z_ft"])
+            elif col == 1:
+                # First column of subsequent rows: snap to previous row's first column
+                prev_module = grid[(row - 1, 1)]
+                lc.snap_assembly_corner_to_corner(module, prev_module, target_corner="top_left", assembly_corner="bottom_left")
+            else:
+                # Columns 2 and 3: snap to left neighbor in same row
+                left_neighbor = grid[(row, col - 1)]
+                lc.snap_assembly_corner_to_corner(module, left_neighbor, target_corner="bottom_right", assembly_corner="bottom_left")
 
-    # Middle-Left 16x8 (snap to LEFT of center)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Middle-Left 16x8...\n")
-    middle_left = parts.create_joist_module_16x8(
-        doc, catalog_rows, assembly_name="Floor_Middle_Left_16x8", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(middle_left, middle_center, target_corner="bottom_left", assembly_corner="bottom_right")
-    modules.append(middle_left)
-
-    # Middle-Right 16x8 (snap to RIGHT of center)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Middle-Right 16x8...\n")
-    middle_right = parts.create_joist_module_16x8(
-        doc, catalog_rows, assembly_name="Floor_Middle_Right_16x8", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(middle_right, middle_center, target_corner="bottom_right", assembly_corner="bottom_left")
-    modules.append(middle_right)
-
-    # ============================================================
-    # BACK ROW (Y=44'): 16x16 + 8x16 + 16x16 = 40' wide × 16' deep
-    # ============================================================
-    App.Console.PrintMessage("[Build_950Surf]   === BACK ROW ===\n")
-
-    # Back-Middle 8x16 (placed at lot center, behind middle-center)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Back-Middle 8x16 (at lot center)...\n")
-    back_middle = parts.create_joist_module_8x16(
-        doc, catalog_rows, assembly_name="Floor_Back_Middle_8x16", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(back_middle, middle_center, target_corner="top_left", assembly_corner="bottom_left")
-    modules.append(back_middle)
-
-    # Back-Left 16x16 (snap to LEFT of middle)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Back-Left 16x16...\n")
-    back_left = parts.create_joist_module_16x16(
-        doc, catalog_rows, assembly_name="Floor_Back_Left_16x16", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(back_left, back_middle, target_corner="bottom_left", assembly_corner="bottom_right")
-    modules.append(back_left)
-
-    # Back-Right 16x16 (snap to RIGHT of middle)
-    App.Console.PrintMessage("[Build_950Surf]   Creating Back-Right 16x16...\n")
-    back_right = parts.create_joist_module_16x16(
-        doc, catalog_rows, assembly_name="Floor_Back_Right_16x16", make_pressure_treated=False
-    )
-    lc.snap_assembly_corner_to_corner(back_right, back_middle, target_corner="bottom_right", assembly_corner="bottom_left")
-    modules.append(back_right)
+            grid[(row, col)] = module
+            modules.append(module)
 
     # ============================================================
     # GROUP ALL MODULES
@@ -778,16 +737,16 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     floor_grp = bc.create_group(doc, "First_Floor_Joists")
     bc.add_to_group(floor_grp, modules)
 
-    App.Console.PrintMessage(f"[Build_950Surf]   ✓ Created {len(modules)} floor modules\n")
+    App.Console.PrintMessage(f"[Build_950Surf]   ✓ Created {len(modules)} floor modules (3×3 grid = 48' × 48')\n")
     App.Console.PrintMessage("[Build_950Surf] First floor joists complete.\\n")
 
     return floor_grp
 
 # Create first floor joists
 # Calculate floor start position from module dimensions in config
-# Floor layout calculated from config module dimensions
-floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] + FIRST_FLOOR["module_8x16_width_in"] + FIRST_FLOOR["module_16x16_width_in"]) / 12.0
-floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] + FIRST_FLOOR["module_16x8_depth_in"] + FIRST_FLOOR["module_16x16_depth_in"]) / 12.0
+# Floor layout: 3×3 grid of 16'×16' modules = 48' × 48'
+floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns × 16' = 48'
+floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows × 16' = 48'
 
 if BUILD.get("include_first_floor", False):
     floor_params = {
@@ -879,8 +838,12 @@ if BUILD.get("include_first_floor", False):
     App.Console.PrintMessage("[Build_950Surf] First floor joists and sheathing organized.\n")
 
 # ============================================================
-# SECTION 7: WALLS
+# SECTION 7: WALLS (Front and Rear - BUTT walls)
 # ============================================================
+# FRAMING APPROACH: Front/rear walls are BUTT walls, side walls are THROUGH walls
+#   - Front/rear walls run full width (40') at sheathing edges (this section)
+#   - Side walls fit BETWEEN front/rear walls (see Section 8B)
+#   - Butt walls terminate at corners; through walls provide continuous plates
 
 if BUILD.get("include_walls", False):
     App.Console.PrintMessage("[Build_950Surf] Building walls...\n")
@@ -904,12 +867,16 @@ if BUILD.get("include_walls", False):
     front_wall_x_start_ft = sheathing_x_start_ft + wall_offset_ft
     front_wall_y_ft = sheathing_y_start_ft
 
+    # Sheathing width = 40' (5 × 8' wall modules)
+    sheathing_width_ft = 40.0
+
     # Wall assemblies are created in default orientation (Y = wall length)
     # Then rotated 90° around Z to run along X (front of house)
     # After rotation: X = wall length (along front), Y = wall thickness (depth into house), Z = vertical
 
     # Front wall module positions (left to right, 8' each)
-    # Module layout: Window | Door | Door | Window
+    # Module layout: Window | Window | Door | Window | Window = 40' total
+    # Matches 40' buildable width (5 modules × 8')
     wall_assemblies = []
 
     # Get wall module width from config
@@ -932,65 +899,55 @@ if BUILD.get("include_walls", False):
             bc.inch(wall_z_base_in)
         )
 
-    # Left module (window wall)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall left module (window)...\n")
-    wall_left = wa.create_window_wall_double_3x5(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Wall_Left",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,  # Will be positioned after rotation
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 1: Window (far left)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 1 (window)...\n")
+    wall_1 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Front_Wall_1_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_wall_90(wall_left, x_offset_ft=0.0)
-    wall_assemblies.append(wall_left)
+    rotate_wall_90(wall_1, x_offset_ft=0.0)
+    wall_assemblies.append(wall_1)
 
-    # Left-center module (sliding door)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall left-center module (door)...\n")
-    wall_left_center = wa.create_sliding_door_72x80(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Wall_LeftCenter",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 2: Window (left)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 2 (window)...\n")
+    wall_2 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Front_Wall_2_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_wall_90(wall_left_center, x_offset_ft=wall_module_width_ft)
-    wall_assemblies.append(wall_left_center)
+    rotate_wall_90(wall_2, x_offset_ft=wall_module_width_ft * 1.0)
+    wall_assemblies.append(wall_2)
 
-    # Right-center module (sliding door)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall right-center module (door)...\n")
-    wall_right_center = wa.create_sliding_door_72x80(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Wall_RightCenter",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 3: Sliding door (center)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 3 (door)...\n")
+    wall_3 = wa.create_sliding_door_72x80(
+        doc, catalog_rows, assembly_name="Front_Wall_3_Door",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_wall_90(wall_right_center, x_offset_ft=wall_module_width_ft * 2.0)
-    wall_assemblies.append(wall_right_center)
+    rotate_wall_90(wall_3, x_offset_ft=wall_module_width_ft * 2.0)
+    wall_assemblies.append(wall_3)
 
-    # Right module (window wall)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall right module (window)...\n")
-    wall_right = wa.create_window_wall_double_3x5(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Wall_Right",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 4: Window (right)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 4 (window)...\n")
+    wall_4 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Front_Wall_4_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_wall_90(wall_right, x_offset_ft=wall_module_width_ft * 3.0)
-    wall_assemblies.append(wall_right)
+    rotate_wall_90(wall_4, x_offset_ft=wall_module_width_ft * 3.0)
+    wall_assemblies.append(wall_4)
+
+    # Module 5: Window (far right)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 5 (window)...\n")
+    wall_5 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Front_Wall_5_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    rotate_wall_90(wall_5, x_offset_ft=wall_module_width_ft * 4.0)
+    wall_assemblies.append(wall_5)
 
     # Create Front_Wall group to organize all wall assemblies
     front_wall_grp = bc.create_group(doc, "Front_Wall")
@@ -999,7 +956,7 @@ if BUILD.get("include_walls", False):
     App.Console.PrintMessage(f"[Build_950Surf] Front wall complete ({len(wall_assemblies)} modules).\n")
 
 # ============================================================
-# SECTION 8: REAR WALL (mirror of front wall)
+# SECTION 8: REAR WALL (Window | Door | Window | Door | Window)
 # ============================================================
 
 if BUILD.get("include_walls", False):
@@ -1030,65 +987,56 @@ if BUILD.get("include_walls", False):
             bc.inch(wall_z_base_in)
         )
 
-    # Left module (window wall)
-    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall left module (window)...\n")
-    rear_left = wa.create_window_wall_double_3x5(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Wall_Left",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Rear wall module layout: Window | Door | Window | Door | Window = 40' total
+    # Module 1: Window (far left)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall module 1 (window)...\n")
+    rear_1 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Rear_Wall_1_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_rear_wall_90(rear_left, x_offset_ft=0.0)
-    rear_wall_assemblies.append(rear_left)
+    rotate_rear_wall_90(rear_1, x_offset_ft=0.0)
+    rear_wall_assemblies.append(rear_1)
 
-    # Left-center module (sliding door)
-    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall left-center module (door)...\n")
-    rear_left_center = wa.create_sliding_door_72x80(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Wall_LeftCenter",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 2: Sliding door (left)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall module 2 (door)...\n")
+    rear_2 = wa.create_sliding_door_72x80(
+        doc, catalog_rows, assembly_name="Rear_Wall_2_Door",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_rear_wall_90(rear_left_center, x_offset_ft=wall_module_width_ft)
-    rear_wall_assemblies.append(rear_left_center)
+    rotate_rear_wall_90(rear_2, x_offset_ft=wall_module_width_ft * 1.0)
+    rear_wall_assemblies.append(rear_2)
 
-    # Right-center module (sliding door)
-    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall right-center module (door)...\n")
-    rear_right_center = wa.create_sliding_door_72x80(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Wall_RightCenter",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 3: Window (center)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall module 3 (window)...\n")
+    rear_3 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Rear_Wall_3_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_rear_wall_90(rear_right_center, x_offset_ft=wall_module_width_ft * 2.0)
-    rear_wall_assemblies.append(rear_right_center)
+    rotate_rear_wall_90(rear_3, x_offset_ft=wall_module_width_ft * 2.0)
+    rear_wall_assemblies.append(rear_3)
 
-    # Right module (window wall)
-    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall right module (window)...\n")
-    rear_right = wa.create_window_wall_double_3x5(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Wall_Right",
-        x_base=0.0,
-        y_base=0.0,
-        z_base=0.0,
-        make_pressure_treated=False,
-        use_debug_colors=False,
+    # Module 4: Sliding door (right)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall module 4 (door)...\n")
+    rear_4 = wa.create_sliding_door_72x80(
+        doc, catalog_rows, assembly_name="Rear_Wall_4_Door",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
     )
-    rotate_rear_wall_90(rear_right, x_offset_ft=wall_module_width_ft * 3.0)
-    rear_wall_assemblies.append(rear_right)
+    rotate_rear_wall_90(rear_4, x_offset_ft=wall_module_width_ft * 3.0)
+    rear_wall_assemblies.append(rear_4)
+
+    # Module 5: Window (far right)
+    App.Console.PrintMessage("[Build_950Surf]   Creating rear wall module 5 (window)...\n")
+    rear_5 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Rear_Wall_5_Window",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    rotate_rear_wall_90(rear_5, x_offset_ft=wall_module_width_ft * 4.0)
+    rear_wall_assemblies.append(rear_5)
 
     # Create Rear_Wall group
     rear_wall_grp = bc.create_group(doc, "Rear_Wall")
@@ -1096,9 +1044,161 @@ if BUILD.get("include_walls", False):
 
     App.Console.PrintMessage(f"[Build_950Surf] Rear wall complete ({len(rear_wall_assemblies)} modules).\n")
 
-    # Add both walls to First_Floor parent group
+    # Add front and rear walls to First_Floor parent group
     bc.add_to_group(first_floor_parent, [front_wall_grp, rear_wall_grp])
-    App.Console.PrintMessage("[Build_950Surf] Walls organized under First_Floor.\n")
+    App.Console.PrintMessage("[Build_950Surf] Front and rear walls organized under First_Floor.\n")
+
+# ============================================================
+# SECTION 8B: SIDE WALLS (left/west and right/east)
+# ============================================================
+# FRAMING APPROACH: Front/rear walls are BUTT walls, side walls are THROUGH walls
+#   - Front/rear walls run full width (40') at sheathing edges
+#   - Side walls run north-south, fitting BETWEEN front and rear walls
+#   - This provides continuous structural plates on the side walls for load transfer
+#
+# Side walls run north-south (along Y axis) from front wall to rear wall
+# Floor depth is 48' (3 rows × 16')
+# Side walls sit ON the sheathing (inside the front/rear walls) using corner alignment:
+#   - Front module: 16' (192"), starts inside front wall
+#   - Center module: 185" (16' minus 7" for wall overlap at corners)
+#   - Rear module: 16' (192"), ends inside rear wall
+
+if BUILD.get("include_walls", False):
+    App.Console.PrintMessage("[Build_950Surf] Building side walls...\n")
+
+    # Side wall positioning using corner alignment
+    wall_thickness_in = WALLS["wall_thickness_in"]  # 3.5"
+    wall_thickness_ft = wall_thickness_in / 12.0
+
+    # Module lengths
+    full_module_length_in = 192.0  # 16' = 192"
+    center_module_length_in = 185.0  # 16' - 7" = 185" (3.5" overlap at each end)
+
+    # X positions: walls sit ON sheathing (moved inward by wall thickness)
+    # Left wall: west edge of wall aligns with west edge of sheathing
+    left_wall_x_ft = sheathing_x_start_ft
+    # Right wall: east edge of wall aligns with east edge of sheathing
+    right_wall_x_ft = sheathing_x_start_ft + sheathing_width_ft - wall_thickness_ft
+
+    # Y positions: walls fit INSIDE front/rear walls (corner alignment)
+    # Front module starts inside front wall (at front wall's inside face)
+    side_wall_y_start_ft = sheathing_y_start_ft + wall_thickness_ft
+
+    # === LEFT (WEST) WALL ===
+    App.Console.PrintMessage("[Build_950Surf]   Building left (west) side wall...\n")
+    left_wall_assemblies = []
+
+    # Module 1: Front (south) 16' section - starts inside front wall
+    App.Console.PrintMessage("[Build_950Surf]     Creating left wall module 1 (16' solid stud)...\n")
+    left_wall_1 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Left_Wall_1_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    # No rotation needed - wall is already oriented Y=length (north-south)
+    # Position: X at left wall position, Y at front, Z at wall base
+    left_wall_1.Placement.Base = App.Vector(
+        bc.ft(left_wall_x_ft),
+        bc.ft(side_wall_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    left_wall_assemblies.append(left_wall_1)
+
+    # Module 2: Center section - 185" (reduced from 16' to fit between modules)
+    # Y position: starts after front module (16' = 192")
+    module_2_y_start_ft = side_wall_y_start_ft + (full_module_length_in / 12.0)
+    App.Console.PrintMessage("[Build_950Surf]     Creating left wall module 2 (185\" solid stud)...\n")
+    left_wall_2 = wa.create_solid_stud_wall(
+        doc, catalog_rows, wall_length_in=center_module_length_in,
+        assembly_name="Left_Wall_2_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    left_wall_2.Placement.Base = App.Vector(
+        bc.ft(left_wall_x_ft),
+        bc.ft(module_2_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    left_wall_assemblies.append(left_wall_2)
+
+    # Module 3: Rear (north) 16' section - ends inside rear wall
+    # Y position: starts after center module (192" + 185" = 377")
+    module_3_y_start_ft = module_2_y_start_ft + (center_module_length_in / 12.0)
+    App.Console.PrintMessage("[Build_950Surf]     Creating left wall module 3 (16' solid stud)...\n")
+    left_wall_3 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Left_Wall_3_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    left_wall_3.Placement.Base = App.Vector(
+        bc.ft(left_wall_x_ft),
+        bc.ft(module_3_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    left_wall_assemblies.append(left_wall_3)
+
+    # Create Left_Wall group
+    left_wall_grp = bc.create_group(doc, "Left_Wall")
+    bc.add_to_group(left_wall_grp, left_wall_assemblies)
+    App.Console.PrintMessage(f"[Build_950Surf]   Left wall complete ({len(left_wall_assemblies)} modules).\n")
+
+    # === RIGHT (EAST) WALL ===
+    App.Console.PrintMessage("[Build_950Surf]   Building right (east) side wall...\n")
+    right_wall_assemblies = []
+
+    # Module 1: Front (south) 16' section - starts inside front wall
+    App.Console.PrintMessage("[Build_950Surf]     Creating right wall module 1 (16' solid stud)...\n")
+    right_wall_1 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Right_Wall_1_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    right_wall_1.Placement.Base = App.Vector(
+        bc.ft(right_wall_x_ft),
+        bc.ft(side_wall_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    right_wall_assemblies.append(right_wall_1)
+
+    # Module 2: Center section - 185" (reduced from 16' to fit between modules)
+    # Y position: same as left wall module 2
+    App.Console.PrintMessage("[Build_950Surf]     Creating right wall module 2 (185\" solid stud)...\n")
+    right_wall_2 = wa.create_solid_stud_wall(
+        doc, catalog_rows, wall_length_in=center_module_length_in,
+        assembly_name="Right_Wall_2_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    right_wall_2.Placement.Base = App.Vector(
+        bc.ft(right_wall_x_ft),
+        bc.ft(module_2_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    right_wall_assemblies.append(right_wall_2)
+
+    # Module 3: Rear (north) 16' section - ends inside rear wall
+    # Y position: same as left wall module 3
+    App.Console.PrintMessage("[Build_950Surf]     Creating right wall module 3 (16' solid stud)...\n")
+    right_wall_3 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Right_Wall_3_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    right_wall_3.Placement.Base = App.Vector(
+        bc.ft(right_wall_x_ft),
+        bc.ft(module_3_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    right_wall_assemblies.append(right_wall_3)
+
+    # Create Right_Wall group
+    right_wall_grp = bc.create_group(doc, "Right_Wall")
+    bc.add_to_group(right_wall_grp, right_wall_assemblies)
+    App.Console.PrintMessage(f"[Build_950Surf]   Right wall complete ({len(right_wall_assemblies)} modules).\n")
+
+    # Add side walls to First_Floor parent group
+    bc.add_to_group(first_floor_parent, [left_wall_grp, right_wall_grp])
+    App.Console.PrintMessage("[Build_950Surf] Side walls organized under First_Floor.\n")
 
 # ============================================================
 # SECTION 9: DECK SURFACE (boards and posts, installed AFTER walls)
