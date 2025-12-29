@@ -883,8 +883,8 @@ if BUILD.get("include_walls", False):
     # After rotation: X = wall length (along front), Y = wall thickness (depth into house), Z = vertical
 
     # Front wall module positions (left to right, 8' each)
-    # Module layout: Window | Window | Door | Window | Window = 40' total
-    # Matches 40' buildable width (5 modules × 8')
+    # Module layout: Window | Door | Window | Door | Window = 40' total
+    # Matches rear wall layout for symmetry
     wall_assemblies = []
 
     # Get wall module width from config
@@ -917,30 +917,30 @@ if BUILD.get("include_walls", False):
     rotate_wall_90(wall_1, x_offset_ft=0.0)
     wall_assemblies.append(wall_1)
 
-    # Module 2: Window (left)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 2 (window)...\n")
-    wall_2 = wa.create_window_wall_double_3x5(
-        doc, catalog_rows, assembly_name="Front_Wall_2_Window",
+    # Module 2: Sliding door (left)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 2 (door)...\n")
+    wall_2 = wa.create_sliding_door_72x80(
+        doc, catalog_rows, assembly_name="Front_Wall_2_Door",
         x_base=0.0, y_base=0.0, z_base=0.0,
         make_pressure_treated=False, use_debug_colors=False,
     )
     rotate_wall_90(wall_2, x_offset_ft=wall_module_width_ft * 1.0)
     wall_assemblies.append(wall_2)
 
-    # Module 3: Sliding door (center)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 3 (door)...\n")
-    wall_3 = wa.create_sliding_door_72x80(
-        doc, catalog_rows, assembly_name="Front_Wall_3_Door",
+    # Module 3: Window (center)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 3 (window)...\n")
+    wall_3 = wa.create_window_wall_double_3x5(
+        doc, catalog_rows, assembly_name="Front_Wall_3_Window",
         x_base=0.0, y_base=0.0, z_base=0.0,
         make_pressure_treated=False, use_debug_colors=False,
     )
     rotate_wall_90(wall_3, x_offset_ft=wall_module_width_ft * 2.0)
     wall_assemblies.append(wall_3)
 
-    # Module 4: Window (right)
-    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 4 (window)...\n")
-    wall_4 = wa.create_window_wall_double_3x5(
-        doc, catalog_rows, assembly_name="Front_Wall_4_Window",
+    # Module 4: Sliding door (right)
+    App.Console.PrintMessage("[Build_950Surf]   Creating front wall module 4 (door)...\n")
+    wall_4 = wa.create_sliding_door_72x80(
+        doc, catalog_rows, assembly_name="Front_Wall_4_Door",
         x_base=0.0, y_base=0.0, z_base=0.0,
         make_pressure_treated=False, use_debug_colors=False,
     )
