@@ -377,17 +377,22 @@ def create_deck_module_front(
         make_joist_y(f"{assembly_name}_Joist_Right", module_x_in - thick / 2.0, joist_run)
     )
 
-    # Interior joists at 16" OC
+    # Interior joists at 16" OC (only if module is wide enough)
     positions = []
     first_spacing = 14.5  # First joist at 14.5" from left edge
     first_center = thick / 2.0 + first_spacing
-    positions.append(first_center)
 
-    # Remaining joists at 16" OC
-    next_center = first_center + spacing_oc
-    while next_center < module_x_in - thick / 2.0 - 3.0:  # Leave 3" minimum to right joist
-        positions.append(next_center)
-        next_center += spacing_oc
+    # Only add interior joists if they fit within the module bounds
+    # Module must be wide enough to fit: left joist + first_spacing + interior joist + clearance + right joist
+    min_width_for_interior = thick + first_spacing + thick + 3.0 + thick  # ~22.5"
+    if module_x_in >= min_width_for_interior:
+        positions.append(first_center)
+
+        # Remaining joists at 16" OC
+        next_center = first_center + spacing_oc
+        while next_center < module_x_in - thick / 2.0 - 3.0:  # Leave 3" minimum to right joist
+            positions.append(next_center)
+            next_center += spacing_oc
 
     # Hardware group
     hanger_grp = doc.addObject("App::DocumentObjectGroup", f"{assembly_name}_Hangers")
@@ -466,6 +471,67 @@ def create_deck_module_front_16x12(
         joist_length_ft=12.0,
         assembly_name=assembly_name,
         joist_label="2x12x144",  # 12' joists
+        rim_label="2x12x192",  # 16' rims
+        make_pressure_treated=make_pressure_treated,
+        hanger_label=hanger_label,
+    )
+
+
+def create_deck_module_front_16x8(
+    doc,
+    catalog_rows,
+    assembly_name="Deck_Module_Front_16x8",
+    make_pressure_treated=True,
+    hanger_label="hanger_LU210",
+):
+    """
+    Create a 16x8 front deck module (16' rims E-W, 8' joists N-S).
+
+    This is the standard rear deck module for beach houses:
+    - 16' wide (parallel to house back)
+    - 8' deep (perpendicular to house back)
+    - Joists run N-S to support E-W deck boards
+    """
+    return create_deck_module_front(
+        doc,
+        catalog_rows,
+        rim_length_ft=16.0,
+        joist_length_ft=8.0,
+        assembly_name=assembly_name,
+        joist_label="2x12x96",  # 8' joists
+        rim_label="2x12x192",  # 16' rims
+        make_pressure_treated=make_pressure_treated,
+        hanger_label=hanger_label,
+    )
+
+
+def create_deck_module_front_16x4(
+    doc,
+    catalog_rows,
+    assembly_name="Deck_Module_Front_16x4",
+    make_pressure_treated=True,
+    hanger_label="hanger_LU210",
+):
+    """
+    Create a 16x4 front deck module (16' rims E-W, 4' joists N-S).
+
+    Compact rear deck module:
+    - 16' wide (parallel to house back)
+    - 4' deep (perpendicular to house back)
+    - Joists run N-S to support E-W deck boards
+
+    Field cut instructions:
+    - 4' joists: cut from whichever stock gives best cost per foot
+      (e.g., 8' yields 2 joists, 10' yields 2 + waste, 12' yields 3)
+    - Compare $/LF for available stock lengths before ordering
+    """
+    return create_deck_module_front(
+        doc,
+        catalog_rows,
+        rim_length_ft=16.0,
+        joist_length_ft=4.0,
+        assembly_name=assembly_name,
+        joist_label="2x12x96",  # Use 8' stock for BOM; field cut to 4' (yields 2 per board)
         rim_label="2x12x192",  # 16' rims
         make_pressure_treated=make_pressure_treated,
         hanger_label=hanger_label,

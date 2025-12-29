@@ -181,7 +181,7 @@ DECKS = {
     "front_deck_depth_ft": 12.0,  # Deck projects south from front wall (12' for 16x12 modules)
     "front_deck_rim_offset_in": 1.5,  # Rim alignment offset with front wall
     # Rear deck (north side)
-    "rear_deck_depth_ft": 8.0,  # Deck projects north from rear wall
+    "rear_deck_depth_ft": 4.0,  # Deck projects north from rear wall (TEST: 4' instead of 8')
     # Deck module dimensions (with rims)
     "module_16_width_in": 195.0,  # 16' module with rims
     "module_8_width_in": 99.0,  # 8' module with rims
@@ -406,7 +406,7 @@ BUILD = {
     "include_driveway": False,  # DISABLED FOR TESTING: Driveway slab with rebar
     "include_elevator": False,  # DISABLED FOR TESTING: Beach house elevator (open metal lift)
     "include_foundation": True,  # TEST LVL BEAM SYSTEM
-    "include_deck_joists": False,  # DISABLED FOR TESTING: Deck joists, rims, hangers (installed BEFORE sheathing)
+    "include_deck_joists": True,  # Deck joists, rims, hangers (installed BEFORE sheathing)
     "include_first_floor": True,  # 3×3 grid: 40' × 48'
     "include_walls": True,  # Front and rear walls (5 x 8' modules each: Window | Window | Door | Window | Window = 40')
     "include_deck_surface": False,  # DISABLED FOR TESTING: Deck boards and posts (installed AFTER walls)

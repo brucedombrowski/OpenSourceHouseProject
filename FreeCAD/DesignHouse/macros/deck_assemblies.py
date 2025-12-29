@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Deck assembly creation functions for FreeCAD.
 Returns App::Part assemblies that can be positioned in larger builds.
@@ -77,7 +78,7 @@ def create_deck_joists_16x8(
     rim_len = float(rim_row["length_in"])
     joist_thick = float(joist_row["actual_thickness_in"])
     joist_depth = float(joist_row["actual_width_in"])
-    joist_len = float(joist_row["length_in"])
+    _joist_len = float(joist_row["length_in"])  # noqa: F841 - kept for reference
 
     created = []
 
@@ -222,15 +223,15 @@ def create_deck_joists_8x8(
         App::Part assembly containing joists, rims, and hangers
     """
     # Parameters
-    length_x_in = 96.0  # 8' (not 16')
+    _length_x_in = 96.0  # 8' (not 16') - noqa: F841 - kept for reference
     proj_y_in = 96.0  # 8'
-    joist_spacing_oc_in = 16.0
+    _joist_spacing_oc_in = 16.0  # noqa: F841 - kept for reference
     rim_label = "2x12x96"  # 8' rim (not 16')
     joist_label = "2x12x96"
-    hanger_label = "hanger_LU210"
-    hanger_thickness = 0.06
-    hanger_height = 7.8125
-    hanger_seat_depth = 2.0
+    _hanger_label = "hanger_LU210"  # noqa: F841 - kept for reference
+    _hanger_thickness = 0.06  # noqa: F841 - kept for reference
+    _hanger_height = 7.8125  # noqa: F841 - kept for reference
+    _hanger_seat_depth = 2.0  # noqa: F841 - kept for reference
 
     # Find stock
     rim_row = lc.find_stock(catalog_rows, rim_label)
@@ -245,7 +246,7 @@ def create_deck_joists_8x8(
     rim_len = float(rim_row["length_in"])
     joist_thick = float(joist_row["actual_thickness_in"])
     joist_depth = float(joist_row["actual_width_in"])
-    joist_len = float(joist_row["length_in"])
+    _joist_len = float(joist_row["length_in"])  # noqa: F841 - kept for reference
 
     created = []
 
@@ -324,7 +325,7 @@ def create_deck_joists_8ft9in_x_8ft(
     rim_depth = float(rim_row["actual_width_in"])
     joist_thick = float(joist_row["actual_thickness_in"])
     joist_depth = float(joist_row["actual_width_in"])
-    joist_len = float(joist_row["length_in"])
+    _joist_len = float(joist_row["length_in"])  # noqa: F841 - kept for reference
 
     created = []
 
@@ -497,7 +498,7 @@ def create_deck_surface_16x8(
     # Dimensions
     deck_thick = float(deck_row["actual_thickness_in"])
     deck_width = float(deck_row["actual_width_in"])
-    deck_len = float(deck_row["length_in"])
+    _deck_len = float(deck_row["length_in"])  # noqa: F841 - kept for reference
     deck_gap = 0.125  # 1/8" gap
     post_thick = float(post_row["actual_thickness_in"])
     post_width = float(post_row["actual_width_in"])
@@ -623,6 +624,167 @@ def create_deck_surface_16x8(
     App.Console.PrintMessage(
         f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
         f"({len(boards)} deck boards, {len(edge_boards)} edge boards)\n"
+    )
+
+    return assembly
+
+
+def create_deck_surface_filler(
+    doc,
+    catalog_rows,
+    width_in=9.0,
+    depth_ft=8.0,
+    assembly_name="Deck_Surface_Filler",
+    x_base=0.0,
+    y_base=0.0,
+    z_base=0.0,
+    supplier="lowes",
+    include_left_edge=False,
+    include_right_edge=True,
+):
+    """
+    Create a narrow deck surface filler module.
+
+    This is used to fill the gap between deck modules and floor modules
+    when they don't perfectly align (e.g., 9" filler for 3x16' decks
+    to match 3x195" floor modules).
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Catalog data (list of dicts)
+        width_in: Width of filler in inches (X direction)
+        depth_ft: Depth of filler in feet (Y direction)
+        assembly_name: Name for the assembly
+        x_base, y_base, z_base: Position offsets (inches)
+        supplier: Supplier preference ("lowes" or "hd")
+        include_left_edge: Include edge board on left side
+        include_right_edge: Include edge board on right side
+
+    Returns:
+        App::Part assembly containing deck boards and optional edge boards
+    """
+    # Parameters
+    length_x_in = width_in
+    proj_y_in = depth_ft * 12.0
+    deck_label = "deckboard_5_4x6x192_PT"
+    joist_depth = 11.25  # 2x12 depth
+
+    # Find stock
+    deck_row = lc.find_stock(catalog_rows, deck_label)
+
+    if not deck_row:
+        raise ValueError(f"Deck board label '{deck_label}' not found in catalog.")
+
+    # Dimensions
+    deck_thick = float(deck_row["actual_thickness_in"])
+    deck_width = float(deck_row["actual_width_in"])
+    deck_gap = 0.125  # 1/8" gap
+
+    created = []
+
+    # Calculate board length and X offset based on edge boards
+    board_x_start = deck_width if include_left_edge else 0.0
+    board_length = length_x_in
+    if include_left_edge:
+        board_length -= deck_width
+    if include_right_edge:
+        board_length -= deck_width
+
+    # If filler is narrower than board width, just use edge board(s)
+    if board_length <= 0:
+        App.Console.PrintMessage(
+            f'[deck_assemblies] Filler {assembly_name} is narrow ({width_in:.1f}"), using edge boards only\n'
+        )
+    else:
+
+        def make_deck_board(name, y_local):
+            box = Part.makeBox(lc.inch(board_length), lc.inch(deck_width), lc.inch(deck_thick))
+            obj = doc.addObject("Part::Feature", name)
+            obj.Shape = box
+            obj.Placement.Base = App.Vector(
+                lc.inch(board_x_start), lc.inch(y_local), lc.inch(joist_depth)
+            )
+            lc.attach_metadata(obj, deck_row, deck_label, supplier=supplier)
+            return obj
+
+        # Deck boards running along X, 1/8" gaps
+        boards = []
+        board_count = 0
+        step = deck_width + deck_gap
+        y_pos = -1.5  # shift first board toward house by 1.5"
+        last_full_end = None
+
+        while True:
+            next_y = y_pos + deck_width
+            if next_y > proj_y_in:
+                # Rip last board to remaining space
+                rip_start = (last_full_end if last_full_end is not None else y_pos) + deck_gap
+                remaining = proj_y_in - rip_start + 1.5  # widen rip by 1.5"
+                if remaining > 0.25:
+                    board_count += 1
+                    rip = make_deck_board(f"Deck_{board_count}_RIP", rip_start)
+                    rip.Shape = Part.makeBox(
+                        lc.inch(board_length), lc.inch(remaining), lc.inch(deck_thick)
+                    )
+                    rip.Placement.Base.x = lc.inch(board_x_start)
+                    rip.Placement.Base.y = lc.inch(rip_start)
+                    rip.Placement.Base.z = lc.inch(joist_depth)
+                    boards.append(rip)
+                break
+            board_count += 1
+            boards.append(make_deck_board(f"Deck_{board_count}", y_pos))
+            last_full_end = next_y
+            y_pos += step
+
+        created.extend(boards)
+
+    # Edge boards (picture frame): perpendicular boards at left and right edges
+    edge_boards = []
+
+    if include_left_edge:
+        left_edge = doc.addObject("Part::Feature", "Edge_Left")
+        left_edge.Shape = Part.makeBox(
+            lc.inch(deck_width),
+            lc.inch(proj_y_in + 3.0),
+            lc.inch(deck_thick),
+        )
+        left_edge.Placement.Base = App.Vector(0, lc.inch(-1.5), lc.inch(joist_depth))
+        lc.attach_metadata(left_edge, deck_row, deck_label, supplier=supplier)
+        edge_boards.append(left_edge)
+
+    if include_right_edge:
+        right_edge = doc.addObject("Part::Feature", "Edge_Right")
+        right_edge.Shape = Part.makeBox(
+            lc.inch(deck_width),
+            lc.inch(proj_y_in + 3.0),
+            lc.inch(deck_thick),
+        )
+        right_edge.Placement.Base = App.Vector(
+            lc.inch(length_x_in - deck_width), lc.inch(-1.5), lc.inch(joist_depth)
+        )
+        lc.attach_metadata(right_edge, deck_row, deck_label, supplier=supplier)
+        edge_boards.append(right_edge)
+
+    created.extend(edge_boards)
+
+    # Create assembly (App::Part)
+    App.Console.PrintMessage(
+        f"[deck_assemblies] Created assembly: {assembly_name} (type: App::Part)\n"
+    )
+    assembly = doc.addObject("App::Part", assembly_name)
+    assembly.Label = assembly_name
+
+    for obj in created:
+        assembly.addObject(obj)
+
+    assembly.Placement.Base = App.Vector(lc.inch(x_base), lc.inch(y_base), lc.inch(z_base))
+
+    doc.recompute()
+
+    num_boards = len([o for o in created if o not in edge_boards])
+    App.Console.PrintMessage(
+        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"({num_boards} deck boards, {len(edge_boards)} edge boards, {width_in:.1f}\" x {depth_ft}' filler)\n"
     )
 
     return assembly
@@ -893,14 +1055,14 @@ def create_deck_16x8(
     rim_len = float(rim_row["length_in"])  # 192"
     joist_thick = float(joist_row["actual_thickness_in"])
     joist_depth = float(joist_row["actual_width_in"])
-    joist_len = float(joist_row["length_in"])  # 96"
+    _joist_len = float(joist_row["length_in"])  # 96" - noqa: F841 - kept for reference
     deck_thick = float(deck_row["actual_thickness_in"])  # 1.0"
     deck_width = float(deck_row["actual_width_in"])  # 5.5"
     deck_len = float(deck_row["length_in"])  # 192"
     deck_gap = 0.125  # 1/8" gap
     post_thick = float(post_row["actual_thickness_in"])  # 5.5"
     post_width = float(post_row["actual_width_in"])  # 5.5"
-    post_len = float(post_row["length_in"])  # 144" stock
+    _post_len = float(post_row["length_in"])  # 144" stock - noqa: F841 - kept for reference
     post_height_in = joist_depth  # flush to deck board underside
 
     created = []
@@ -1028,7 +1190,7 @@ def create_deck_16x8(
         for p in posts:
             px = p.Placement.Base.x / lc.inch(1)
             py = p.Placement.Base.y / lc.inch(1)
-            pz = p.Placement.Base.z / lc.inch(1)
+            _pz = p.Placement.Base.z / lc.inch(1)  # noqa: F841 - kept for reference
             if py > by + bw or (py + post_thick) < by:
                 continue
             hole = Part.makeBox(lc.inch(post_width), lc.inch(post_thick), lc.inch(deck_thick * 2.0))
