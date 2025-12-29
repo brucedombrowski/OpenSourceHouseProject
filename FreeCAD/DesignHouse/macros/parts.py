@@ -252,6 +252,227 @@ def create_joist_module(
 
 
 # ============================================================
+# FRONT DECK MODULE (joists run Y, rims run X)
+# ============================================================
+
+
+def create_deck_module_front(
+    doc,
+    catalog_rows,
+    rim_length_ft=16.0,
+    joist_length_ft=12.0,
+    assembly_name="Deck_Module_Front",
+    joist_label="2x12x144",
+    rim_label="2x12x192",
+    make_pressure_treated=True,
+    hanger_label="hanger_LU210",
+):
+    """
+    Create a front deck joist assembly with rotated orientation.
+
+    For front decks where deck boards run parallel to the house (E-W):
+    - Joists run north-south (Y direction) to support E-W deck boards
+    - Rims run east-west (X direction) along house front and deck edge
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        rim_length_ft: Rim length in feet (X dimension, parallel to house)
+        joist_length_ft: Joist length in feet (Y dimension, deck depth)
+        assembly_name: Unique name for this assembly
+        joist_label: Stock label for joists (e.g., "2x12x144" for 12')
+        rim_label: Stock label for rims (e.g., "2x12x192" for 16')
+        make_pressure_treated: If True, append "_PT" to labels (default True for decks)
+        hanger_label: Hardware label
+
+    Returns:
+        App::Part assembly with LCS markers for snapping
+
+    Module Geometry (rotated from standard):
+        - Rims run in X direction (rim_length)
+        - Joists run in Y direction (joist_length)
+        - Front/Back rims are full rim_length
+        - Left/Right rims fit between front/back rims
+        - Interior joists at 16" OC with first at 14.5" for sheathing alignment
+    """
+    # Convert feet to inches
+    module_x_in = rim_length_ft * 12.0  # X dimension (rim direction)
+    module_y_in = joist_length_ft * 12.0 + 3.0  # Y dimension (joist direction + rim thicknesses)
+
+    # Parameters (inches)
+    spacing_oc = 16.0
+    hanger_thickness = 0.06
+    hanger_height = 7.8125
+    hanger_seat_depth = 2.0
+
+    # Resolve stock with PT suffix if needed
+    joist_label_use = joist_label + "_PT" if make_pressure_treated else joist_label
+    rim_label_use = rim_label + "_PT" if make_pressure_treated else rim_label
+
+    joist_row = find_stock(catalog_rows, joist_label_use)
+    rim_row = find_stock(catalog_rows, rim_label_use)
+    if not joist_row:
+        raise ValueError(f"Joist stock '{joist_label_use}' not found in catalog")
+    if not rim_row:
+        raise ValueError(f"Rim stock '{rim_label_use}' not found in catalog")
+
+    thick = float(joist_row["actual_thickness_in"])  # 1.5"
+    depth = float(joist_row["actual_width_in"])  # 11.25" for 2x12
+
+    def make_box(x_len, y_len, z_len):
+        return Part.makeBox(inch(x_len), inch(y_len), inch(z_len))
+
+    def make_rim_x(name, y_pos, length=module_x_in):
+        """Create rim running in X direction (front/back of deck)."""
+        box = make_box(length, thick, depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        obj.Placement.Base = App.Vector(0, inch(y_pos - thick / 2.0), 0)
+        attach_metadata(obj, rim_row, rim_label_use, supplier="lowes")
+        return obj
+
+    def make_joist_y(name, x_pos, length_in):
+        """Create joist running in Y direction."""
+        box = make_box(thick, length_in, depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        # Place joists inside rims: start at Y=thick (front rim's back face)
+        obj.Placement.Base = App.Vector(inch(x_pos - thick / 2.0), inch(thick), 0)
+        attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
+        return obj
+
+    def make_hanger_y(name, x_center, y_pos, facing=1):
+        """Create hanger for Y-running joist."""
+        h = make_hanger_helper(
+            doc,
+            name,
+            x_center,
+            y_pos,
+            thick,
+            hanger_thickness,
+            hanger_height,
+            hanger_seat_depth,
+            hanger_label,
+            direction=facing,
+            color=None,
+        )
+        # Rotate hanger 90° to face Y direction
+        pl = h.Placement
+        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 90).multiply(pl.Rotation)
+        if facing < 0:
+            pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
+        h.Placement = pl
+        return h
+
+    created = []
+
+    # Front and back rims (run in X direction)
+    created.append(make_rim_x(f"{assembly_name}_Rim_Front", thick / 2.0))
+    created.append(make_rim_x(f"{assembly_name}_Rim_Back", module_y_in - thick / 2.0))
+
+    # Left and right end joists (run in Y direction, connect front/back rims)
+    joist_run = module_y_in - 2 * thick  # Length between rims
+    created.append(make_joist_y(f"{assembly_name}_Joist_Left", thick / 2.0, joist_run))
+    created.append(
+        make_joist_y(f"{assembly_name}_Joist_Right", module_x_in - thick / 2.0, joist_run)
+    )
+
+    # Interior joists at 16" OC
+    positions = []
+    first_spacing = 14.5  # First joist at 14.5" from left edge
+    first_center = thick / 2.0 + first_spacing
+    positions.append(first_center)
+
+    # Remaining joists at 16" OC
+    next_center = first_center + spacing_oc
+    while next_center < module_x_in - thick / 2.0 - 3.0:  # Leave 3" minimum to right joist
+        positions.append(next_center)
+        next_center += spacing_oc
+
+    # Hardware group
+    hanger_grp = doc.addObject("App::DocumentObjectGroup", f"{assembly_name}_Hangers")
+
+    for i, x_center in enumerate(positions):
+        joist = make_joist_y(f"{assembly_name}_Joist_{i+1}", x_center, joist_run)
+        created.append(joist)
+        # Hangers at front and back rims
+        hanger_grp.addObject(
+            make_hanger_y(f"{assembly_name}_Hanger_Front_{i+1}", x_center, thick, facing=1)
+        )
+        hanger_grp.addObject(
+            make_hanger_y(
+                f"{assembly_name}_Hanger_Back_{i+1}", x_center, module_y_in - thick, facing=-1
+            )
+        )
+
+    # Create assembly
+    assembly = create_assembly(doc, assembly_name)
+    for obj in created:
+        if hasattr(obj, "Shape"):
+            assembly.addObject(obj)
+    assembly.addObject(hanger_grp)
+
+    # Add LCS markers for snapping
+    # Origin at (0, 0, 0) - bottom-left-front corner
+    lcs_origin = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_Origin")
+    lcs_origin.Placement.Base = App.Vector(0, 0, 0)
+    assembly.addObject(lcs_origin)
+
+    # BottomRight at (module_x_in, 0, 0)
+    lcs_br = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_BottomRight")
+    lcs_br.Placement.Base = App.Vector(inch(module_x_in), 0, 0)
+    assembly.addObject(lcs_br)
+
+    # TopLeft at (0, module_y_in, 0)
+    lcs_tl = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopLeft")
+    lcs_tl.Placement.Base = App.Vector(0, inch(module_y_in), 0)
+    assembly.addObject(lcs_tl)
+
+    # TopRight at (module_x_in, module_y_in, 0)
+    lcs_tr = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopRight")
+    lcs_tr.Placement.Base = App.Vector(inch(module_x_in), inch(module_y_in), 0)
+    assembly.addObject(lcs_tr)
+
+    doc.recompute()
+
+    bbox = get_assembly_bbox(assembly)
+    App.Console.PrintMessage(
+        f"[parts] ✓ Front deck '{assembly_name}' complete: "
+        f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+    )
+
+    return assembly
+
+
+def create_deck_module_front_16x12(
+    doc,
+    catalog_rows,
+    assembly_name="Deck_Module_Front_16x12",
+    make_pressure_treated=True,
+    hanger_label="hanger_LU210",
+):
+    """
+    Create a 16x12 front deck module (16' rims E-W, 12' joists N-S).
+
+    This is the standard front deck module for beach houses:
+    - 16' wide (parallel to house front)
+    - 12' deep (perpendicular to house front)
+    - Joists run N-S to support E-W deck boards
+    """
+    return create_deck_module_front(
+        doc,
+        catalog_rows,
+        rim_length_ft=16.0,
+        joist_length_ft=12.0,
+        assembly_name=assembly_name,
+        joist_label="2x12x144",  # 12' joists
+        rim_label="2x12x192",  # 16' rims
+        make_pressure_treated=make_pressure_treated,
+        hanger_label=hanger_label,
+    )
+
+
+# ============================================================
 # SIZE-SPECIFIC CONVENIENCE WRAPPERS
 # ============================================================
 

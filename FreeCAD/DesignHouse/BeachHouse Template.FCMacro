@@ -29,11 +29,13 @@ Author: OpenSourceHouseProject
 Dedication: For Luke Dombrowski. Stay Alive.
 """
 
-import FreeCAD as App
-import Part
+import importlib
 import os
 import sys
-import importlib
+
+import Part
+
+import FreeCAD as App
 
 # Import BeachHouse helpers and config
 # Use absolute paths to work when macro is copied to builds/ folder
@@ -59,10 +61,10 @@ if _design_house_root not in sys.path:
 
 try:
     import beach_common as bc
-    import beam_assemblies as ba
-    import septic_utilities as su
     import beach_elevator as be
+    import beam_assemblies as ba
     import pile_connections as pc
+    import septic_utilities as su
     BEACH_COMMON_AVAILABLE = True
 except ImportError:
     App.Console.PrintError(
@@ -489,10 +491,12 @@ else:
 if BUILD.get("include_deck_joists", False):
     App.Console.PrintMessage("[Build_950Surf] Building deck joists...\n")
 
-    # Import deck assembly modules (already in sys.path via _macros_dir)
-    import lumber_common as lc
+    # Import modules (already in sys.path via _macros_dir)
     import deck_assemblies as da
+    import lumber_common as lc
+    import parts
     importlib.reload(da)
+    importlib.reload(parts)
 
     # Load catalog for deck assemblies
     catalog_path = os.path.join(_design_house_root, "lumber", "lumber_catalog.csv")
@@ -501,67 +505,71 @@ if BUILD.get("include_deck_joists", False):
     deck_z_base_in = above_grade_ft * 12.0  # Same level as foundation top
 
     # Calculate deck positions
-    # Front deck: south of front setback, rim offset aligns with front wall
+    # Front deck: south of front setback, 12' deep modules with rim offset for alignment
     front_deck_rim_offset_ft = DECKS["front_deck_rim_offset_in"] / 12.0
-    front_deck_y_ft = front_setback_ft + y_spacing_ft - DECKS["front_deck_depth_ft"] - front_deck_rim_offset_ft
+    front_deck_depth_ft = DECKS["front_deck_depth_ft"]  # 12' for 16x12 modules
+    front_deck_y_ft = front_setback_ft + y_spacing_ft - front_deck_depth_ft - front_deck_rim_offset_ft
 
-    # Rear deck: starts at back edge of floor area (calculated from module depths)
-    floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] + FIRST_FLOOR["module_16x8_depth_in"] + FIRST_FLOOR["module_16x16_depth_in"]) / 12.0
+    # Rear deck: starts at back edge of floor area (3×3 grid of 16x16 modules = 48' deep)
+    floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows × 16' = 48'
     rear_deck_y_ft = front_setback_ft + y_spacing_ft + floor_depth_ft
 
     # Deck X positioning: snap to first floor joists
-    # Floor width from module dimensions
-    floor_width_ft_local = (FIRST_FLOOR["module_16x16_width_in"] + FIRST_FLOOR["module_8x16_width_in"] + FIRST_FLOOR["module_16x16_width_in"]) / 12.0
+    # Floor width from module dimensions (3×3 grid of 16x16 modules = 48' wide)
+    floor_width_ft_local = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns × 16' = 48'
     floor_start_x_ft = (lot_x_ft - floor_width_ft_local) / 2.0  # Center floor on lot
     deck_left_x_ft = floor_start_x_ft  # Snap deck left edge to floor left edge
 
     deck_joist_assemblies = []
 
-    # Front deck joists (3 modules using config dimensions)
+    # ============================================================
+    # FRONT DECK: 3 modules of 16x12 (joists run N-S, rims run E-W)
+    # Module layout: 16' wide × 12' deep, deck boards run E-W
+    # ============================================================
+    App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 × 16x12 modules)...\n")
+
+    # Left module (west)
+    front_deck_left = parts.create_deck_module_front_16x12(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Left_16x12",
+        make_pressure_treated=True,
+    )
+    lc.place_assembly_at(
+        front_deck_left,
+        x_ft=deck_left_x_ft,
+        y_ft=front_deck_y_ft,
+        z_ft=above_grade_ft,
+    )
+    deck_joist_assemblies.append(front_deck_left)
+
+    # Center module
+    front_deck_center = parts.create_deck_module_front_16x12(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Center_16x12",
+        make_pressure_treated=True,
+    )
+    lc.snap_assembly_corner_to_corner(
+        front_deck_center, front_deck_left, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
+    deck_joist_assemblies.append(front_deck_center)
+
+    # Right module (east)
+    front_deck_right = parts.create_deck_module_front_16x12(
+        doc,
+        catalog_rows,
+        assembly_name="Front_Deck_Right_16x12",
+        make_pressure_treated=True,
+    )
+    lc.snap_assembly_corner_to_corner(
+        front_deck_right, front_deck_center, target_corner="bottom_right", assembly_corner="bottom_left"
+    )
+    deck_joist_assemblies.append(front_deck_right)
+
+    # Rear deck module dimensions (still using old 16x8 layout)
     module_16_width_ft = DECKS["module_16_width_in"] / 12.0
     center_module_width_ft = DECKS["center_module_width_in"] / 12.0
-
-    App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 modules from config)...\n")
-    front_deck_joists_left = da.create_deck_joists_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Joists_Left",
-        x_base=deck_left_x_ft * 12.0,
-        y_base=front_deck_y_ft * 12.0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-    )
-    deck_joist_assemblies.append(front_deck_joists_left)
-
-    front_deck_joists_center = da.create_deck_joists_8ft9in_x_8ft(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Joists_Center",
-        x_base=(deck_left_x_ft + module_16_width_ft) * 12.0,
-        y_base=front_deck_y_ft * 12.0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-    )
-    # Snap center module to right edge of left module
-    lc.snap_assembly_corner_to_corner(
-        front_deck_joists_center, front_deck_joists_left, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_joist_assemblies.append(front_deck_joists_center)
-
-    front_deck_joists_right = da.create_deck_joists_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Joists_Right",
-        x_base=(deck_left_x_ft + module_16_width_ft + center_module_width_ft) * 12.0,
-        y_base=front_deck_y_ft * 12.0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-    )
-    # Snap right module to right edge of center module
-    lc.snap_assembly_corner_to_corner(
-        front_deck_joists_right, front_deck_joists_center, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_joist_assemblies.append(front_deck_joists_right)
 
     # Rear deck joists (3 modules using config dimensions)
     App.Console.PrintMessage("[Build_950Surf]   Creating rear deck joists (3 modules from config)...\n")
@@ -696,7 +704,6 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
         App.Console.PrintMessage(f"[Build_950Surf]   === ROW {row} ({row_name.upper()}) ===\n")
 
         for col in range(1, 4):  # Columns 1, 2, 3 (left, middle, right)
-            col_name = {1: "Left", 2: "Middle", 3: "Right"}[col]
             assembly_name = f"Floor_R{row}_C{col}_16x16"
 
             # Special case: Row 1, Col 3 may need stair cutout
@@ -778,9 +785,10 @@ if BUILD.get("include_first_floor", False):
     App.Console.PrintMessage("[Build_950Surf] Adding first floor sheathing...\n")
 
     # Import lumber modules for sheathing (already in sys.path via _macros_dir)
+    import importlib
+
     import lumber_common as lc
     import parts
-    import importlib
     importlib.reload(lc)
     importlib.reload(parts)
 

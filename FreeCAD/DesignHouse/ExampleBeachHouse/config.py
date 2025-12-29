@@ -148,10 +148,9 @@ FIRST_FLOOR = {
     "hanger_height_in": 7.8125,
     "hanger_seat_depth_in": 2.0,
     # Floor module dimensions (actual with rims)
-    "module_16x16_width_in": 195.0,  # 16' module + rims
-    "module_8x16_width_in": 99.0,  # 8' module + rims
-    "module_16x16_depth_in": 192.0,  # 16' module + rims
-    "module_16x8_depth_in": 96.0,  # 8' module + rims
+    # 3×3 grid of 16'×16' modules = 48' × 48' total floor area
+    "module_16x16_width_in": 195.0,  # 16' module + rims (192" + 3" for rim overlap)
+    "module_16x16_depth_in": 192.0,  # 16' module depth
     # Layout (assembly-based, no hard-coded offsets!)
     "start_x_ft": 9.0,  # X position for first module (centered on lot)
     "start_y_ft": 20.0,  # Y position (front setback)
@@ -178,8 +177,8 @@ WALLS = {
 # ============================================================
 
 DECKS = {
-    # Front deck (south side)
-    "front_deck_depth_ft": 8.0,  # Deck projects south from front wall
+    # Front deck (south side) - 16x12 modules with joists running N-S
+    "front_deck_depth_ft": 12.0,  # Deck projects south from front wall (12' for 16x12 modules)
     "front_deck_rim_offset_in": 1.5,  # Rim alignment offset with front wall
     # Rear deck (north side)
     "rear_deck_depth_ft": 8.0,  # Deck projects north from rear wall
@@ -408,8 +407,8 @@ BUILD = {
     "include_elevator": False,  # DISABLED FOR TESTING: Beach house elevator (open metal lift)
     "include_foundation": True,  # TEST LVL BEAM SYSTEM
     "include_deck_joists": False,  # DISABLED FOR TESTING: Deck joists, rims, hangers (installed BEFORE sheathing)
-    "include_first_floor": False,  # DISABLED FOR TESTING
-    "include_walls": False,  # DISABLED FOR TESTING: Front and rear walls (4 x 8' modules each: Window | Door | Door | Window)
+    "include_first_floor": True,  # 3×3 grid: 40' × 48'
+    "include_walls": True,  # Front and rear walls (5 x 8' modules each: Window | Window | Door | Window | Window = 40')
     "include_deck_surface": False,  # DISABLED FOR TESTING: Deck boards and posts (installed AFTER walls)
     "include_second_floor": False,  # Not yet implemented
     "include_stairs": False,  # DISABLED FOR TESTING: Exterior stairs from slab to first floor
