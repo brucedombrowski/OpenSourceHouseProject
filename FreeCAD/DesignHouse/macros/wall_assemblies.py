@@ -154,7 +154,10 @@ def create_window_wall_double_3x5(
         return obj
 
     created.append(make_plate("Plate_Bottom", 0.0))
-    created.append(make_plate("Plate_Top", plate_thick + stud_length))
+    created.append(make_plate("Plate_Top_1", plate_thick + stud_length))
+    created.append(
+        make_plate("Plate_Top_2", plate_thick + stud_length + plate_thick)
+    )  # Double top plate
 
     # End kings (rotated 90°: X=3.5, Y=1.5, Z=height)
     def make_king(name, y_offset):
@@ -547,7 +550,10 @@ def create_sliding_door_72x80(
         return obj
 
     created.append(make_plate("Plate_Bottom", 0.0))
-    created.append(make_plate("Plate_Top", plate_thick + stud_length))
+    created.append(make_plate("Plate_Top_1", plate_thick + stud_length))
+    created.append(
+        make_plate("Plate_Top_2", plate_thick + stud_length + plate_thick)
+    )  # Double top plate
 
     # End kings
     def make_king(name, y_offset):
@@ -822,15 +828,27 @@ def create_solid_stud_wall(
     apply_debug_color(bottom_plate_obj, COLOR_PLATE)
     created.append(bottom_plate_obj)
 
-    # Top plate
+    # Top plate (first layer)
     top_plate_z = z_base + plate_thick + stud_length
     top_plate = Part.makeBox(inch(stud_width), inch(wall_length), inch(plate_thick))
-    top_plate_obj = doc.addObject("Part::Feature", f"{assembly_name}_Plate_Top")
+    top_plate_obj = doc.addObject("Part::Feature", f"{assembly_name}_Plate_Top_1")
     top_plate_obj.Shape = top_plate
     top_plate_obj.Placement.Base = App.Vector(inch(x_base), inch(y_base), inch(top_plate_z))
     lc.attach_metadata(top_plate_obj, plate_row, plate_key, supplier="lowes")
     apply_debug_color(top_plate_obj, COLOR_PLATE)
     created.append(top_plate_obj)
+
+    # Double top plate (second layer - per IRC R602.3.2)
+    double_top_plate_z = top_plate_z + plate_thick
+    double_top_plate = Part.makeBox(inch(stud_width), inch(wall_length), inch(plate_thick))
+    double_top_plate_obj = doc.addObject("Part::Feature", f"{assembly_name}_Plate_Top_2")
+    double_top_plate_obj.Shape = double_top_plate
+    double_top_plate_obj.Placement.Base = App.Vector(
+        inch(x_base), inch(y_base), inch(double_top_plate_z)
+    )
+    lc.attach_metadata(double_top_plate_obj, plate_row, plate_key, supplier="lowes")
+    apply_debug_color(double_top_plate_obj, COLOR_PLATE)
+    created.append(double_top_plate_obj)
 
     # Studs at 16" OC
     # First stud at Y=0, then every 16", plus end stud

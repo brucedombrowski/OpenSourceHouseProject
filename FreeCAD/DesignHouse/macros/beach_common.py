@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """BeachHouse common helpers for FreeCAD macros.
 
 This module provides catalog integration and geometry helpers specific to the

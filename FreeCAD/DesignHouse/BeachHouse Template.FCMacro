@@ -94,6 +94,7 @@ try:
     LOT = beach_config.LOT
     FOUNDATION = beach_config.FOUNDATION
     FIRST_FLOOR = beach_config.FIRST_FLOOR
+    SECOND_FLOOR = beach_config.SECOND_FLOOR
     SEPTIC_SYSTEM = beach_config.SEPTIC_SYSTEM
     UTILITIES = beach_config.UTILITIES
     DECKS = beach_config.DECKS
@@ -1251,6 +1252,236 @@ if BUILD.get("include_walls", False):
     # Add side walls to First_Floor parent group
     bc.add_to_group(first_floor_parent, [left_wall_grp, right_wall_grp])
     App.Console.PrintMessage("[Build_950Surf] Side walls organized under First_Floor.\n")
+
+# ============================================================
+# SECTION 8C: INTERIOR WALL (center N-S wall on E-W centerline)
+# ============================================================
+# Interior wall runs north-south along the center of the floor (20' from each side)
+# Same construction as side walls: 3 modules (16' + 185" + 16')
+# Wall fits BETWEEN front and rear walls (same Y positions as side walls)
+
+if BUILD.get("include_walls", False):
+    App.Console.PrintMessage("[Build_950Surf] Building interior center wall...\n")
+
+    # Interior wall X position: center of sheathing width (40' / 2 = 20')
+    # Wall center should be at centerline, so subtract half wall thickness
+    interior_wall_x_ft = sheathing_x_start_ft + (sheathing_width_ft / 2.0) - (wall_thickness_ft / 2.0)
+
+    interior_wall_assemblies = []
+
+    # Module 1: Front (south) 16' section - starts inside front wall
+    App.Console.PrintMessage("[Build_950Surf]   Creating interior wall module 1 (16' solid stud)...\n")
+    interior_wall_1 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Interior_Wall_1_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    interior_wall_1.Placement.Base = App.Vector(
+        bc.ft(interior_wall_x_ft),
+        bc.ft(side_wall_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    interior_wall_assemblies.append(interior_wall_1)
+
+    # Module 2: Center section - 185" (same as side walls)
+    App.Console.PrintMessage("[Build_950Surf]   Creating interior wall module 2 (185\" solid stud)...\n")
+    interior_wall_2 = wa.create_solid_stud_wall(
+        doc, catalog_rows, wall_length_in=center_module_length_in,
+        assembly_name="Interior_Wall_2_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    interior_wall_2.Placement.Base = App.Vector(
+        bc.ft(interior_wall_x_ft),
+        bc.ft(module_2_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    interior_wall_assemblies.append(interior_wall_2)
+
+    # Module 3: Rear (north) 16' section - ends inside rear wall
+    App.Console.PrintMessage("[Build_950Surf]   Creating interior wall module 3 (16' solid stud)...\n")
+    interior_wall_3 = wa.create_solid_stud_wall_16ft(
+        doc, catalog_rows, assembly_name="Interior_Wall_3_Solid",
+        x_base=0.0, y_base=0.0, z_base=0.0,
+        make_pressure_treated=False, use_debug_colors=False,
+    )
+    interior_wall_3.Placement.Base = App.Vector(
+        bc.ft(interior_wall_x_ft),
+        bc.ft(module_3_y_start_ft),
+        bc.inch(wall_z_base_in)
+    )
+    interior_wall_assemblies.append(interior_wall_3)
+
+    # Create Interior_Wall group
+    interior_wall_grp = bc.create_group(doc, "Interior_Wall")
+    bc.add_to_group(interior_wall_grp, interior_wall_assemblies)
+    App.Console.PrintMessage(f"[Build_950Surf]   Interior wall complete ({len(interior_wall_assemblies)} modules).\n")
+
+    # Add interior wall to First_Floor parent group
+    bc.add_to_group(first_floor_parent, [interior_wall_grp])
+    App.Console.PrintMessage("[Build_950Surf] Interior wall organized under First_Floor.\n")
+
+# ============================================================
+# SECTION 8D: SECOND FLOOR JOIST MODULES (20' LVL rims × 12' 2x12 joists)
+# ============================================================
+# Second floor sits on top of first floor walls
+# Layout: 2 columns × 4 rows = 8 modules = 40' × 48'
+# Module dimensions: 20' wide (E-W) × 12' deep (N-S)
+# Materials: 20' LVL rims (E-W), 12' 2x12 joists (N-S) at 16" OC
+
+if BUILD.get("include_second_floor", False):
+    App.Console.PrintMessage("[Build_950Surf] === SECOND FLOOR ===\n")
+    App.Console.PrintMessage("[Build_950Surf] Building second floor joist modules (2×4 grid = 8 modules)...\n")
+
+    # Import parts module (already in sys.path via _macros_dir)
+    import lumber_common as lc
+    import parts
+    importlib.reload(parts)
+
+    # Load catalog for second floor assemblies
+    catalog_path = os.path.join(_design_house_root, "lumber", "lumber_catalog.csv")
+    catalog_rows = lc.load_catalog(catalog_path)
+
+    # Calculate second floor Z position
+    # Base Z = first floor Z + joist depth + sheathing + wall assembly height
+    # Wall assembly height = plate (1.5") + studs (104.625") + plate (1.5") + plate (1.5") = 109.125"
+    # This is the TOP of the double top plate (where second floor joists sit)
+    first_floor_z_in = above_grade_ft * 12.0  # First floor joist base
+    joist_depth_in = FIRST_FLOOR["joist_depth_in"]  # 11.25"
+    sheathing_thickness_in = FIRST_FLOOR["sheathing_thickness_in"]  # 0.75"
+    # Actual wall assembly height: bottom plate + precut studs + top plate + double top plate
+    plate_thick_in = 1.5  # 2x4 plate thickness
+    stud_length_in = 104.625  # Precut stud length (for 8' ceiling)
+    wall_assembly_height_in = plate_thick_in + stud_length_in + plate_thick_in + plate_thick_in  # 109.125"
+    second_floor_z_in = first_floor_z_in + joist_depth_in + sheathing_thickness_in + wall_assembly_height_in
+    second_floor_z_ft = second_floor_z_in / 12.0
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Second floor joist bottom Z = {second_floor_z_ft:.2f}' ({second_floor_z_in:.2f}\")\n")
+
+    # Second floor positioning from config
+    second_floor_start_x_ft = SECOND_FLOOR["start_x_ft"]  # 5.0' (left setback)
+    second_floor_start_y_ft = SECOND_FLOOR["start_y_ft"]  # 20.0' (front setback)
+
+    # Module dimensions from config
+    module_width_ft = SECOND_FLOOR["module_width_ft"]  # 20' (nominal, used for stock selection)
+    module_depth_ft = SECOND_FLOOR["module_depth_ft"]  # 12'
+    grid_columns = SECOND_FLOOR["grid_columns"]  # 2
+    grid_rows = SECOND_FLOOR["grid_rows"]  # 4
+
+    # LVL rim thickness for positioning calculations
+    rim_thick_in = SECOND_FLOOR["rim_thickness_in"]  # 1.75"
+
+    # Calculate target floor dimensions to match first floor walls
+    # First floor sheathing spans from left wall to right wall = 40'
+    # This is derived from: lot_width - left_setback - right_setback = 50 - 5 - 5 = 40'
+    # We want 2 modules × target_module_width = 40'
+    target_floor_width_ft = LOT["width_ft"] - LOT["left_setback_ft"] - LOT["right_setback_ft"]  # 40'
+    target_floor_depth_ft = module_depth_ft * grid_rows  # 12' × 4 = 48'
+    target_floor_depth_in = target_floor_depth_ft * 12.0  # 576"
+
+    # Calculate target module width (including side rims) - NO MAGIC NUMBERS
+    # target_module_width = target_floor_width / grid_columns
+    target_module_width_in = (target_floor_width_ft * 12.0) / grid_columns  # 240" (20')
+
+    # Module depth: Full-length rows use full joist stock (no target_module_depth_in)
+    # Geometry: front LVL + left 2x12 + joist_run + right 2x12 + back LVL
+    # Module depth = rim_thick + (joist_thick + joist_run + joist_thick) + rim_thick
+    # With full joists: = 1.75 + (1.5 + 144 + 1.5) + 1.75 = 150.5"
+    joist_stock_length_in = 144.0  # 12' joists
+    joist_thick_in = 1.5  # 2x12 actual thickness
+    rim_left_right_length_in = joist_thick_in + joist_stock_length_in + joist_thick_in  # 1.5 + 144 + 1.5 = 147"
+    full_module_depth_in = rim_thick_in + rim_left_right_length_in + rim_thick_in  # 1.75 + 147 + 1.75 = 150.5"
+
+    # Last row may need shorter joists to fit 48' total
+    # First (grid_rows - 1) rows use full joists, last row fills remaining space
+    full_rows = grid_rows - 1
+    remaining_depth_in = target_floor_depth_in - (full_rows * full_module_depth_in)  # 576 - 3*150.5 = 124.5"
+
+    App.Console.PrintMessage(
+        f"[Build_950Surf]   Target floor: {target_floor_width_ft:.0f}' × {target_floor_depth_ft:.0f}' ({target_floor_depth_in:.0f}\")\n"
+    )
+    App.Console.PrintMessage(
+        f"[Build_950Surf]   Rows 1-{full_rows}: full joists ({joist_stock_length_in:.0f}\"), module depth = {full_module_depth_in:.2f}\"\n"
+    )
+    App.Console.PrintMessage(
+        f"[Build_950Surf]   Row {grid_rows}: remaining depth = {remaining_depth_in:.2f}\" "
+        f"(joist run = {remaining_depth_in - 2*rim_thick_in - 2*joist_thick_in:.2f}\")\n"
+    )
+
+    second_floor_assemblies = []
+    grid = {}  # grid[(row, col)] = module for snapping reference
+
+    for row in range(1, grid_rows + 1):  # Rows 1-4 (front to back)
+        row_name = {1: "Front", 2: "CenterFront", 3: "CenterBack", 4: "Back"}[row]
+        App.Console.PrintMessage(f"[Build_950Surf]   === ROW {row} ({row_name.upper()}) ===\n")
+
+        for col in range(1, grid_columns + 1):  # Columns 1-2 (left to right)
+            col_name = {1: "Left", 2: "Right"}[col]
+            assembly_name = f"Second_Floor_R{row}_C{col}_20x12"
+
+            App.Console.PrintMessage(f"[Build_950Surf]     Creating {assembly_name}...\n")
+
+            # Determine module depth: full joists for rows 1-3, shorter for row 4 (last row)
+            is_last_row = (row == grid_rows)
+            if is_last_row:
+                # Last row uses remaining depth to reach target floor depth
+                this_module_depth_in = remaining_depth_in
+            else:
+                # Full-length rows: don't pass target_module_depth_in (use full joist stock)
+                this_module_depth_in = None
+
+            module = parts.create_second_floor_module_20x12(
+                doc,
+                catalog_rows,
+                assembly_name=assembly_name,
+                joist_label=SECOND_FLOOR["joist_stock"],
+                rim_label=SECOND_FLOOR["rim_stock"],
+                make_pressure_treated=SECOND_FLOOR["joist_pressure_treated"],
+                hanger_label=SECOND_FLOOR["hanger_label"],
+                target_module_width_in=target_module_width_in,
+                target_module_depth_in=this_module_depth_in,
+            )
+
+            # Position module using snapping
+            if row == 1 and col == 1:
+                # First module (R1,C1): place at absolute position (anchor for entire floor)
+                lc.place_assembly_at(
+                    module,
+                    x_ft=second_floor_start_x_ft,
+                    y_ft=second_floor_start_y_ft,
+                    z_ft=second_floor_z_ft
+                )
+            elif col == 1:
+                # First column of subsequent rows: snap to previous row's first column
+                prev_module = grid[(row - 1, 1)]
+                lc.snap_assembly_corner_to_corner(
+                    module, prev_module, target_corner="top_left", assembly_corner="bottom_left"
+                )
+            else:
+                # Column 2: snap to left neighbor in same row
+                left_neighbor = grid[(row, col - 1)]
+                lc.snap_assembly_corner_to_corner(
+                    module, left_neighbor, target_corner="bottom_right", assembly_corner="bottom_left"
+                )
+
+            grid[(row, col)] = module
+            second_floor_assemblies.append(module)
+
+    # Create Second_Floor_Joists group
+    second_floor_joists_grp = bc.create_group(doc, "Second_Floor_Joists")
+    bc.add_to_group(second_floor_joists_grp, second_floor_assemblies)
+
+    # Create Second_Floor parent group
+    second_floor_parent = bc.create_group(doc, "Second_Floor")
+    bc.add_to_group(second_floor_parent, [second_floor_joists_grp])
+
+    App.Console.PrintMessage(
+        f"[Build_950Surf]   ✓ Created {len(second_floor_assemblies)} second floor modules "
+        f"({grid_columns}×{grid_rows} grid = {target_floor_width_ft:.0f}' × {target_floor_depth_ft:.0f}')\n"
+    )
+    App.Console.PrintMessage("[Build_950Surf] Second floor complete.\n")
+else:
+    App.Console.PrintMessage("[Build_950Surf] Second floor skipped (disabled in BUILD config)\n")
 
 # ============================================================
 # SECTION 9: DECK SURFACE (boards and posts, installed AFTER walls)

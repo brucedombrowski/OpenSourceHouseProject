@@ -1740,6 +1740,322 @@ def create_joist_module_8x8(
     return assembly
 
 
+# ============================================================
+# SECOND FLOOR JOIST MODULE (LVL rims E-W, 2x12 joists N-S)
+# ============================================================
+
+
+def create_second_floor_module_20x12(
+    doc,
+    catalog_rows,
+    assembly_name="Second_Floor_Module_20x12",
+    joist_label="2x12x144",
+    rim_label="lvl_1.75x11.875x240",
+    make_pressure_treated=False,
+    hanger_label="hanger_LU210",
+    target_module_width_in=None,
+    target_module_depth_in=None,
+):
+    """
+    Create a second floor joist module with LVL rim joists.
+
+    Design:
+    - 20' LVL beams as rim joists running E-W (X direction)
+    - 12' 2x12 joists running N-S (Y direction) at 16" OC
+    - Module dimensions: 20' wide (E-W) × 12' deep (N-S)
+    - Designed for 2 columns × 4 rows = 8 modules to cover 40' × 48' floor
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        assembly_name: Unique name for this assembly
+        joist_label: Stock label for joists (default: 2x12x144 for 12')
+        rim_label: Stock label for LVL rims (default: lvl_1.75x11.875x240 for 20')
+        make_pressure_treated: If True, append "_PT" to joist labels
+        hanger_label: Hardware label (default: hanger_LU210)
+        target_module_width_in: Target total module width in inches (including rims).
+                                If provided, front/back LVL rims are trimmed to fit.
+                                If None, uses full LVL stock length (240").
+        target_module_depth_in: Target total module depth in inches (including rims).
+                                If provided, left/right LVL rims are trimmed to fit.
+                                If None, uses joist stock length + 2*rim_thick.
+
+    Returns:
+        App::Part assembly with LCS markers for snapping
+
+    Module Geometry:
+        - Front/Back rims (LVL): run in X direction (trimmed if target_module_width_in provided)
+        - Left/Right rims (LVL): run in Y direction (trimmed if target_module_depth_in provided)
+        - Joists (2x12): run in Y direction at 16" OC
+        - First joist at 14.5" from left rim for sheathing alignment
+    """
+    # Resolve LVL rim stock first (need rim_thick for calculations)
+    rim_row = find_stock(catalog_rows, rim_label)
+    if not rim_row:
+        raise ValueError(f"Rim stock '{rim_label}' not found in catalog")
+
+    rim_thick = float(rim_row["actual_thickness_in"])  # 1.75" for LVL
+    rim_depth = float(rim_row["actual_width_in"])  # 11.875" for LVL
+    rim_stock_length = float(rim_row["length_in"])  # 240" for 20'
+
+    # Resolve joist stock
+    joist_label_use = joist_label + "_PT" if make_pressure_treated else joist_label
+    joist_row = find_stock(catalog_rows, joist_label_use)
+    if not joist_row:
+        raise ValueError(f"Joist stock '{joist_label_use}' not found in catalog")
+
+    joist_thick = float(joist_row["actual_thickness_in"])  # 1.5" for 2x12
+    joist_depth = float(joist_row["actual_width_in"])  # 11.25" for 2x12
+    joist_stock_length = float(joist_row["length_in"])  # 144" for 12'
+
+    # Calculate module dimensions
+    # Geometry: Front/back LVL rims span FULL module width, left/right 2x12 rims are INSIDE
+    #
+    #          <- total_x_in (module width) ->
+    #     +------------------------------------------+
+    #     |  Rim_Front (LVL, runs E-W, FULL WIDTH)   |  <- rim_thick (LVL 1.75")
+    #     +------------------------------------------+
+    #     |Rim |                                |Rim |
+    #     |Left|      Joists (run N-S)         |Rght|  <- 2x12 rims inside front/back
+    #     |2x12|      at 16" OC                |2x12|
+    #     +------------------------------------------+
+    #     |  Rim_Back (LVL, runs E-W, FULL WIDTH)    |  <- rim_thick (LVL 1.75")
+    #     +------------------------------------------+
+    #
+    # Front/back rim (LVL): length = total_x_in (full width)
+    # Left/right rim (2x12): length = total_y_in - 2*rim_thick (between front/back LVL rims)
+    # Joists (2x12): run between left/right 2x12 rims
+
+    if target_module_width_in is not None:
+        # Target width = front/back LVL rim length (full width)
+        total_x_in = target_module_width_in
+        rim_front_back_length = total_x_in  # Front/back LVL rims span full width
+        if rim_front_back_length > rim_stock_length:
+            raise ValueError(
+                f'Front/back rim length {rim_front_back_length}" exceeds stock length {rim_stock_length}"'
+            )
+    else:
+        # Use full LVL stock length for front/back rims
+        rim_front_back_length = rim_stock_length  # 240"
+        total_x_in = rim_front_back_length  # 240" (no added rim thickness)
+
+    if target_module_depth_in is not None:
+        # Target depth for module (Y direction)
+        # total_y_in = rim_thick (front LVL) + rim_left_right_length + rim_thick (back LVL)
+        # Left/right 2x12 rims are inside front/back LVL rims
+        # Joists are inside left/right 2x12 rims
+        total_y_in = target_module_depth_in
+        rim_left_right_length = total_y_in - 2 * rim_thick  # 2x12 rims inside front/back LVL
+        joist_run = rim_left_right_length - 2 * joist_thick  # Joists inside left/right 2x12
+        if joist_run > joist_stock_length:
+            raise ValueError(f'Joist run {joist_run}" exceeds stock length {joist_stock_length}"')
+    else:
+        # Use full joist stock length - joists are NOT cut
+        # Joists run between left/right 2x12 rims
+        # Left/right 2x12 rims are between front/back LVL rims
+        joist_run = joist_stock_length  # 144" (full length, no cutting)
+        rim_left_right_length = joist_thick + joist_run + joist_thick  # 1.5 + 144 + 1.5 = 147"
+        total_y_in = rim_thick + rim_left_right_length + rim_thick  # 1.75 + 147 + 1.75 = 150.5"
+
+    # Log the calculated dimensions
+    App.Console.PrintMessage(
+        f"[parts] Module '{assembly_name}': total {total_x_in:.2f}\" x {total_y_in:.2f}\", "
+        f'LVL front/back={rim_front_back_length:.2f}", 2x12 left/right={rim_left_right_length:.2f}", '
+        f'joist run={joist_run:.2f}"\n'
+    )
+
+    # Parameters (inches)
+    spacing_oc = 16.0
+    hanger_thickness = 0.06
+    hanger_height = 7.8125
+    hanger_seat_depth = 2.0
+
+    def make_box(x_len, y_len, z_len):
+        return Part.makeBox(inch(x_len), inch(y_len), inch(z_len))
+
+    def make_rim_front_back(name, y_pos):
+        """Create LVL rim running in X direction (front/back of module, FULL WIDTH)."""
+        box = make_box(rim_front_back_length, rim_thick, rim_depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        # Position at X=0 (full width), Y=y_pos
+        obj.Placement.Base = App.Vector(0, inch(y_pos), 0)
+        attach_metadata(obj, rim_row, rim_label, supplier="lowes")
+        return obj
+
+    def make_rim_left_right(name, x_pos):
+        """Create 2x12 rim running in Y direction (left/right sides, INSIDE front/back LVL)."""
+        box = make_box(joist_thick, rim_left_right_length, joist_depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        # Position inside front/back LVL rims, raised so top aligns with LVL top
+        obj.Placement.Base = App.Vector(inch(x_pos), inch(rim_thick), inch(rim_depth - joist_depth))
+        attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
+        return obj
+
+    # Calculate Z offset to align joist tops with LVL beam tops
+    # LVL depth (11.875") - joist depth (11.25") = 0.625" offset
+    # This gap needs plywood filler strips at the bottom for flush ceiling
+    joist_z_offset = rim_depth - joist_depth
+    filler_thickness = joist_z_offset  # 0.625" gap to fill
+
+    # Resolve plywood stock for filler strips (use 3/4" ply, ripped to 0.625")
+    filler_label = "plywood_0.75x4x8"
+    filler_row = find_stock(catalog_rows, filler_label)
+    if not filler_row:
+        filler_row = find_stock(catalog_rows, "plywood_0.5x4x8")  # Fallback
+        filler_label = "plywood_0.5x4x8"
+
+    def make_joist_y(name, x_pos, length_in=None):
+        """Create 2x12 joist running in Y direction."""
+        # Default to calculated joist_run if not specified
+        actual_length = length_in if length_in is not None else joist_run
+        box = make_box(joist_thick, actual_length, joist_depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        # Position inside front/back LVL rims and left/right 2x12 rims
+        # Y position = rim_thick (after front LVL rim, joists start inside)
+        # X position = x_pos centered on joist (already accounts for left 2x12 rim in first_center)
+        obj.Placement.Base = App.Vector(
+            inch(x_pos - joist_thick / 2.0), inch(rim_thick), inch(joist_z_offset)
+        )
+        attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
+        return obj
+
+    def make_filler_strip(name, x_pos, length_in=None):
+        """Create plywood filler strip at bottom of joist to flush with LVL bottom.
+
+        Leaves space at both ends for joist hangers (hanger_seat_depth on each end).
+        """
+        actual_length = length_in if length_in is not None else joist_run
+        # Filler strip shorter than joist to leave room for hangers on each end
+        hanger_clearance = hanger_seat_depth * 2  # 2" clearance on each end = 4" total
+        filler_length = actual_length - hanger_clearance
+        if filler_length <= 0:
+            return None  # Too short for filler
+        # Filler strip: same width as joist, shortened length, thickness = gap
+        box = make_box(joist_thick, filler_length, filler_thickness)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        # Position at bottom of joist space (Z=0), offset from front for hanger clearance
+        obj.Placement.Base = App.Vector(
+            inch(x_pos - joist_thick / 2.0), inch(rim_thick + hanger_seat_depth), 0
+        )
+        if filler_row:
+            attach_metadata(obj, filler_row, filler_label, supplier="lowes")
+        return obj
+
+    def make_hanger_y(name, x_center, y_pos, facing=1):
+        """Create hanger for Y-running joist."""
+        h = make_hanger_helper(
+            doc,
+            name,
+            x_center,
+            y_pos,
+            joist_thick,
+            hanger_thickness,
+            hanger_height,
+            hanger_seat_depth,
+            hanger_label,
+            direction=facing,
+            color=None,
+        )
+        # Rotate hanger 90° to face Y direction
+        pl = h.Placement
+        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 90).multiply(pl.Rotation)
+        if facing < 0:
+            pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
+        h.Placement = pl
+        return h
+
+    created = []
+
+    # Front and back rims (LVL, run in X direction, FULL WIDTH)
+    created.append(make_rim_front_back(f"{assembly_name}_Rim_Front", 0))
+    created.append(make_rim_front_back(f"{assembly_name}_Rim_Back", total_y_in - rim_thick))
+
+    # Left and right rims (2x12, run in Y direction, INSIDE front/back LVL rims)
+    created.append(make_rim_left_right(f"{assembly_name}_Rim_Left", 0))
+    created.append(make_rim_left_right(f"{assembly_name}_Rim_Right", total_x_in - joist_thick))
+
+    # Interior joists at 16" OC (only if module is wide enough)
+    # Joists run N-S (Y direction), positioned along X axis
+    # First joist starts after left 2x12 rim (joist_thick from module edge)
+    positions = []
+    first_spacing = 14.5  # First joist at 14.5" from left rim for sheathing alignment
+    first_center = joist_thick + first_spacing  # After left 2x12 rim
+
+    # Only add interior joists if they fit within the module bounds
+    positions.append(first_center)
+
+    # Remaining joists at 16" OC
+    next_center = first_center + spacing_oc
+    while next_center < (total_x_in - joist_thick - 3.0):  # Leave 3" min to right 2x12 rim
+        positions.append(next_center)
+        next_center += spacing_oc
+
+    # Hardware group
+    hanger_grp = doc.addObject("App::DocumentObjectGroup", f"{assembly_name}_Hangers")
+
+    for i, x_center in enumerate(positions):
+        joist = make_joist_y(f"{assembly_name}_Joist_{i+1}", x_center)
+        created.append(joist)
+        # Plywood filler strip at bottom of joist for flush ceiling with LVL
+        if filler_row and filler_thickness > 0:
+            filler = make_filler_strip(f"{assembly_name}_Filler_{i+1}", x_center)
+            if filler:
+                created.append(filler)
+        # Hangers at front and back rims
+        hanger_grp.addObject(
+            make_hanger_y(f"{assembly_name}_Hanger_Front_{i+1}", x_center, rim_thick, facing=1)
+        )
+        hanger_grp.addObject(
+            make_hanger_y(
+                f"{assembly_name}_Hanger_Back_{i+1}", x_center, total_y_in - rim_thick, facing=-1
+            )
+        )
+
+    # NOTE: Sheathing is added separately after all joist modules are placed
+
+    # Create assembly
+    assembly = create_assembly(doc, assembly_name)
+    for obj in created:
+        if hasattr(obj, "Shape"):
+            assembly.addObject(obj)
+    assembly.addObject(hanger_grp)
+
+    # Add LCS markers for snapping
+    # Origin at (0, 0, 0) - bottom-left-front corner
+    lcs_origin = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_Origin")
+    lcs_origin.Placement.Base = App.Vector(0, 0, 0)
+    assembly.addObject(lcs_origin)
+
+    # BottomRight at (total_x_in, 0, 0)
+    lcs_br = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_BottomRight")
+    lcs_br.Placement.Base = App.Vector(inch(total_x_in), 0, 0)
+    assembly.addObject(lcs_br)
+
+    # TopLeft at (0, total_y_in, 0)
+    lcs_tl = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopLeft")
+    lcs_tl.Placement.Base = App.Vector(0, inch(total_y_in), 0)
+    assembly.addObject(lcs_tl)
+
+    # TopRight at (total_x_in, total_y_in, 0)
+    lcs_tr = doc.addObject("PartDesign::CoordinateSystem", f"{assembly_name}_LCS_TopRight")
+    lcs_tr.Placement.Base = App.Vector(inch(total_x_in), inch(total_y_in), 0)
+    assembly.addObject(lcs_tr)
+
+    doc.recompute()
+
+    bbox = get_assembly_bbox(assembly)
+    App.Console.PrintMessage(
+        f"[parts] ✓ Second floor module '{assembly_name}' complete: "
+        f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+    )
+
+    return assembly
+
+
 def create_sheathing_panel(
     doc,
     catalog_rows,

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Shared helpers for FreeCAD lumber macros
 
 import csv
@@ -86,7 +87,7 @@ def resolve_catalog(candidates):
 
 
 def load_catalog(path):
-    with open(path, newline="") as f:
+    with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 

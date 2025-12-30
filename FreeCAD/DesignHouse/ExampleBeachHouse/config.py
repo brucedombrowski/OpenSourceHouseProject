@@ -190,16 +190,74 @@ DECKS = {
 }
 
 # ============================================================
-# SECOND FLOOR
+# SECOND FLOOR (20' LVL rims × 12' 2x12 joists)
 # ============================================================
+#
+# DESIGN RATIONALE - Second Floor Joist Modules
+# ==============================================
+#
+# Goals:
+#   1. Match first floor footprint (40' × 48')
+#   2. Use LVL beams as rim joists for 20' spans (E-W)
+#   3. Use 2x12 joists at 12' spans (N-S)
+#   4. Modular grid: 2 columns × 4 rows = 8 modules
+#
+# Module Dimensions:
+#   - 20' wide (E-W) × 12' deep (N-S) per module
+#   - LVL rims: 1.75" × 11.875" × 20' (lvl_1.75x11.875x240)
+#   - 2x12 joists: 1.5" × 11.25" × 12' at 16" OC
+#   - Total floor: 40' × 48' (2 × 20' wide, 4 × 12' deep)
+#
+# Grid Layout (viewed from above, north up):
+#   +----------+----------+
+#   | Row 4 L  | Row 4 R  |  <- North (Y = 20' + 48' = 68')
+#   +----------+----------+
+#   | Row 3 L  | Row 3 R  |
+#   +----------+----------+
+#   | Row 2 L  | Row 2 R  |
+#   +----------+----------+
+#   | Row 1 L  | Row 1 R  |  <- South (Y = 20')
+#   +----------+----------+
+#   ^          ^          ^
+#   X=5'       X=25'      X=45' (approx, depends on rim thicknesses)
+#
+# Z Position:
+#   - Second floor sits on top of first floor walls
+#   - Base Z = first floor Z + joist depth + sheathing + wall height
+#   - Typically: 20' (above grade) + 11.25" (joist) + 0.75" (sheathing) + 8' (wall) = ~29' above grade
+#
 
 SECOND_FLOOR = {
-    # Joists
-    "joist_stock": "2x12x192",
-    "joist_spacing_oc_in": 16.0,
+    # Module layout (2 columns × 4 rows = 8 modules)
+    "grid_columns": 2,  # Columns in X direction (E-W)
+    "grid_rows": 4,  # Rows in Y direction (N-S)
+    # Module dimensions
+    "module_width_ft": 20.0,  # Module width (E-W, LVL rim direction)
+    "module_depth_ft": 12.0,  # Module depth (N-S, joist direction)
+    # LVL rim joists (run E-W, front/back of each module)
+    "rim_stock": "lvl_1.75x11.875x240",  # 20' LVL beams
+    "rim_thickness_in": 1.75,  # LVL actual thickness
+    "rim_depth_in": 11.875,  # LVL actual depth
+    # 2x12 joists (run N-S at 16" OC)
+    "joist_stock": "2x12x144",  # 12' joists
+    "joist_thickness_in": 1.5,  # 2x12 actual thickness
+    "joist_depth_in": 11.25,  # 2x12 actual depth
+    "joist_spacing_oc_in": 16.0,  # Joist spacing on-center
+    "joist_first_spacing_in": 14.5,  # First joist at 14.5" for sheathing alignment
     "joist_pressure_treated": False,
     # Sheathing
     "sheathing_stock": "panel_advantech_4x8",
+    "sheathing_thickness_in": 0.75,  # 3/4" Advantech
+    # Joist hangers
+    "hanger_label": "hanger_LU210",
+    # Positioning (relative to first floor walls)
+    # Second floor aligns with first floor wall edges (not sheathing)
+    # Left wall X = sheathing_x_start = floor_start_x + deck_exclusion = 0.625 + 4.375 = 5.0'
+    # First floor Y start = front_setback + y_spacing = 20 + 10 = 30'
+    "start_x_ft": 5.0,  # X position = left wall west face (aligns LVL rim to wall)
+    "start_y_ft": 30.0,  # Y position = front_setback (20') + y_spacing (10')
+    # NOTE: base_z_ft is CALCULATED in BeachHouse Template.FCMacro:
+    #   base_z_ft = first_floor_z + joist_depth + sheathing + wall_height
 }
 
 # ============================================================
@@ -410,7 +468,7 @@ BUILD = {
     "include_first_floor": True,  # 3×3 grid: 40' × 48'
     "include_walls": True,  # Front and rear walls (5 x 8' modules each: Window | Window | Door | Window | Window = 40')
     "include_deck_surface": False,  # DISABLED FOR TESTING: Deck boards and posts (installed AFTER walls)
-    "include_second_floor": False,  # Not yet implemented
+    "include_second_floor": True,  # 20' LVL rims × 12' 2x12 joists (2×4 grid = 40' × 48')
     "include_stairs": False,  # DISABLED FOR TESTING: Exterior stairs from slab to first floor
     "include_roof": False,  # Not yet implemented
     # Output options
