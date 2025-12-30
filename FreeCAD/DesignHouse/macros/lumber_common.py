@@ -277,6 +277,213 @@ def make_hanger(
         return obj
 
 
+def make_hanger_for_joist(
+    doc,
+    name,
+    joist_x_in,
+    joist_y_in,
+    joist_z_in,
+    joist_thick_in,
+    joist_depth_in,
+    rim_face_position_in,
+    rim_axis="Y",
+    rim_side="south",
+    hanger_thickness_in=0.06,
+    hanger_height_in=7.8125,
+    hanger_seat_depth_in=2.0,
+    hanger_label="hanger_LU210",
+    color=None,
+):
+    """
+    Create a joist hanger positioned correctly relative to a joist and rim.
+
+    The hanger is placed so that:
+    - Seat top is at joist bottom (Z = joist_z_in)
+    - Rim flange is against the rim face
+    - Side flanges wrap around joist sides
+
+    Hanger anatomy (looking down, joist running N-S):
+        Rim (LVL)
+        =========
+        |flange|  <- rim flange (nailed to rim)
+        +-----+
+        |     |   <- seat (joist bottom rests here)
+        +-----+
+        || | ||   <- side flanges (wrap joist sides)
+
+    Args:
+        doc: FreeCAD document
+        name: Object name
+        joist_x_in: X position of joist center (inches)
+        joist_y_in: Y position where joist meets rim (inches)
+        joist_z_in: Z position of joist bottom (inches)
+        joist_thick_in: Joist thickness (1.5" for 2x lumber)
+        joist_depth_in: Joist depth (11.25" for 2x12)
+        rim_face_position_in: Position of rim face along rim_axis (inches)
+        rim_axis: "X" if rim runs E-W, "Y" if rim runs N-S
+        rim_side: Which side of rim the joist is on:
+                  "south"/"north" for X-running rim
+                  "west"/"east" for Y-running rim
+        hanger_thickness_in: Metal thickness (default 0.06")
+        hanger_height_in: Height of side flanges (default 7.8125")
+        hanger_seat_depth_in: Depth of seat (default 2.0")
+        hanger_label: Catalog label for BOM
+        color: Optional color tuple
+
+    Returns:
+        Part::Feature object
+
+    Example (joist running N-S, meeting E-W LVL rim at south end):
+        make_hanger_for_joist(
+            doc, "Hanger_1",
+            joist_x_in=16.0,        # Joist center X
+            joist_y_in=1.75,        # Y where joist meets rim (rim_thick)
+            joist_z_in=0.625,       # Joist bottom Z (raised for top alignment)
+            joist_thick_in=1.5,
+            joist_depth_in=11.25,
+            rim_face_position_in=1.75,  # South face of front LVL rim
+            rim_axis="X",           # LVL rim runs E-W
+            rim_side="south",       # Joist is south of rim face
+        )
+    """
+    bt = hanger_thickness_in
+    bh = hanger_height_in
+    bd = hanger_seat_depth_in
+    jt = joist_thick_in
+
+    # Seat top is at joist bottom Z
+    seat_top_z = joist_z_in
+    seat_bottom_z = seat_top_z - bt
+
+    # Build hanger components
+    # Seat: under joist, extends toward rim
+    # Side flanges: on either side of joist
+    # Rim flange: against rim face
+
+    if rim_axis.upper() == "X":
+        # Rim runs E-W (X direction), joist runs N-S (Y direction)
+        # Hanger seat extends in Y direction toward rim
+
+        if rim_side.lower() in ("south", "front"):
+            # Joist is SOUTH of rim, hanger opens to NORTH (toward rim)
+            # Seat extends from joist end toward rim (in +Y direction)
+            seat_y_start = joist_y_in
+            seat_y_end = joist_y_in + bd
+
+            # Rim flange is at rim face (north side of rim)
+            flange_y = rim_face_position_in
+        else:
+            # Joist is NORTH of rim, hanger opens to SOUTH (toward rim)
+            seat_y_start = joist_y_in - bd
+            seat_y_end = joist_y_in
+
+            # Rim flange is at rim face (south side of rim)
+            flange_y = rim_face_position_in
+
+        # Seat box (under joist)
+        seat = Part.makeBox(
+            inch(jt),  # X = joist thickness
+            inch(bd),  # Y = seat depth
+            inch(bt),  # Z = hanger thickness
+        )
+        seat.Placement.Base = App.Vector(
+            inch(joist_x_in - jt / 2.0),
+            inch(min(seat_y_start, seat_y_end)),
+            inch(seat_bottom_z),
+        )
+
+        # Side flanges (on east and west sides of joist)
+        side_west = Part.makeBox(inch(bt), inch(bd), inch(bh))
+        side_west.Placement.Base = App.Vector(
+            inch(joist_x_in - jt / 2.0 - bt),
+            inch(min(seat_y_start, seat_y_end)),
+            inch(seat_bottom_z),
+        )
+
+        side_east = Part.makeBox(inch(bt), inch(bd), inch(bh))
+        side_east.Placement.Base = App.Vector(
+            inch(joist_x_in + jt / 2.0),
+            inch(min(seat_y_start, seat_y_end)),
+            inch(seat_bottom_z),
+        )
+
+        # Rim flange (against rim, spans joist width + side flanges)
+        flange_width = jt + 2 * bt  # Joist width + both side flanges
+        rim_flange = Part.makeBox(inch(flange_width), inch(bt), inch(bh))
+        rim_flange.Placement.Base = App.Vector(
+            inch(joist_x_in - jt / 2.0 - bt),
+            inch(flange_y - bt) if rim_side.lower() in ("south", "front") else inch(flange_y),
+            inch(seat_bottom_z),
+        )
+
+    else:
+        # Rim runs N-S (Y direction), joist runs E-W (X direction)
+        # Hanger seat extends in X direction toward rim
+
+        if rim_side.lower() in ("west", "left"):
+            # Joist is WEST of rim, hanger opens to EAST (toward rim)
+            seat_x_start = joist_x_in
+            seat_x_end = joist_x_in + bd
+            flange_x = rim_face_position_in
+        else:
+            # Joist is EAST of rim, hanger opens to WEST (toward rim)
+            seat_x_start = joist_x_in - bd
+            seat_x_end = joist_x_in
+            flange_x = rim_face_position_in
+
+        # Seat box
+        seat = Part.makeBox(inch(bd), inch(jt), inch(bt))
+        seat.Placement.Base = App.Vector(
+            inch(min(seat_x_start, seat_x_end)),
+            inch(joist_y_in - jt / 2.0),
+            inch(seat_bottom_z),
+        )
+
+        # Side flanges (on north and south sides of joist)
+        side_south = Part.makeBox(inch(bd), inch(bt), inch(bh))
+        side_south.Placement.Base = App.Vector(
+            inch(min(seat_x_start, seat_x_end)),
+            inch(joist_y_in - jt / 2.0 - bt),
+            inch(seat_bottom_z),
+        )
+
+        side_north = Part.makeBox(inch(bd), inch(bt), inch(bh))
+        side_north.Placement.Base = App.Vector(
+            inch(min(seat_x_start, seat_x_end)),
+            inch(joist_y_in + jt / 2.0),
+            inch(seat_bottom_z),
+        )
+
+        # Rim flange
+        flange_height_span = jt + 2 * bt
+        rim_flange = Part.makeBox(inch(bt), inch(flange_height_span), inch(bh))
+        rim_flange.Placement.Base = App.Vector(
+            inch(flange_x - bt) if rim_side.lower() in ("west", "left") else inch(flange_x),
+            inch(joist_y_in - jt / 2.0 - bt),
+            inch(seat_bottom_z),
+        )
+
+    # Fuse all parts
+    if rim_axis.upper() == "X":
+        assembled = seat.fuse([side_west, side_east, rim_flange])
+    else:
+        assembled = seat.fuse([side_south, side_north, rim_flange])
+
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = assembled
+    obj.addProperty("App::PropertyString", "supplier").supplier = "lowes"
+    obj.addProperty("App::PropertyString", "label").label = hanger_label
+
+    final_color = color if color is not None else NOMINAL_COLORS.get("hardware", (0.7, 0.7, 0.7))
+    if final_color:
+        try:
+            obj.ViewObject.ShapeColor = final_color
+        except Exception:
+            pass
+
+    return obj
+
+
 # ============================================================
 # ASSEMBLY HELPERS (App::Part with Bounding Box Support)
 # ============================================================

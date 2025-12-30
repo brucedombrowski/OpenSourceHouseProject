@@ -16,6 +16,7 @@ from lumber_common import (
     find_stock,
     get_assembly_bbox,
     inch,
+    make_hanger_for_joist,
 )
 from lumber_common import (
     make_hanger as make_hanger_helper,
@@ -1809,22 +1810,24 @@ def create_second_floor_module_20x12(
     joist_stock_length = float(joist_row["length_in"])  # 144" for 12'
 
     # Calculate module dimensions
-    # Geometry: Front/back LVL rims span FULL module width, left/right 2x12 rims are INSIDE
+    # Geometry: Front/back LVL rims span FULL module width
+    #           Left/right rim joists and interior joists are ALL full-length 2x12s (144")
+    #           All run N-S (Y direction), parallel to each other
     #
     #          <- total_x_in (module width) ->
     #     +------------------------------------------+
     #     |  Rim_Front (LVL, runs E-W, FULL WIDTH)   |  <- rim_thick (LVL 1.75")
     #     +------------------------------------------+
     #     |Rim |                                |Rim |
-    #     |Left|      Joists (run N-S)         |Rght|  <- 2x12 rims inside front/back
-    #     |2x12|      at 16" OC                |2x12|
+    #     |Left|      Joists (run N-S)         |Rght|  <- ALL are 2x12 full length (144")
+    #     |2x12|      at 16" OC                |2x12|     running parallel between LVL rims
     #     +------------------------------------------+
     #     |  Rim_Back (LVL, runs E-W, FULL WIDTH)    |  <- rim_thick (LVL 1.75")
     #     +------------------------------------------+
     #
     # Front/back rim (LVL): length = total_x_in (full width)
-    # Left/right rim (2x12): length = total_y_in - 2*rim_thick (between front/back LVL rims)
-    # Joists (2x12): run between left/right 2x12 rims
+    # Left/right rim joists (2x12): SAME length as interior joists (full 144" stock)
+    # Interior joists (2x12): full 144" stock length
 
     if target_module_width_in is not None:
         # Target width = front/back LVL rim length (full width)
@@ -1841,27 +1844,22 @@ def create_second_floor_module_20x12(
 
     if target_module_depth_in is not None:
         # Target depth for module (Y direction)
-        # total_y_in = rim_thick (front LVL) + rim_left_right_length + rim_thick (back LVL)
-        # Left/right 2x12 rims are inside front/back LVL rims
-        # Joists are inside left/right 2x12 rims
+        # total_y_in = rim_thick (front LVL) + joist_length + rim_thick (back LVL)
+        # All 2x12s (left/right rims AND joists) span between front/back LVL rims
         total_y_in = target_module_depth_in
-        rim_left_right_length = total_y_in - 2 * rim_thick  # 2x12 rims inside front/back LVL
-        joist_run = rim_left_right_length - 2 * joist_thick  # Joists inside left/right 2x12
+        joist_run = total_y_in - 2 * rim_thick  # Joists span between front/back LVL rims
         if joist_run > joist_stock_length:
             raise ValueError(f'Joist run {joist_run}" exceeds stock length {joist_stock_length}"')
     else:
         # Use full joist stock length - joists are NOT cut
-        # Joists run between left/right 2x12 rims
-        # Left/right 2x12 rims are between front/back LVL rims
+        # All 2x12s (left/right rims AND joists) are full 144" stock
         joist_run = joist_stock_length  # 144" (full length, no cutting)
-        rim_left_right_length = joist_thick + joist_run + joist_thick  # 1.5 + 144 + 1.5 = 147"
-        total_y_in = rim_thick + rim_left_right_length + rim_thick  # 1.75 + 147 + 1.75 = 150.5"
+        total_y_in = rim_thick + joist_run + rim_thick  # 1.75 + 144 + 1.75 = 147.5"
 
     # Log the calculated dimensions
     App.Console.PrintMessage(
         f"[parts] Module '{assembly_name}': total {total_x_in:.2f}\" x {total_y_in:.2f}\", "
-        f'LVL front/back={rim_front_back_length:.2f}", 2x12 left/right={rim_left_right_length:.2f}", '
-        f'joist run={joist_run:.2f}"\n'
+        f'LVL front/back={rim_front_back_length:.2f}", joist run={joist_run:.2f}"\n'
     )
 
     # Parameters (inches)
@@ -1884,12 +1882,13 @@ def create_second_floor_module_20x12(
         return obj
 
     def make_rim_left_right(name, x_pos):
-        """Create 2x12 rim running in Y direction (left/right sides, INSIDE front/back LVL)."""
-        box = make_box(joist_thick, rim_left_right_length, joist_depth)
+        """Create 2x12 rim joist running in Y direction (left/right sides, between front/back LVL)."""
+        # Same length as interior joists - all are full 144" 2x12 stock
+        box = make_box(joist_thick, joist_run, joist_depth)
         obj = doc.addObject("Part::Feature", name)
         obj.Shape = box
-        # Position inside front/back LVL rims, raised so top aligns with LVL top
-        obj.Placement.Base = App.Vector(inch(x_pos), inch(rim_thick), inch(rim_depth - joist_depth))
+        # Position between front/back LVL rims, raised so top aligns with LVL top
+        obj.Placement.Base = App.Vector(inch(x_pos), inch(rim_thick), inch(joist_z_offset))
         attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
         return obj
 
@@ -1945,38 +1944,28 @@ def create_second_floor_module_20x12(
             attach_metadata(obj, filler_row, filler_label, supplier="lowes")
         return obj
 
-    def make_hanger_y(name, x_center, y_pos, facing=1):
-        """Create hanger for Y-running joist."""
-        h = make_hanger_helper(
-            doc,
-            name,
-            x_center,
-            y_pos,
-            joist_thick,
-            hanger_thickness,
-            hanger_height,
-            hanger_seat_depth,
-            hanger_label,
-            direction=facing,
-            color=None,
-        )
-        # Rotate hanger 90° to face Y direction
-        pl = h.Placement
-        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 90).multiply(pl.Rotation)
-        if facing < 0:
-            pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
-        h.Placement = pl
-        return h
-
     created = []
 
     # Front and back rims (LVL, run in X direction, FULL WIDTH)
     created.append(make_rim_front_back(f"{assembly_name}_Rim_Front", 0))
     created.append(make_rim_front_back(f"{assembly_name}_Rim_Back", total_y_in - rim_thick))
 
-    # Left and right rims (2x12, run in Y direction, INSIDE front/back LVL rims)
+    # Left and right rim joists (2x12, run in Y direction, between front/back LVL rims)
     created.append(make_rim_left_right(f"{assembly_name}_Rim_Left", 0))
     created.append(make_rim_left_right(f"{assembly_name}_Rim_Right", total_x_in - joist_thick))
+
+    # Plywood filler strips for left/right rim joists (for flush ceiling with LVL)
+    if filler_row and filler_thickness > 0:
+        # Left rim filler - position at X = joist_thick/2 (center of left rim joist)
+        left_filler = make_filler_strip(f"{assembly_name}_Filler_Rim_Left", joist_thick / 2.0)
+        if left_filler:
+            created.append(left_filler)
+        # Right rim filler - position at X = total_x_in - joist_thick/2 (center of right rim joist)
+        right_filler = make_filler_strip(
+            f"{assembly_name}_Filler_Rim_Right", total_x_in - joist_thick / 2.0
+        )
+        if right_filler:
+            created.append(right_filler)
 
     # Interior joists at 16" OC (only if module is wide enough)
     # Joists run N-S (Y direction), positioned along X axis
@@ -2005,13 +1994,47 @@ def create_second_floor_module_20x12(
             filler = make_filler_strip(f"{assembly_name}_Filler_{i+1}", x_center)
             if filler:
                 created.append(filler)
-        # Hangers at front and back rims
+
+        # Hangers at front and back LVL rims using new explicit placement function
+        # Front hanger: joist meets front LVL rim at Y = rim_thick (south face of rim)
+        # Joist is SOUTH of rim face, hanger opens NORTH toward rim
         hanger_grp.addObject(
-            make_hanger_y(f"{assembly_name}_Hanger_Front_{i+1}", x_center, rim_thick, facing=1)
+            make_hanger_for_joist(
+                doc,
+                f"{assembly_name}_Hanger_Front_{i+1}",
+                joist_x_in=x_center,
+                joist_y_in=rim_thick,  # Y where joist starts (south face of front rim)
+                joist_z_in=joist_z_offset,  # Joist bottom Z
+                joist_thick_in=joist_thick,
+                joist_depth_in=joist_depth,
+                rim_face_position_in=rim_thick,  # South face of front LVL rim
+                rim_axis="X",  # Front LVL rim runs E-W
+                rim_side="south",  # Joist is south of rim face
+                hanger_thickness_in=hanger_thickness,
+                hanger_height_in=hanger_height,
+                hanger_seat_depth_in=hanger_seat_depth,
+                hanger_label=hanger_label,
+            )
         )
+
+        # Back hanger: joist meets back LVL rim at Y = total_y_in - rim_thick (north face of rim)
+        # Joist is NORTH of rim face, hanger opens SOUTH toward rim
         hanger_grp.addObject(
-            make_hanger_y(
-                f"{assembly_name}_Hanger_Back_{i+1}", x_center, total_y_in - rim_thick, facing=-1
+            make_hanger_for_joist(
+                doc,
+                f"{assembly_name}_Hanger_Back_{i+1}",
+                joist_x_in=x_center,
+                joist_y_in=total_y_in - rim_thick,  # Y where joist ends (north face of back rim)
+                joist_z_in=joist_z_offset,  # Joist bottom Z
+                joist_thick_in=joist_thick,
+                joist_depth_in=joist_depth,
+                rim_face_position_in=total_y_in - rim_thick,  # North face of back LVL rim
+                rim_axis="X",  # Back LVL rim runs E-W
+                rim_side="north",  # Joist is north of rim face
+                hanger_thickness_in=hanger_thickness,
+                hanger_height_in=hanger_height,
+                hanger_seat_depth_in=hanger_seat_depth,
+                hanger_label=hanger_label,
             )
         )
 
