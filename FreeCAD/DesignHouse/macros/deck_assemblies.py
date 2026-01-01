@@ -25,6 +25,116 @@ except ImportError:
     import lumber_common as lc
 
 
+# ============================================================
+# CONSTANTS - Hardware dimensions for Simpson Strong-Tie LU210
+# ============================================================
+# LU210 is used for 2x10 through 2x12 joists
+# Ref: https://www.strongtie.com/hangersandanchors_woodconstruction/lu_hanger/p/lu
+HANGER_THICKNESS_IN = 0.06  # ~16 gauge steel
+HANGER_HEIGHT_IN = 7.8125  # 7-13/16" overall height
+HANGER_SEAT_DEPTH_IN = 2.0  # Seat depth (back plate)
+HANGER_LABEL = "hanger_LU210"
+HANGER_COLOR = (0.6, 0.6, 0.7)
+
+# Framing spacing (IRC R502.3)
+JOIST_SPACING_OC_IN = 16.0  # 16" on-center
+
+# Deck board gaps (per manufacturer recommendations)
+DECK_BOARD_GAP_IN = 0.125  # 1/8" gap between boards
+
+
+def _create_deck_hangers(
+    doc,
+    joist_centers,
+    joist_thick,
+    joist_depth,
+    proj_y_in,
+    hanger_thickness,
+    hanger_height,
+    hanger_seat_depth,
+    hanger_label,
+    name_prefix="",
+):
+    """
+    Create hangers for deck joists at house rim and outboard rim.
+
+    Deck geometry:
+        - Joists run N-S (Y direction) from house rim (Y=0) to outboard rim (Y=proj_y_in)
+        - Rims run E-W (X direction)
+        - House rim: south face at Y=0
+        - Outboard rim: north face at Y=proj_y_in
+
+    Args:
+        doc: FreeCAD document
+        joist_centers: List of joist center X positions (skip first/last for hangers)
+        joist_thick: Joist thickness (1.5" for 2x)
+        joist_depth: Joist depth (11.25" for 2x12)
+        proj_y_in: Deck projection depth in Y (96" typical)
+        hanger_thickness: Hanger metal thickness
+        hanger_height: Hanger flange height
+        hanger_seat_depth: Hanger seat depth
+        hanger_label: Catalog label for BOM
+        name_prefix: Optional prefix for hanger names
+
+    Returns:
+        List of hanger objects
+    """
+    hangs = []
+
+    for idx, cx in enumerate(joist_centers, start=1):
+        if idx == 1 or idx == len(joist_centers):
+            continue  # skip end joists (they're rim joists)
+        try:
+            prefix = f"{name_prefix}_" if name_prefix else ""
+
+            # House rim hanger: joist meets south face of house rim at Y=0
+            # Joist is SOUTH of rim face, hanger opens NORTH toward rim
+            hangs.append(
+                lc.make_hanger_for_joist(
+                    doc,
+                    f"{prefix}Hanger_House_{idx}",
+                    joist_x_in=cx,  # Joist center X
+                    joist_y_in=0.0,  # Y where joist meets rim (south face of house rim)
+                    joist_z_in=0.0,  # Joist bottom Z (deck joists sit at Z=0)
+                    joist_thick_in=joist_thick,
+                    joist_depth_in=joist_depth,
+                    rim_face_position_in=0.0,  # South face of house rim at Y=0
+                    rim_axis="X",  # Rim runs E-W
+                    rim_side="south",  # Joist is south of rim face
+                    hanger_thickness_in=hanger_thickness,
+                    hanger_height_in=hanger_height,
+                    hanger_seat_depth_in=hanger_seat_depth,
+                    hanger_label=hanger_label,
+                    color=(0.6, 0.6, 0.7),
+                )
+            )
+            # Outboard rim hanger: joist meets north face of outboard rim at Y=proj_y_in
+            # Joist is NORTH of rim face, hanger opens SOUTH toward rim
+            hangs.append(
+                lc.make_hanger_for_joist(
+                    doc,
+                    f"{prefix}Hanger_Outboard_{idx}",
+                    joist_x_in=cx,  # Joist center X
+                    joist_y_in=proj_y_in,  # Y where joist meets rim (north face of outboard rim)
+                    joist_z_in=0.0,  # Joist bottom Z
+                    joist_thick_in=joist_thick,
+                    joist_depth_in=joist_depth,
+                    rim_face_position_in=proj_y_in,  # North face of outboard rim at Y=proj_y_in
+                    rim_axis="X",  # Rim runs E-W
+                    rim_side="north",  # Joist is north of rim face
+                    hanger_thickness_in=hanger_thickness,
+                    hanger_height_in=hanger_height,
+                    hanger_seat_depth_in=hanger_seat_depth,
+                    hanger_label=hanger_label,
+                    color=(0.6, 0.6, 0.7),
+                )
+            )
+        except Exception as e:
+            App.Console.PrintError(f"[deck_assemblies] Hanger build failed for joist {idx}: {e}\n")
+
+    return hangs
+
+
 def create_deck_joists_16x8(
     doc,
     catalog_rows,
@@ -57,13 +167,8 @@ def create_deck_joists_16x8(
     # Parameters
     length_x_in = 192.0  # 16'
     proj_y_in = 96.0  # 8'
-    joist_spacing_oc_in = 16.0
     rim_label = "2x12x192"
     joist_label = "2x12x96"
-    hanger_label = "hanger_LU210"
-    hanger_thickness = 0.06
-    hanger_height = 7.8125
-    hanger_seat_depth = 2.0
 
     # Find stock
     rim_row = lc.find_stock(catalog_rows, rim_label)
@@ -110,7 +215,7 @@ def create_deck_joists_16x8(
     c = first_center
     while c < last_center - 1e-6:
         centers.append(c)
-        c += joist_spacing_oc_in
+        c += JOIST_SPACING_OC_IN
     if not centers or centers[-1] < last_center - 1e-6:
         centers.append(last_center)
 
@@ -118,54 +223,18 @@ def create_deck_joists_16x8(
         x_pos = cx - (joist_thick / 2.0)
         created.append(make_joist(f"Joist_{idx}", x_pos))
 
-    # Hangers on house rim for each joist (skip first/last)
-    hangs = []
-    house_face_y = 0.0
-    outboard_face_y = proj_y_in
-
-    for idx, cx in enumerate(centers, start=1):
-        if idx == 1 or idx == len(centers):
-            continue  # skip end joists
-        try:
-            # House rim hanger: extends into +Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_House_{idx}",
-                    house_face_y,
-                    cx,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-            # Outboard rim hanger: extends into -Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_Outboard_{idx}",
-                    outboard_face_y,
-                    cx + joist_thick,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=-1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-        except Exception as e:
-            App.Console.PrintError(f"[deck_assemblies] Hanger build failed for joist {idx}: {e}\n")
-
+    # Hangers on house rim and outboard rim for each interior joist
+    hangs = _create_deck_hangers(
+        doc,
+        centers,
+        joist_thick,
+        joist_depth,
+        proj_y_in,
+        HANGER_THICKNESS_IN,
+        HANGER_HEIGHT_IN,
+        HANGER_SEAT_DEPTH_IN,
+        HANGER_LABEL,
+    )
     created.extend(hangs)
 
     # Create assembly (App::Part)
@@ -305,13 +374,8 @@ def create_deck_joists_8ft9in_x_8ft(
     # Parameters
     length_x_in = 105.0  # 8'9" wide
     proj_y_in = 96.0  # 8' deep
-    joist_spacing_oc_in = 16.0
     rim_house_outboard_label = "2x12x120"  # 10' boards for house/outboard rims (cut to 105")
     joist_label = "2x12x96"  # 8' joists
-    hanger_label = "hanger_LU210"
-    hanger_thickness = 0.06
-    hanger_height = 7.8125
-    hanger_seat_depth = 2.0
 
     # Find stock
     rim_row = lc.find_stock(catalog_rows, rim_house_outboard_label)
@@ -365,7 +429,7 @@ def create_deck_joists_8ft9in_x_8ft(
     c = first_center
     while c < last_center - 1e-6:
         centers.append(c)
-        c += joist_spacing_oc_in
+        c += JOIST_SPACING_OC_IN
     if not centers or centers[-1] < last_center - 1e-6:
         centers.append(last_center)
 
@@ -373,54 +437,18 @@ def create_deck_joists_8ft9in_x_8ft(
         x_pos = cx - (joist_thick / 2.0)
         created.append(make_joist(f"Joist_{idx}", x_pos))
 
-    # Hangers on house rim for each joist (skip first/last)
-    hangs = []
-    house_face_y = 0.0
-    outboard_face_y = proj_y_in
-
-    for idx, cx in enumerate(centers, start=1):
-        if idx == 1 or idx == len(centers):
-            continue  # skip end joists
-        try:
-            # House rim hanger: extends into +Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_House_{idx}",
-                    house_face_y,
-                    cx,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-            # Outboard rim hanger: extends into -Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_Outboard_{idx}",
-                    outboard_face_y,
-                    cx + joist_thick,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=-1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-        except Exception as e:
-            App.Console.PrintError(f"[deck_assemblies] Hanger build failed for joist {idx}: {e}\n")
-
+    # Hangers on house rim and outboard rim for each interior joist
+    hangs = _create_deck_hangers(
+        doc,
+        centers,
+        joist_thick,
+        joist_depth,
+        proj_y_in,
+        HANGER_THICKNESS_IN,
+        HANGER_HEIGHT_IN,
+        HANGER_SEAT_DEPTH_IN,
+        HANGER_LABEL,
+    )
     created.extend(hangs)
 
     # Create assembly (App::Part)
@@ -499,7 +527,7 @@ def create_deck_surface_16x8(
     deck_thick = float(deck_row["actual_thickness_in"])
     deck_width = float(deck_row["actual_width_in"])
     _deck_len = float(deck_row["length_in"])  # noqa: F841 - kept for reference
-    deck_gap = 0.125  # 1/8" gap
+    deck_gap = DECK_BOARD_GAP_IN
     post_thick = float(post_row["actual_thickness_in"])
     post_width = float(post_row["actual_width_in"])
     post_height_in = joist_depth  # flush to deck board underside
@@ -678,7 +706,7 @@ def create_deck_surface_filler(
     # Dimensions
     deck_thick = float(deck_row["actual_thickness_in"])
     deck_width = float(deck_row["actual_width_in"])
-    deck_gap = 0.125  # 1/8" gap
+    deck_gap = DECK_BOARD_GAP_IN
 
     created = []
 
@@ -844,7 +872,7 @@ def create_deck_surface_8ft9in_x_8ft(
     # Dimensions
     deck_thick = float(deck_row_main["actual_thickness_in"])
     deck_width = float(deck_row_main["actual_width_in"])
-    deck_gap = 0.125  # 1/8" gap
+    deck_gap = DECK_BOARD_GAP_IN
     post_thick = float(post_row["actual_thickness_in"])
     post_width = float(post_row["actual_width_in"])
     post_height_in = joist_depth  # flush to deck board underside
@@ -1026,15 +1054,10 @@ def create_deck_16x8(
     # Parameters
     length_x_in = 192.0  # 16'
     proj_y_in = 96.0  # 8'
-    joist_spacing_oc_in = 16.0
     rim_label = "2x12x192"
     joist_label = "2x12x96"
     deck_label = "deckboard_5_4x6x192_PT"
     post_label = "post_6x6x144_PT"
-    hanger_label = "hanger_LU210"
-    hanger_thickness = 0.06  # approx 16ga
-    hanger_height = 7.8125  # ~7-13/16" overall height
-    hanger_seat_depth = 2.0  # back plate depth
 
     # Find stock
     rim_row = lc.find_stock(catalog_rows, rim_label)
@@ -1059,7 +1082,7 @@ def create_deck_16x8(
     deck_thick = float(deck_row["actual_thickness_in"])  # 1.0"
     deck_width = float(deck_row["actual_width_in"])  # 5.5"
     deck_len = float(deck_row["length_in"])  # 192"
-    deck_gap = 0.125  # 1/8" gap
+    deck_gap = DECK_BOARD_GAP_IN
     post_thick = float(post_row["actual_thickness_in"])  # 5.5"
     post_width = float(post_row["actual_width_in"])  # 5.5"
     _post_len = float(post_row["length_in"])  # 144" stock - noqa: F841 - kept for reference
@@ -1117,7 +1140,7 @@ def create_deck_16x8(
     c = first_center
     while c < last_center - 1e-6:
         centers.append(c)
-        c += joist_spacing_oc_in
+        c += JOIST_SPACING_OC_IN
     if not centers or centers[-1] < last_center - 1e-6:
         centers.append(last_center)
 
@@ -1212,54 +1235,18 @@ def create_deck_16x8(
     for b in boards:
         cut_board_for_posts(b, posts)
 
-    # Hangers on house rim for each joist (skip first/last)
-    hangs = []
-    house_face_y = 0.0
-    outboard_face_y = proj_y_in
-
-    for idx, cx in enumerate(centers, start=1):
-        if idx == 1 or idx == len(centers):
-            continue  # skip end joists
-        try:
-            # House rim hanger: extends into +Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_House_{idx}",
-                    house_face_y,
-                    cx,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-            # Outboard rim hanger: extends into -Y
-            hangs.append(
-                lc.make_hanger(
-                    doc,
-                    f"Hanger_Outboard_{idx}",
-                    outboard_face_y,
-                    cx + joist_thick,
-                    joist_thick,
-                    hanger_thickness,
-                    hanger_height,
-                    hanger_seat_depth,
-                    hanger_label,
-                    direction=-1,
-                    axis="Y",
-                    debug_components=False,
-                    color=(0.6, 0.6, 0.7),
-                )
-            )
-        except Exception as e:
-            App.Console.PrintError(f"[deck_assemblies] Hanger build failed for joist {idx}: {e}\n")
-
+    # Hangers on house rim and outboard rim for each interior joist
+    hangs = _create_deck_hangers(
+        doc,
+        centers,
+        joist_thick,
+        joist_depth,
+        proj_y_in,
+        HANGER_THICKNESS_IN,
+        HANGER_HEIGHT_IN,
+        HANGER_SEAT_DEPTH_IN,
+        HANGER_LABEL,
+    )
     created.extend(hangs)
 
     # Create assembly (App::Part)

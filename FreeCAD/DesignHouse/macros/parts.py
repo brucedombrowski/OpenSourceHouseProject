@@ -342,28 +342,47 @@ def create_deck_module_front(
         attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
         return obj
 
-    def make_hanger_y(name, x_center, y_pos, facing=1):
-        """Create hanger for Y-running joist."""
-        h = make_hanger_helper(
+    def make_hanger_y_front(name, x_center):
+        """Create hanger for Y-running joist at front rim (joist south end)."""
+        # Joist starts at Y = thick (inside front rim)
+        # Front rim face (south side) is at Y = thick
+        return make_hanger_for_joist(
             doc,
             name,
-            x_center,
-            y_pos,
-            thick,
-            hanger_thickness,
-            hanger_height,
-            hanger_seat_depth,
-            hanger_label,
-            direction=facing,
-            color=None,
+            joist_x_in=x_center,
+            joist_y_in=thick,  # Y where joist meets front rim
+            joist_z_in=0.0,  # Joist bottom Z
+            joist_thick_in=thick,
+            joist_depth_in=depth,
+            rim_face_position_in=thick,  # South face of front rim
+            rim_axis="X",  # Front rim runs E-W
+            rim_side="south",  # Joist is south of rim interior face
+            hanger_thickness_in=hanger_thickness,
+            hanger_height_in=hanger_height,
+            hanger_seat_depth_in=hanger_seat_depth,
+            hanger_label=hanger_label,
         )
-        # Rotate hanger 90° to face Y direction
-        pl = h.Placement
-        pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 90).multiply(pl.Rotation)
-        if facing < 0:
-            pl.Rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(pl.Rotation)
-        h.Placement = pl
-        return h
+
+    def make_hanger_y_back(name, x_center, module_y):
+        """Create hanger for Y-running joist at back rim (joist north end)."""
+        # Joist ends at Y = module_y - thick (inside back rim)
+        # Back rim face (north side) is at Y = module_y - thick
+        return make_hanger_for_joist(
+            doc,
+            name,
+            joist_x_in=x_center,
+            joist_y_in=module_y - thick,  # Y where joist meets back rim
+            joist_z_in=0.0,  # Joist bottom Z
+            joist_thick_in=thick,
+            joist_depth_in=depth,
+            rim_face_position_in=module_y - thick,  # North face of back rim
+            rim_axis="X",  # Back rim runs E-W
+            rim_side="north",  # Joist is north of rim interior face
+            hanger_thickness_in=hanger_thickness,
+            hanger_height_in=hanger_height,
+            hanger_seat_depth_in=hanger_seat_depth,
+            hanger_label=hanger_label,
+        )
 
     created = []
 
@@ -402,13 +421,9 @@ def create_deck_module_front(
         joist = make_joist_y(f"{assembly_name}_Joist_{i+1}", x_center, joist_run)
         created.append(joist)
         # Hangers at front and back rims
+        hanger_grp.addObject(make_hanger_y_front(f"{assembly_name}_Hanger_Front_{i+1}", x_center))
         hanger_grp.addObject(
-            make_hanger_y(f"{assembly_name}_Hanger_Front_{i+1}", x_center, thick, facing=1)
-        )
-        hanger_grp.addObject(
-            make_hanger_y(
-                f"{assembly_name}_Hanger_Back_{i+1}", x_center, module_y_in - thick, facing=-1
-            )
+            make_hanger_y_back(f"{assembly_name}_Hanger_Back_{i+1}", x_center, module_y_in)
         )
 
     # Create assembly
