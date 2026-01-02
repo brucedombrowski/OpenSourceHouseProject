@@ -267,6 +267,7 @@ def create_deck_module_front(
     rim_label="2x12x192",
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
+    blocking_positions_in=None,
 ):
     """
     Create a front deck joist assembly with rotated orientation.
@@ -285,6 +286,9 @@ def create_deck_module_front(
         rim_label: Stock label for rims (e.g., "2x12x192" for 16')
         make_pressure_treated: If True, append "_PT" to labels (default True for decks)
         hanger_label: Hardware label
+        blocking_positions_in: List of Y positions (inches from module origin) for blocking.
+                              Blocking runs E-W between joists to support perpendicular
+                              seam boards on the deck surface. Pass None for no blocking.
 
     Returns:
         App::Part assembly with LCS markers for snapping
@@ -426,6 +430,69 @@ def create_deck_module_front(
             make_hanger_y_back(f"{assembly_name}_Hanger_Back_{i+1}", x_center, module_y_in)
         )
 
+    # Blocking between joists at specified Y positions (for seam board support)
+    # Blocking runs E-W (X direction) between adjacent joists
+    blocking_pieces = []
+    if blocking_positions_in:
+        # Collect all joist X centers (including left/right end joists)
+        all_joist_x = [thick / 2.0] + positions + [module_x_in - thick / 2.0]
+        all_joist_x = sorted(all_joist_x)
+
+        # Find blocking stock (use 2x12 cut to fit between joists)
+        blocking_label = "2x12x96"  # 8' stock, field cut to ~14.5"
+        blocking_label_use = blocking_label + "_PT" if make_pressure_treated else blocking_label
+        blocking_row = find_stock(catalog_rows, blocking_label_use)
+        if not blocking_row:
+            App.Console.PrintWarning(
+                f"[parts] Blocking stock '{blocking_label_use}' not found, skipping blocking\n"
+            )
+        else:
+            blocking_thick = float(blocking_row["actual_thickness_in"])  # 1.5"
+            blocking_depth = float(blocking_row["actual_width_in"])  # 11.25"
+
+            for y_pos_in in blocking_positions_in:
+                # Filter: only create blocking within the joist run area
+                # (between front rim back face and back rim front face)
+                if y_pos_in <= thick or y_pos_in >= module_y_in - thick:
+                    continue
+
+                # Create blocking between each pair of adjacent joists
+                # Stagger alternating blocks for face-nailing access
+                for j in range(len(all_joist_x) - 1):
+                    left_joist_x = all_joist_x[j]
+                    right_joist_x = all_joist_x[j + 1]
+
+                    # Blocking fits between joist faces
+                    blocking_x_start = left_joist_x + thick / 2.0
+                    blocking_x_end = right_joist_x - thick / 2.0
+                    blocking_length = blocking_x_end - blocking_x_start
+
+                    if blocking_length > 0.5:  # Only create if there's room
+                        block = make_box(blocking_length, blocking_thick, blocking_depth)
+                        block_obj = doc.addObject(
+                            "Part::Feature", f"{assembly_name}_Block_{len(blocking_pieces)+1}"
+                        )
+                        block_obj.Shape = block
+                        # Stagger every other block by blocking thickness for face-nailing
+                        # Even-indexed blocks are at base Y, odd-indexed are offset by blocking_thick
+                        y_offset = blocking_thick if (j % 2 == 1) else 0.0
+                        block_obj.Placement.Base = App.Vector(
+                            inch(blocking_x_start),
+                            inch(y_pos_in - blocking_thick / 2.0 + y_offset),
+                            0,
+                        )
+                        attach_metadata(
+                            block_obj, blocking_row, blocking_label_use, supplier="lowes"
+                        )
+                        blocking_pieces.append(block_obj)
+                        created.append(block_obj)
+
+        if blocking_pieces:
+            pos_list = ", ".join([str(int(p)) + "in" for p in blocking_positions_in])
+            App.Console.PrintMessage(
+                f"[parts]   Added {len(blocking_pieces)} blocking pieces at Y positions: [{pos_list}]\n"
+            )
+
     # Create assembly
     assembly = create_assembly(doc, assembly_name)
     for obj in created:
@@ -471,6 +538,7 @@ def create_deck_module_front_16x12(
     assembly_name="Deck_Module_Front_16x12",
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
+    blocking_positions_in=None,
 ):
     """
     Create a 16x12 front deck module (16' rims E-W, 12' joists N-S).
@@ -479,6 +547,10 @@ def create_deck_module_front_16x12(
     - 16' wide (parallel to house front)
     - 12' deep (perpendicular to house front)
     - Joists run N-S to support E-W deck boards
+
+    Args:
+        blocking_positions_in: List of Y positions (inches) for blocking.
+                              For 12' deck, position 72" (6') would add blocking at midpoint.
     """
     return create_deck_module_front(
         doc,
@@ -490,6 +562,7 @@ def create_deck_module_front_16x12(
         rim_label="2x12x192",  # 16' rims
         make_pressure_treated=make_pressure_treated,
         hanger_label=hanger_label,
+        blocking_positions_in=blocking_positions_in,
     )
 
 
@@ -499,6 +572,7 @@ def create_deck_module_front_16x8(
     assembly_name="Deck_Module_Front_16x8",
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
+    blocking_positions_in=None,
 ):
     """
     Create a 16x8 front deck module (16' rims E-W, 8' joists N-S).
@@ -518,6 +592,7 @@ def create_deck_module_front_16x8(
         rim_label="2x12x192",  # 16' rims
         make_pressure_treated=make_pressure_treated,
         hanger_label=hanger_label,
+        blocking_positions_in=blocking_positions_in,
     )
 
 
@@ -527,6 +602,7 @@ def create_deck_module_front_16x4(
     assembly_name="Deck_Module_Front_16x4",
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
+    blocking_positions_in=None,
 ):
     """
     Create a 16x4 front deck module (16' rims E-W, 4' joists N-S).
@@ -551,6 +627,7 @@ def create_deck_module_front_16x4(
         rim_label="2x12x192",  # 16' rims
         make_pressure_treated=make_pressure_treated,
         hanger_label=hanger_label,
+        blocking_positions_in=blocking_positions_in,
     )
 
 

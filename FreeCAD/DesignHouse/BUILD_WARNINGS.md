@@ -198,6 +198,41 @@ DECK_BOARD_GAP_IN = 0.125  # 1/8" gap between boards
 
 ---
 
+## Design Principles
+
+### Realistic Build Order (2025-01-01)
+
+**Principle**: The macro builds components in the order they would be constructed on a real job site, even though we may design features out of sequence.
+
+**Current Build Sequence**:
+1. Lot survey lines
+2. Foundation (piles, beams, blocking)
+3. Deck joists (installed with first floor framing)
+4. First floor joists + sheathing
+5. First floor walls
+6. **Deck surface (boards installed BEFORE second floor)**
+7. Second floor joists + sheathing
+8. Second floor walls
+9. Stairs
+10. Roofing
+
+**Rationale for Deck Boards Before Second Floor**:
+- Deck boards provide a safe, stable walking surface for workers
+- Second floor framing requires workers to move materials and work at elevation
+- Having deck boards in place allows safe staging and movement during upper-level construction
+- This matches real-world construction sequencing
+
+**Implementation**:
+- Section 8D: Deck Surface (moved from original Section 9)
+- Section 8E: Second Floor Joist Modules
+- The `include_deck_surface` BUILD flag controls whether deck boards are built
+- Deck boards are placed at first floor joist top elevation + joist depth
+
+**Files Affected**:
+- `BeachHouse Template.FCMacro` - Section order reorganized
+
+---
+
 ## Notes
 
 All warnings documented here are non-critical and do not affect:

@@ -75,8 +75,14 @@ def ensure_macro_path():
         sys.path.append(here)
 
 
+# Unit conversion constants
+MM_PER_INCH = 25.4
+INCH_PER_MM = 1.0 / MM_PER_INCH
+
+
 def inch(x):
-    return x * 25.4
+    """Convert inches to millimeters."""
+    return x * MM_PER_INCH
 
 
 def resolve_catalog(candidates):
