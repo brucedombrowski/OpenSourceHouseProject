@@ -11,15 +11,21 @@ Architecture:
     - Second Floor: Mirrors first floor layout
     - Roof: Gable + shed configurations
 
-Build Sequence (matches group hierarchy):
+Build Sequence (realistic construction order):
     1. Lot survey lines
     2. Foundation (piles, beams, blocking)
-    3. First floor joists + sheathing
-    4. First floor walls
-    5. Second floor joists + sheathing
-    6. Second floor walls
-    7. Stairs
-    8. Roofing
+    3. Deck joists (installed with first floor framing)
+    4. First floor joists + sheathing
+    5. First floor walls
+    6. Deck surface (boards installed before second floor for safe work platform)
+    7. Second floor joists + sheathing
+    8. Second floor walls
+    9. Stairs
+    10. Roofing
+
+    NOTE: Build order follows realistic construction sequence. Deck boards are
+    installed BEFORE second floor framing to provide a safe walking surface for
+    workers during upper-level construction.
 
 Usage:
     Run this macro in FreeCAD. It will generate the complete house model
@@ -529,12 +535,17 @@ if BUILD.get("include_deck_joists", False):
     # ============================================================
     App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 × 16x12 modules)...\n")
 
+    # NOTE: Blocking is NOT created here in the joist modules. Instead, blocking is added
+    # after deck surface is complete (in SECTION 8D) so it can be properly positioned
+    # around sister joists at seam positions.
+
     # Left module (west)
     front_deck_left = parts.create_deck_module_front_16x12(
         doc,
         catalog_rows,
         assembly_name="Front_Deck_Left_16x12",
         make_pressure_treated=True,
+        blocking_positions_in=None,  # Blocking added later with deck surface
     )
     lc.place_assembly_at(
         front_deck_left,
@@ -550,6 +561,7 @@ if BUILD.get("include_deck_joists", False):
         catalog_rows,
         assembly_name="Front_Deck_Center_16x12",
         make_pressure_treated=True,
+        blocking_positions_in=None,  # Blocking added later with deck surface
     )
     lc.snap_assembly_corner_to_corner(
         front_deck_center, front_deck_left, target_corner="bottom_right", assembly_corner="bottom_left"
@@ -562,6 +574,7 @@ if BUILD.get("include_deck_joists", False):
         catalog_rows,
         assembly_name="Front_Deck_Right_16x12",
         make_pressure_treated=True,
+        blocking_positions_in=None,  # Blocking added later with deck surface
     )
     lc.snap_assembly_corner_to_corner(
         front_deck_right, front_deck_center, target_corner="bottom_right", assembly_corner="bottom_left"
@@ -588,6 +601,7 @@ if BUILD.get("include_deck_joists", False):
         joist_label="2x12x144",  # 12' joists
         rim_label="2x12x96",  # Use 8' stock, field cut to filler width
         make_pressure_treated=True,
+        blocking_positions_in=None,  # Blocking added later with deck surface
     )
     lc.snap_assembly_corner_to_corner(
         front_deck_filler, front_deck_right, target_corner="bottom_right", assembly_corner="bottom_left"
@@ -1322,7 +1336,543 @@ if BUILD.get("include_walls", False):
     App.Console.PrintMessage("[Build_950Surf] Interior wall organized under First_Floor.\n")
 
 # ============================================================
-# SECTION 8D: SECOND FLOOR JOIST MODULES (20' LVL rims × 12' 2x12 joists)
+# SECTION 8D: DECK SURFACE (boards, installed BEFORE second floor)
+# ============================================================
+# Realistic build order: deck boards go on before second floor joists/beams
+# This allows workers to safely walk on the deck while framing the second floor
+#
+# UNIFIED DECK SURFACE APPROACH:
+# - One assembly for entire deck perimeter
+# - Picture frame with mitered corners around outer edge
+# - Zones define board direction based on joist orientation
+# - Field boards fill each zone, perpendicular to joists
+
+if BUILD.get("include_deck_surface", False):
+    App.Console.PrintMessage("[Build_950Surf] Building unified deck surface...\n")
+
+    # ============================================================
+    # Calculate deck perimeter and zone boundaries from actual assemblies
+    # ============================================================
+    # Derive frame boundaries from placed joist assemblies to ensure perfect alignment
+    # rather than recalculating from config (which can drift from actual positions)
+
+    # Get bounding boxes of front and rear deck assemblies
+    # The bounding box is in local coordinates, so we need to add the assembly's Placement.Base
+    # to get global coordinates (FreeCAD uses mm internally)
+
+    def get_global_bbox(assembly):
+        """Get assembly bounding box in global coordinates (mm)."""
+        local_bbox = lc.get_assembly_bbox(assembly)
+        placement = assembly.Placement.Base
+        return {
+            "XMin": local_bbox.XMin + placement.x,
+            "XMax": local_bbox.XMax + placement.x,
+            "YMin": local_bbox.YMin + placement.y,
+            "YMax": local_bbox.YMax + placement.y,
+            "ZMin": local_bbox.ZMin + placement.z,
+            "ZMax": local_bbox.ZMax + placement.z,
+        }
+
+    # Front deck: use leftmost module for X min and Y min (south edge)
+    front_deck_left_bbox = get_global_bbox(front_deck_left)
+    front_deck_filler_bbox = get_global_bbox(front_deck_filler)
+
+    # Rear deck: use filler module for Y max (north edge) and X max (east edge)
+    rear_deck_left_bbox = get_global_bbox(rear_deck_joists_left)
+    rear_deck_filler_bbox = get_global_bbox(rear_deck_joists_filler)
+
+    # Convert mm to inches (using lumber_common constant)
+    mm_to_in = lc.INCH_PER_MM
+
+    # Deck frame boundaries from actual assembly positions (global coordinates)
+    deck_frame_x_min_in = front_deck_left_bbox["XMin"] * mm_to_in  # West edge from front deck left
+    deck_frame_x_max_in = front_deck_filler_bbox["XMax"] * mm_to_in  # East edge from front deck filler
+    deck_frame_y_min_in = front_deck_left_bbox["YMin"] * mm_to_in  # South edge from front deck front rim
+    deck_frame_y_max_in = rear_deck_filler_bbox["YMax"] * mm_to_in  # North edge from rear deck back rim
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Deck frame from assemblies: X=[{deck_frame_x_min_in:.2f}, {deck_frame_x_max_in:.2f}], Y=[{deck_frame_y_min_in:.2f}, {deck_frame_y_max_in:.2f}]\n")
+
+    # Sheathing boundaries (where deck boards DON'T go)
+    # These define the interior floor area - derived from FIRST FLOOR config, NOT deck assemblies
+    # This ensures deck boards stop exactly at the first floor sheathing edge
+    side_deck_width_ft = FIRST_FLOOR.get("sheathing_deck_exclusion_ft", 4.375)  # ~4' overhang
+    side_deck_width_in = side_deck_width_ft * 12.0
+
+    # First floor sheathing starts at floor_start position (from config)
+    # Use same calculation as floor_params to ensure exact alignment
+    first_floor_start_x_ft = (lot_x_ft - floor_width_ft) / 2.0  # Same as floor_params["floor_start_x_ft"]
+    first_floor_start_y_ft = front_setback_ft + y_spacing_ft  # Same as floor_params["floor_start_y_ft"]
+    first_floor_start_x_in = first_floor_start_x_ft * 12.0
+    first_floor_start_y_in = first_floor_start_y_ft * 12.0
+
+    # Sheathing X bounds: inside the deck exclusion zones
+    sheathing_x_min_in = first_floor_start_x_in + side_deck_width_in
+    sheathing_x_max_in = first_floor_start_x_in + (floor_width_ft * 12.0) - side_deck_width_in
+
+    # Sheathing Y bounds: from first floor start to first floor start + depth
+    sheathing_y_min_in = first_floor_start_y_in  # South edge of first floor sheathing
+    sheathing_y_max_in = first_floor_start_y_in + (floor_depth_ft * 12.0)  # North edge of first floor sheathing
+
+    App.Console.PrintMessage(f"[Build_950Surf]   First floor sheathing: X=[{sheathing_x_min_in:.2f}, {sheathing_x_max_in:.2f}], Y=[{sheathing_y_min_in:.2f}, {sheathing_y_max_in:.2f}]\n")
+
+    # ============================================================
+    # Define perimeter (outer bounds of entire deck including overhang)
+    # ============================================================
+    perimeter = {
+        "x_min_in": deck_frame_x_min_in,  # Overhang applied inside create_unified_deck_surface
+        "x_max_in": deck_frame_x_max_in,
+        "y_min_in": deck_frame_y_min_in,
+        "y_max_in": deck_frame_y_max_in,
+    }
+
+    # ============================================================
+    # Define zones (areas with same board direction)
+    # ============================================================
+    # Board direction is perpendicular to joist direction:
+    # - NS joists (front/rear decks) → EW boards
+    # - EW joists (side decks/floor) → NS boards
+
+    # Calculate first joist offset for EW boards (front/rear decks)
+    # Front deck joists (running NS) are at X positions:
+    #   - Left rim center: deck_frame_x_min + 0.75"
+    #   - First interior joist: deck_frame_x_min + 15.25" (rim + 14.5" first_spacing)
+    #   - Subsequent joists: 16" O.C. after that
+    # Field boards start after picture frame edge: deck_frame_x_min + 5.5" + 0.125" = +5.625"
+    # First interior joist relative to field start: 15.25" - 5.625" = 9.625"
+    deck_board_width_in = 5.5  # 5/4x6 deck board width
+    deck_board_gap_in = 0.125  # 1/8" gap
+    joist_first_spacing_in = 14.5  # First joist at 14.5" from rim (for sheathing alignment)
+    joist_thick_in = 1.5  # 2x lumber thickness
+
+    # Picture frame edge takes: deck_board_width + gap = 5.625"
+    frame_edge_offset = deck_board_width_in + deck_board_gap_in  # 5.625"
+    # First interior joist from deck origin: rim_center + first_spacing = 0.75 + 14.5 = 15.25"
+    first_interior_joist_from_origin = (joist_thick_in / 2.0) + joist_first_spacing_in  # 15.25"
+    # First joist offset from field board start (EW boards after picture frame edge)
+    ew_first_joist_offset_in = first_interior_joist_from_origin - frame_edge_offset  # 9.625"
+
+    # For NS boards on side decks:
+    # Side deck zones start at sheathing_y_min (floor module Y origin)
+    # Floor joist modules have front rim center at origin + 0.75"
+    # NS field boards need to land on floor joists (running EW)
+    # First joist from zone start = rim center = 0.75"
+    ns_first_joist_offset_in = joist_thick_in / 2.0  # 0.75"
+
+    # ============================================================
+    # Picture frame joist offsets (for edge board splices)
+    # ============================================================
+    # Picture frame boards extend 1" beyond framing (DECK_OVERHANG_IN in deck_assemblies)
+    # So we need to add that offset when calculating distance to first joist
+    deck_overhang_in = 1.0  # Must match DECK_OVERHANG_IN in deck_assemblies.py
+
+    # EW picture frame boards (front/back edges): splice on NS joists
+    # Frame starts at deck_frame_x_min - 1" (overhang)
+    # First interior joist center at deck_frame_x_min + 15.25"
+    # Offset from frame start to first interior joist = 15.25" + 1.0" = 16.25"
+    pf_ew_first_joist_offset_in = first_interior_joist_from_origin + deck_overhang_in  # 16.25"
+
+    # NS picture frame boards (left/right edges): splice on EW joists
+    # Frame starts at deck_frame_y_min - 1" (overhang)
+    # Front deck NS joists at: y_min + 0.75" (rim), y_min + 15.25" (first interior), etc.
+    # Offset from frame start to rim joist = 0.75" + 1.0" = 1.75"
+    pf_ns_first_joist_offset_in = (joist_thick_in / 2.0) + deck_overhang_in  # 1.75"
+
+    zones = [
+        # Front deck: full width, 12' deep, EW boards
+        {
+            "name": "Front_Deck",
+            "x_min_in": deck_frame_x_min_in,
+            "x_max_in": deck_frame_x_max_in,
+            "y_min_in": deck_frame_y_min_in,
+            "y_max_in": sheathing_y_min_in,  # Up to sheathing south edge
+            "joist_direction": "NS",  # Joists run north-south
+            "seam_positions_in": [72.0],  # Seam at 6' from front (legacy, ignored)
+            "first_joist_offset_in": ew_first_joist_offset_in,  # Align splices with actual joists
+        },
+        # Left side deck: narrow strip along west side, NS boards
+        {
+            "name": "Left_Side_Deck",
+            "x_min_in": deck_frame_x_min_in,
+            "x_max_in": sheathing_x_min_in,  # Up to sheathing west edge
+            "y_min_in": sheathing_y_min_in,  # Start at front deck north edge
+            "y_max_in": sheathing_y_max_in,  # End at rear deck south edge
+            "joist_direction": "EW",  # Joists run east-west (floor joists)
+            "first_joist_offset_in": ns_first_joist_offset_in,  # Align with floor joists
+        },
+        # Right side deck: narrow strip along east side, NS boards
+        # ns_layout_direction: "right_to_left" puts rip board against house (west side)
+        {
+            "name": "Right_Side_Deck",
+            "x_min_in": sheathing_x_max_in,  # Start at sheathing east edge
+            "x_max_in": deck_frame_x_max_in,
+            "y_min_in": sheathing_y_min_in,
+            "y_max_in": sheathing_y_max_in,
+            "joist_direction": "EW",  # Joists run east-west
+            "ns_layout_direction": "right_to_left",  # Start from picture frame, rip against house
+            "first_joist_offset_in": ns_first_joist_offset_in,  # Align with floor joists
+        },
+        # Rear deck: full width, 4' deep, EW boards
+        {
+            "name": "Rear_Deck",
+            "x_min_in": deck_frame_x_min_in,
+            "x_max_in": deck_frame_x_max_in,
+            "y_min_in": sheathing_y_max_in,  # Start at sheathing north edge
+            "y_max_in": deck_frame_y_max_in,
+            "joist_direction": "NS",  # Joists run north-south
+            "first_joist_offset_in": ew_first_joist_offset_in,  # Same offset as front deck
+        },
+    ]
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Zones defined: {[z['name'] for z in zones]}\n")
+
+    # ============================================================
+    # Create unified deck surface
+    # ============================================================
+    unified_deck = da.create_unified_deck_surface(
+        doc,
+        catalog_rows,
+        perimeter=perimeter,
+        zones=zones,
+        assembly_name="Unified_Deck_Surface",
+        z_base=deck_z_base_in,
+        supplier="lowes",
+        joist_depth_in=FIRST_FLOOR["joist_depth_in"],
+        picture_frame_ew_joist_offset=pf_ew_first_joist_offset_in,
+        picture_frame_ns_joist_offset=pf_ns_first_joist_offset_in,
+    )
+
+    deck_surface_assemblies = [unified_deck]
+
+    # Perpendicular deck boards over stair opening (only if stairs enabled)
+    if BUILD.get("include_stairs", False):
+        # Position: stair rim east face (pile east face = 41.46875')
+        App.Console.PrintMessage("[Build_950Surf]   Creating perpendicular deck boards over stair opening...\n")
+        stair_rim_east_face_x_ft = 41.0 + (11.25 / 24.0)  # Pile_41_28 east face = 41.46875'
+        stair_y_snap_ft = STAIRS["stair_y_snap_ft"]  # Top tread south edge position
+        stair_deck_surface_perpendicular = da.create_deck_surface_perpendicular_over_stair(
+            doc,
+            catalog_rows,
+            assembly_name="Deck_Surface_Stair_Perpendicular",
+            stair_config=STAIRS,
+            x_base=stair_rim_east_face_x_ft * 12.0,  # Position at stair rim east face
+            y_base=stair_y_snap_ft * 12.0,  # Y position where boards start (front rim north edge)
+            z_base=deck_z_base_in,
+            supplier="lowes",
+        )
+        deck_surface_assemblies.append(stair_deck_surface_perpendicular)
+
+    # Create Deck_Surface group
+    deck_surface_grp = bc.create_group(doc, "Deck_Surface")
+    bc.add_to_group(deck_surface_grp, deck_surface_assemblies)
+
+    App.Console.PrintMessage(f"[Build_950Surf] Unified deck surface complete ({len(deck_surface_assemblies)} assemblies).\n")
+else:
+    App.Console.PrintMessage("[Build_950Surf] Deck surface skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 8D-2: DECK RAILINGS (posts, rails, balusters)
+# ============================================================
+# Deck railings are installed after deck surface is complete
+# Posts extend from bottom of joists (for strength) to 48" above deck surface
+# Posts are positioned inside rim joists, directly against rim inside face
+# Blocking will be added later to secure posts (connects joist-to-joist, hugging post)
+
+if BUILD.get("include_deck_railings", False):
+    App.Console.PrintMessage("[Build_950Surf] Building deck railings...\n")
+
+    # Import railing module
+    import railing_assemblies as ra
+    importlib.reload(ra)
+
+    # Calculate deck surface Z position (top of deck boards)
+    # deck_z_base_in = joist bottom (foundation level)
+    # Deck boards sit ON TOP of joists, so:
+    # deck surface top = joist bottom + joist depth + deck board thickness
+    #
+    # Get deck board thickness from catalog (same source as deck_assemblies uses)
+    deck_board_label = "deckboard_5_4x6x192_PT"  # Same as da.DECK_BOARD_LABEL
+    deck_board_row = lc.find_stock(catalog_rows, deck_board_label)
+    if not deck_board_row:
+        raise ValueError(f"Deck board '{deck_board_label}' not found in catalog")
+    deck_board_thick_in = float(deck_board_row["actual_thickness_in"])  # 5/4 actual = 1.0"
+    joist_depth_in = FIRST_FLOOR["joist_depth_in"]  # 2x12 actual = 11.25"
+    deck_surface_top_z_in = deck_z_base_in + joist_depth_in + deck_board_thick_in
+
+    # ============================================================
+    # DECK RAILING STRATEGY - Continuous Perimeter with L-Shaped Corners
+    # ============================================================
+    #
+    # The deck forms an L-shape around the house footprint:
+    # - Front deck: full width, extends south from house
+    # - Side decks: narrow strips along east/west house walls
+    # - Rear deck: full width, extends north from house
+    #
+    # SAFETY-CRITICAL: IRC R312.1.3 requires max 4" gaps (sphere rule)
+    # Railings must form a continuous barrier with no gaps > 4" where a
+    # baby could crawl through and fall.
+    #
+    # The railings are organized into sections that connect at corners:
+    # 1. Front deck: south edge (full), west edge (to sheathing), east edge (to sheathing)
+    # 2. Side decks: west/east outer edges only (from sheathing_y_min to sheathing_y_max)
+    # 3. Rear deck: north edge (full), west edge (from sheathing), east edge (from sheathing)
+    #
+    # Corner connections (no gaps):
+    # - SW corner: Front west railing continues into left side west railing
+    # - SE corner: Front east railing continues into right side east railing
+    # - NW corner: Left side west railing continues into rear west railing
+    # - NE corner: Right side east railing continues into rear east railing
+    #
+    # NOTE: Elevator opening on east side will be handled separately once elevator is enabled
+
+    # Front deck: South edge (continuous), plus west/east sections to house wall
+    # The south edge runs full width; east/west edges only run to sheathing line
+    front_deck_railing_perimeter = {
+        "x_min_in": deck_frame_x_min_in,
+        "x_max_in": deck_frame_x_max_in,
+        "y_min_in": deck_frame_y_min_in,
+        "y_max_in": sheathing_y_min_in,  # Up to where sheathing starts (house wall)
+    }
+
+    front_deck_railings = ra.create_deck_railings(
+        doc,
+        catalog_rows,
+        perimeter=front_deck_railing_perimeter,
+        deck_surface_z_in=deck_surface_top_z_in,
+        assembly_name="Front_Deck_Railings",
+        supplier="lowes",
+        exclude_sides=["north"],  # No railing against house
+        post_height_above_deck_in=48.0,  # 48" above deck surface
+        joist_depth_in=joist_depth_in,
+        deck_board_thick_in=deck_board_thick_in,
+    )
+
+    # Rear deck: North edge (continuous), plus west/east sections from house wall
+    rear_deck_railing_perimeter = {
+        "x_min_in": deck_frame_x_min_in,
+        "x_max_in": deck_frame_x_max_in,
+        "y_min_in": sheathing_y_max_in,  # Start where sheathing ends (house wall)
+        "y_max_in": deck_frame_y_max_in,
+    }
+
+    rear_deck_railings = ra.create_deck_railings(
+        doc,
+        catalog_rows,
+        perimeter=rear_deck_railing_perimeter,
+        deck_surface_z_in=deck_surface_top_z_in,
+        assembly_name="Rear_Deck_Railings",
+        supplier="lowes",
+        exclude_sides=["south"],  # No railing against house
+        post_height_above_deck_in=48.0,
+        joist_depth_in=joist_depth_in,
+        deck_board_thick_in=deck_board_thick_in,
+    )
+
+    # Side deck railings: These ONLY cover the outer edges (west for left, east for right)
+    # along the house wall section. The north/south connections are provided by
+    # the front/rear deck west/east railings extending to sheathing line.
+    #
+    # Left side deck: west edge only (continuous from front corner to rear corner)
+    left_side_deck_railing_perimeter = {
+        "x_min_in": deck_frame_x_min_in,
+        "x_max_in": sheathing_x_min_in,  # Up to house wall
+        "y_min_in": sheathing_y_min_in,
+        "y_max_in": sheathing_y_max_in,
+    }
+
+    left_side_deck_railings = ra.create_deck_railings(
+        doc,
+        catalog_rows,
+        perimeter=left_side_deck_railing_perimeter,
+        deck_surface_z_in=deck_surface_top_z_in,
+        assembly_name="Left_Side_Deck_Railings",
+        supplier="lowes",
+        exclude_sides=["east", "north", "south"],  # Only west edge
+        post_height_above_deck_in=48.0,
+        joist_depth_in=joist_depth_in,
+        deck_board_thick_in=deck_board_thick_in,
+    )
+
+    # Right side deck: east edge only
+    right_side_deck_railing_perimeter = {
+        "x_min_in": sheathing_x_max_in,  # Start at house wall
+        "x_max_in": deck_frame_x_max_in,
+        "y_min_in": sheathing_y_min_in,
+        "y_max_in": sheathing_y_max_in,
+    }
+
+    right_side_deck_railings = ra.create_deck_railings(
+        doc,
+        catalog_rows,
+        perimeter=right_side_deck_railing_perimeter,
+        deck_surface_z_in=deck_surface_top_z_in,
+        assembly_name="Right_Side_Deck_Railings",
+        supplier="lowes",
+        exclude_sides=["west", "north", "south"],  # Only east edge
+        post_height_above_deck_in=48.0,
+        joist_depth_in=joist_depth_in,
+        deck_board_thick_in=deck_board_thick_in,
+    )
+
+    # ============================================================
+    # CORNER TRANSITION RAILINGS - Fill gaps at L-shaped corners
+    # ============================================================
+    # At each corner where front/rear deck meets side deck, there's a gap
+    # between railing sections. The gap is approximately 2 * post_inset = 6.5"
+    # which exceeds the IRC R312.1.3 4" sphere rule.
+    #
+    # The existing corner deduplication logic ensures:
+    # - E-W sides (front/rear deck) OWN their corner posts
+    # - N-S sides (side decks) SKIP corner posts where E-W sides exist
+    #
+    # This means the existing posts are positioned correctly, but there's a gap
+    # in the RAILS between the two railing assemblies at each corner.
+    #
+    # The gap geometry:
+    # - Front deck west railing ends with post at y = front_perimeter_y_max - post_inset
+    #   where front_perimeter_y_max = sheathing_y_min_in
+    #   So post Y = sheathing_y_min_in - 3.25"
+    #
+    # - Side deck west railing starts with post at y = side_perimeter_y_min + post_inset
+    #   where side_perimeter_y_min = sheathing_y_min_in
+    #   So post Y = sheathing_y_min_in + 3.25"
+    #
+    # The gap between posts = 6.5" (violates 4" sphere rule)
+    #
+    # FIX: Create short transition rail sections that span from post face to post face
+    # These rails run parallel to Y axis (N-S direction) and connect the corner posts.
+    # We create rails directly (not using create_railing_section since we don't need posts).
+
+    import Part
+    corner_railings = []
+    rim_thick = 1.5  # 2x lumber rim joist thickness
+    post_thick = 3.5  # 4x4 post thickness
+    post_inset = rim_thick + post_thick / 2.0  # 3.25" from perimeter edge to post center
+    rail_thick = 1.5  # 2x4 rail thickness
+    rail_width = 3.5  # 2x4 rail width
+
+    # Post base and heights (same as main railings)
+    post_base_z_in = deck_surface_top_z_in - deck_board_thick_in - joist_depth_in
+    post_height_above_deck_in = 48.0
+    post_height_in = (deck_surface_top_z_in - post_base_z_in) + post_height_above_deck_in
+
+    # Rail Z positions
+    top_rail_z = post_base_z_in + post_height_in - rail_thick
+    bottom_rail_z = deck_surface_top_z_in + 3.5  # 3.5" above deck (same as BOTTOM_RAIL_HEIGHT_ABOVE_DECK_IN)
+
+    # Gap span: from front post face to side post face
+    # Front post north face is at: sheathing_y_min_in - post_inset + post_thick/2 = sheathing_y_min_in - 1.5"
+    # Side post south face is at: sheathing_y_min_in + post_inset - post_thick/2 = sheathing_y_min_in + 1.5"
+    # Gap span = 3.0" (from front post north face to side post south face)
+    front_post_north_face_y = sheathing_y_min_in - post_inset + post_thick / 2.0  # -1.5" from sheathing
+    side_post_south_face_y = sheathing_y_min_in + post_inset - post_thick / 2.0   # +1.5" from sheathing
+    gap_span_south = side_post_south_face_y - front_post_north_face_y  # 3.0"
+
+    # Similarly for rear transition (side deck north end to rear deck south end)
+    side_post_north_face_y = sheathing_y_max_in - post_inset + post_thick / 2.0  # -1.5" from sheathing
+    rear_post_south_face_y = sheathing_y_max_in + post_inset - post_thick / 2.0  # +1.5" from sheathing
+    gap_span_north = rear_post_south_face_y - side_post_north_face_y  # 3.0"
+
+    # Helper to create transition rails
+    def create_corner_transition_rails(x_center_in, y_start_in, y_end_in, corner_name):
+        """Create top and bottom rails for corner transition."""
+        rails = []
+        span_length = y_end_in - y_start_in
+
+        if span_length < 0.5:
+            App.Console.PrintWarning(f"[railing] {corner_name} transition too short ({span_length:.1f}in), skipping\n")
+            return rails
+
+        # Top rail (runs N-S)
+        top_rail_name = f"{corner_name}_TopRail"
+        top_rail = doc.addObject("Part::Feature", top_rail_name)
+        top_rail.Shape = Part.makeBox(
+            lc.inch(rail_width),
+            lc.inch(span_length),
+            lc.inch(rail_thick),
+        )
+        top_rail.Placement.Base = App.Vector(
+            lc.inch(x_center_in - rail_width / 2.0),
+            lc.inch(y_start_in),
+            lc.inch(top_rail_z),
+        )
+        rails.append(top_rail)
+
+        # Bottom rail
+        bottom_rail_name = f"{corner_name}_BottomRail"
+        bottom_rail = doc.addObject("Part::Feature", bottom_rail_name)
+        bottom_rail.Shape = Part.makeBox(
+            lc.inch(rail_width),
+            lc.inch(span_length),
+            lc.inch(rail_thick),
+        )
+        bottom_rail.Placement.Base = App.Vector(
+            lc.inch(x_center_in - rail_width / 2.0),
+            lc.inch(y_start_in),
+            lc.inch(bottom_rail_z),
+        )
+        rails.append(bottom_rail)
+
+        # Balusters in gap (if gap > baluster thickness)
+        baluster_thick = 1.5  # 2x2
+        baluster_width = 1.5
+        baluster_z_bottom = bottom_rail_z + rail_thick
+        baluster_z_top = top_rail_z
+        baluster_height = baluster_z_top - baluster_z_bottom
+
+        if baluster_height > 1.0 and span_length > baluster_thick:
+            # Center a baluster in the gap
+            baluster_name = f"{corner_name}_Baluster_1"
+            bal = doc.addObject("Part::Feature", baluster_name)
+            bal.Shape = Part.makeBox(
+                lc.inch(baluster_thick),
+                lc.inch(baluster_width),
+                lc.inch(baluster_height),
+            )
+            bal.Placement.Base = App.Vector(
+                lc.inch(x_center_in - baluster_thick / 2.0),
+                lc.inch(y_start_in + (span_length - baluster_width) / 2.0),
+                lc.inch(baluster_z_bottom),
+            )
+            rails.append(bal)
+
+        return rails
+
+    # SW Corner: west edge, front deck to side deck transition
+    sw_x = deck_frame_x_min_in + post_inset  # West edge post centerline X
+    sw_rails = create_corner_transition_rails(sw_x, front_post_north_face_y, side_post_south_face_y, "SW_Corner")
+    corner_railings.extend(sw_rails)
+
+    # SE Corner: east edge, front deck to side deck transition
+    se_x = deck_frame_x_max_in - post_inset  # East edge post centerline X
+    se_rails = create_corner_transition_rails(se_x, front_post_north_face_y, side_post_south_face_y, "SE_Corner")
+    corner_railings.extend(se_rails)
+
+    # NW Corner: west edge, side deck to rear deck transition
+    nw_rails = create_corner_transition_rails(sw_x, side_post_north_face_y, rear_post_south_face_y, "NW_Corner")
+    corner_railings.extend(nw_rails)
+
+    # NE Corner: east edge, side deck to rear deck transition
+    ne_rails = create_corner_transition_rails(se_x, side_post_north_face_y, rear_post_south_face_y, "NE_Corner")
+    corner_railings.extend(ne_rails)
+
+    # Create corner transition assembly
+    corner_transition_assembly = doc.addObject("App::Part", "Corner_Transition_Railings")
+    corner_transition_assembly.Label = "Corner_Transition_Railings"
+    for obj in corner_railings:
+        corner_transition_assembly.addObject(obj)
+
+    App.Console.PrintMessage(f"[railing] ✓ Corner transitions complete: 4 corners, {len(corner_railings)} components\n")
+
+    # Create Deck_Railings group
+    deck_railing_grp = bc.create_group(doc, "Deck_Railings")
+    bc.add_to_group(deck_railing_grp, [front_deck_railings, rear_deck_railings, left_side_deck_railings, right_side_deck_railings, corner_transition_assembly])
+
+    App.Console.PrintMessage("[Build_950Surf] Deck railings complete.\n")
+else:
+    App.Console.PrintMessage("[Build_950Surf] Deck railings skipped (disabled in BUILD config)\n")
+
+# ============================================================
+# SECTION 8E: SECOND FLOOR JOIST MODULES (20' LVL rims × 12' 2x12 joists)
 # ============================================================
 # Second floor sits on top of first floor walls
 # Layout: 2 columns × 4 rows = 8 modules = 40' × 48'
@@ -1480,187 +2030,6 @@ if BUILD.get("include_second_floor", False):
     App.Console.PrintMessage("[Build_950Surf] Second floor complete.\n")
 else:
     App.Console.PrintMessage("[Build_950Surf] Second floor skipped (disabled in BUILD config)\n")
-
-# ============================================================
-# SECTION 9: DECK SURFACE (boards and posts, installed AFTER walls)
-# ============================================================
-
-if BUILD.get("include_deck_surface", False):
-    App.Console.PrintMessage("[Build_950Surf] Building deck surface (boards, no posts)...\n")
-
-    deck_surface_assemblies = []
-
-    # Front deck surface: 3 × 16x8 modules + filler (matches joist layout)
-    # Note: Using 16x8 surface modules even though joists are 16x12; boards run E-W
-    App.Console.PrintMessage("[Build_950Surf]   Creating front deck surface (3 × 16x8 modules + filler)...\n")
-
-    front_deck_surface_left = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Surface_Left",
-        x_base=deck_left_x_ft * 12.0,
-        y_base=front_deck_y_ft * 12.0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=True,   # Outermost left edge
-        include_right_edge=False,  # Interior edge
-    )
-    deck_surface_assemblies.append(front_deck_surface_left)
-
-    front_deck_surface_center = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Surface_Center",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior
-        include_right_edge=False,  # Interior
-    )
-    lc.snap_assembly_corner_to_corner(
-        front_deck_surface_center, front_deck_surface_left, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(front_deck_surface_center)
-
-    front_deck_surface_right = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Front_Deck_Surface_Right",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior edge
-        include_right_edge=False,  # Interior (filler is outermost)
-    )
-    lc.snap_assembly_corner_to_corner(
-        front_deck_surface_right, front_deck_surface_center, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(front_deck_surface_right)
-
-    # Front deck surface filler (9" wide to match joist filler)
-    floor_module_width_in = FIRST_FLOOR["module_16x16_width_in"]  # 195"
-    front_deck_module_width_in = 192.0  # 16' flat
-    front_filler_width_in = (floor_module_width_in * 3) - (front_deck_module_width_in * 3)  # 9"
-
-    front_deck_surface_filler = da.create_deck_surface_filler(
-        doc,
-        catalog_rows,
-        width_in=front_filler_width_in,  # 9"
-        depth_ft=8.0,  # Surface depth (not joist depth)
-        assembly_name="Front_Deck_Surface_Filler_East",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior
-        include_right_edge=True,   # Outermost right edge
-    )
-    lc.snap_assembly_corner_to_corner(
-        front_deck_surface_filler, front_deck_surface_right, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(front_deck_surface_filler)
-
-    # Rear deck surface: 3 x 16x8 modules + filler (matches joist layout)
-    App.Console.PrintMessage("[Build_950Surf]   Creating rear deck surface (3 × 16x8 modules + filler)...\n")
-
-    # Calculate filler width for rear deck surface (same as joist filler)
-    floor_module_width_in = FIRST_FLOOR["module_16x16_width_in"]  # 195"
-    rear_deck_module_width_in = 192.0  # 16' flat
-    rear_filler_width_in = (floor_module_width_in * 3) - (rear_deck_module_width_in * 3)  # 9"
-
-    rear_deck_surface_left = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Deck_Surface_Left",
-        x_base=deck_left_x_ft * 12.0,
-        y_base=rear_deck_y_ft * 12.0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=True,   # Outermost left edge
-        include_right_edge=False,  # Interior edge
-    )
-    deck_surface_assemblies.append(rear_deck_surface_left)
-
-    rear_deck_surface_center = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Deck_Surface_Center",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior
-        include_right_edge=False,  # Interior
-    )
-    lc.snap_assembly_corner_to_corner(
-        rear_deck_surface_center, rear_deck_surface_left, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(rear_deck_surface_center)
-
-    rear_deck_surface_right = da.create_deck_surface_16x8(
-        doc,
-        catalog_rows,
-        assembly_name="Rear_Deck_Surface_Right",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior edge
-        include_right_edge=False,  # Interior (filler is outermost)
-    )
-    lc.snap_assembly_corner_to_corner(
-        rear_deck_surface_right, rear_deck_surface_center, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(rear_deck_surface_right)
-
-    # Rear deck surface filler (9" wide to match joist filler)
-    # Note: Deck surface filler uses same 9" width calculated for joists
-    rear_deck_surface_filler = da.create_deck_surface_filler(
-        doc,
-        catalog_rows,
-        width_in=rear_filler_width_in,  # 9"
-        depth_ft=8.0,  # Same depth as main modules
-        assembly_name="Rear_Deck_Surface_Filler_East",
-        x_base=0,  # Will be snapped
-        y_base=0,
-        z_base=deck_z_base_in,
-        supplier="lowes",
-        include_left_edge=False,  # Interior
-        include_right_edge=True,   # Outermost right edge
-    )
-    lc.snap_assembly_corner_to_corner(
-        rear_deck_surface_filler, rear_deck_surface_right, target_corner="bottom_right", assembly_corner="bottom_left"
-    )
-    deck_surface_assemblies.append(rear_deck_surface_filler)
-
-    # Perpendicular deck boards over stair opening (running north-south)
-    # Position: stair rim east face (pile east face = 41.46875')
-    App.Console.PrintMessage("[Build_950Surf]   Creating perpendicular deck boards over stair opening...\n")
-    stair_rim_east_face_x_ft = 41.0 + (11.25 / 24.0)  # Pile_41_28 east face = 41.46875'
-    stair_y_snap_ft = STAIRS["stair_y_snap_ft"]  # Top tread south edge position
-    stair_deck_surface_perpendicular = da.create_deck_surface_perpendicular_over_stair(
-        doc,
-        catalog_rows,
-        assembly_name="Deck_Surface_Stair_Perpendicular",
-        stair_config=STAIRS,
-        x_base=stair_rim_east_face_x_ft * 12.0,  # Position at stair rim east face
-        y_base=stair_y_snap_ft * 12.0,  # Y position where boards start (front rim north edge)
-        z_base=deck_z_base_in,
-        supplier="lowes",
-    )
-    deck_surface_assemblies.append(stair_deck_surface_perpendicular)
-
-    # TODO: Add perpendicular deck boards on ~4' overhangs (left and right of walls)
-
-    # Create Deck_Surface group
-    deck_surface_grp = bc.create_group(doc, "Deck_Surface")
-    bc.add_to_group(deck_surface_grp, deck_surface_assemblies)
-
-    App.Console.PrintMessage(f"[Build_950Surf] Deck surface complete ({len(deck_surface_assemblies)} modules).\n")
-else:
-    App.Console.PrintMessage("[Build_950Surf] Deck surface skipped (disabled in BUILD config)\n")
 
 # ============================================================
 # FINAL RECOMPUTE

@@ -187,6 +187,8 @@ DECKS = {
     "module_8_width_in": 99.0,  # 8' module with rims
     "center_module_width_in": 105.0,  # 8'9" center cut from 10' stock
     "module_depth_ft": 8.0,  # Module depth
+    # NOTE: Deck board dimensions come from lumber_catalog.csv (single source of truth)
+    # See: deckboard_5_4x6x192_PT for thickness, width, etc.
 }
 
 # ============================================================
@@ -459,17 +461,18 @@ ELEVATOR = {
 BUILD = {
     # What to include in build
     "include_lot_survey": True,
-    "include_septic_system": False,  # DISABLED FOR TESTING: Septic tank, leach field, drain lines
-    "include_utilities": False,  # DISABLED FOR TESTING: Concrete slab, plumbing/electrical stub-ups
-    "include_driveway": False,  # DISABLED FOR TESTING: Driveway slab with rebar
-    "include_elevator": False,  # DISABLED FOR TESTING: Beach house elevator (open metal lift)
-    "include_foundation": True,  # TEST LVL BEAM SYSTEM
+    "include_septic_system": True,  # Septic tank, leach field, drain lines
+    "include_utilities": False,  # TEMP DISABLED - debugging; Concrete slab, plumbing/electrical stub-ups
+    "include_driveway": True,  # Driveway slab with rebar
+    "include_elevator": True,  # Beach house elevator (open metal lift)
+    "include_foundation": True,  # LVL beam system on pilings
     "include_deck_joists": True,  # Deck joists, rims, hangers (installed BEFORE sheathing)
     "include_first_floor": True,  # 3×3 grid: 40' × 48'
     "include_walls": True,  # Front and rear walls (5 x 8' modules each: Window | Window | Door | Window | Window = 40')
-    "include_deck_surface": False,  # DISABLED FOR TESTING: Deck boards and posts (installed AFTER walls)
+    "include_deck_surface": True,  # Deck boards (installed BEFORE second floor for safe work platform)
+    "include_deck_railings": True,  # Deck railing posts (48" above deck, bottom at joist bottom)
     "include_second_floor": True,  # 20' LVL rims × 12' 2x12 joists (2×4 grid = 40' × 48')
-    "include_stairs": False,  # DISABLED FOR TESTING: Exterior stairs from slab to first floor
+    "include_stairs": True,  # Exterior stairs from slab to first floor
     "include_roof": False,  # Not yet implemented
     # Output options
     "save_fcstd": True,
