@@ -201,14 +201,17 @@ DECKS = {
         "module": "Front_Deck_Right_16x12",  # Which deck module has the opening
         "shortened_joists": [3, 4, 5, 6, 7, 8],  # Joist indices to shorten (1-based, joist names)
         "header_between_joists": [2, 9],  # Header spans between Joist_2 and Joist_9
-        # Header Y position: stair north edge (relative to front rim back face)
-        # Stair Y (lot origin) = stair_y_snap_ft = 21.875' = 262.5"
-        # Stair width = 3' = 36"
-        # Stair north edge (lot origin) = 262.5 + 36 = 298.5"
+        # Header Y position: header north face aligns with stair south face
+        # Stair south face (lot origin) = stair_y_snap_ft = 21.875' = 262.5"
         # Module origin Y (lot origin) = front_deck_y_ft = 17.875' = 214.5"
-        # Header Y from module origin = 298.5 - 214.5 = 84"
-        # Header Y from rim back face = 84 - rim_thick = 84 - 1.5 = 82.5"
-        "header_y_position_in": 82.5,  # From front rim back face to header centerline
+        # Stair south face from module origin = 262.5 - 214.5 = 48"
+        # Header is 1.5" thick (joist), placed at south face position
+        # Header south face at 48 - 1.5 = 46.5" from module origin
+        # header_y_position_in is measured from rim back face (1.5" from origin)
+        # So: 46.5 - 1.5 = 45" ... but wait, the code places header at this Y
+        # Actually: header_y_position_in = Y from module origin where header south face goes
+        # For header north face at 48", header south face at 46.5", place at 46.5"
+        "header_y_position_in": 46.5,  # Header south face Y from module origin
         # Joists 3-8 connect to front rim (south) and header (north)
         # Instead of running full length to back rim
     },
