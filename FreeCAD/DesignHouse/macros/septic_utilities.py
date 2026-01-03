@@ -1717,22 +1717,37 @@ def create_pile_hose_bibs(doc, utilities_config, foundation_config, lot_config):
     created = []
 
     # Define hose bib positions at pile corners
-    # Pile indices (i, j) where i=column (0-4), j=row (0-7)
+    # Pile indices (i, j) where i=column (0 to num_x-1), j=row (0 to num_y-1)
+    num_piles_x = len(x_positions_ft)
+    num_piles_y = len(y_positions_ft)
+    last_col = num_piles_x - 1  # Last column index (e.g., 4 for 5 columns)
+    last_row = num_piles_y - 1  # Last row index (e.g., 6 for 7 rows)
+
     hose_bib_positions = [
         {
             "name": "HoseBib_SW_Front",
             "pile_i": 0,
             "pile_j": 0,
             "face": "west",
-        },  # Pile 1,1 west face
-        {"name": "HoseBib_SW_Back", "pile_i": 0, "pile_j": 7, "face": "west"},  # Pile 1,8 west face
+        },  # Pile 1,1 west face (SW front corner)
+        {
+            "name": "HoseBib_SW_Back",
+            "pile_i": 0,
+            "pile_j": last_row,
+            "face": "west",
+        },  # Pile 1,N west face (NW corner)
         {
             "name": "HoseBib_SE_Front",
-            "pile_i": 4,
+            "pile_i": last_col,
             "pile_j": 0,
             "face": "east",
-        },  # Pile 5,1 east face
-        {"name": "HoseBib_SE_Back", "pile_i": 4, "pile_j": 7, "face": "east"},  # Pile 5,8 east face
+        },  # Pile N,1 east face (SE front corner)
+        {
+            "name": "HoseBib_SE_Back",
+            "pile_i": last_col,
+            "pile_j": last_row,
+            "face": "east",
+        },  # Pile N,N east face (NE corner)
     ]
 
     for bib_config in hose_bib_positions:
@@ -2206,6 +2221,17 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         - Width: 36" (IRC R311.7.1 min 36")
         - Top tread snaps to north edge of floor rim (finished floor to finished floor)
 
+    Supports two stair types:
+        - "straight": Single run descending in one direction (default)
+        - "L": L-shaped stair with landing and 90° turn
+
+    L-Stair Configuration (when stair_type == "L"):
+        - run1_direction: Direction for Run 1 (e.g., "north")
+        - run1_tread_count: Number of treads in Run 1
+        - landing_size_ft: Landing platform size (3' x 3' typical)
+        - landing_turn: Turn direction at landing ("left" or "right")
+        - run2_direction: Direction for Run 2 (e.g., "west")
+
     Args:
         doc: FreeCAD document
         stairs_config: STAIRS config dict with keys:
@@ -2215,15 +2241,16 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             - tread_run_in: Tread depth (10")
             - tread_width_ft: Stair width (3')
             - tread_stock: Lumber stock label
-            - descending_direction: "north" (stairs descend northward)
+            - stair_type: "straight" or "L" (default: "straight")
         floor_z_ft: First floor elevation (default 20', top of joists)
         slab_z_ft: Slab elevation (default 0', top of concrete)
 
     Returns:
         Group containing all stair treads
     """
+    stair_type = stairs_config.get("stair_type", "straight")
     App.Console.PrintMessage(
-        "[septic_utilities] Creating exterior stairs (descending from floor to slab)...\n"
+        f"[septic_utilities] Creating exterior stairs ({stair_type} type, descending from floor to slab)...\n"
     )
 
     x_ft = stairs_config["stair_x_ft"]
@@ -2304,65 +2331,877 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
 
     created = []
 
-    # Create treads (descending from deck surface to slab, NORTHWARD)
-    # Treads numbered 0 (top landing, at joist top) to num_treads-1 (bottom, nearest slab)
-    # Tread 0 = top landing (at joist top level, deck boards installed on top of it)
-    # Tread 1 = first actual step down (one rise below deck surface)
-    for step in range(num_treads):
-        # Calculate Z position for this tread
-        # Tread 0 (top): top surface at JOIST TOP (deck boards go on top of tread 0)
-        # Tread 1: one rise below DECK SURFACE (not tread 0)
-        # ...
-        # Tread num_treads-1 (bottom): num_treads-1 rises below deck surface (= one rise above slab)
-        if step == 0:
-            # Tread 0: top landing at joist top (deck boards sit on top)
-            tread_top_z_in = finished_floor_z_in
+    # Check stair type
+    if stair_type == "L":
+        # L-STAIR: Two runs with a landing between
+        run1_tread_count = stairs_config.get("run1_tread_count", 6)
+        landing_size_ft = stairs_config.get("landing_size_ft", 3.0)
+        landing_turn = stairs_config.get("landing_turn", "left")
+        run2_direction = stairs_config.get("run2_direction", "west")
+
+        # Run 2 tread count: total treads minus Run 1 treads
+        run2_tread_count = num_treads - run1_tread_count
+
+        # TREAD 0 OFFSET: Start one rise below deck surface for head clearance
+        # This gives us an extra rise worth of clearance under the floor joists
+        tread0_z_offset_in = actual_rise_in  # Drop tread 0 by one rise
+
+        # Y OFFSET: y_snap_ft already includes landing_depth (3' north of front rim)
+        # No additional shift needed - the config calculation handles the deck landing space
+        tread0_y_offset_in = 0.0  # No additional Y offset
+
+        App.Console.PrintMessage(
+            f"[septic_utilities] L-stair: Run 1 = {run1_tread_count} treads (north), "
+            f"Landing = {landing_size_ft}' × {landing_size_ft}', "
+            f"Run 2 = {run2_tread_count} treads ({run2_direction})\n"
+        )
+        App.Console.PrintMessage(
+            f'[septic_utilities] L-stair offsets: tread 0 dropped {tread0_z_offset_in:.2f}" below deck, '
+            f"shifted {tread0_y_offset_in:.2f}\" south for {landing_size_ft}' deck landing\n"
+        )
+
+        # Landing size in inches (needed for clearance calculation)
+        landing_size_in = landing_size_ft * 12.0
+
+        # HEAD CLEARANCE CALCULATION
+        # Floor joists start at Y=30' (first floor module at front_setback + pile_spacing_y)
+        # Treads south of Y=30' are in the front deck area (open above)
+        # Treads at or north of Y=30' are under the first floor
+        # Joist bottom = above_grade_ft * 12 = 240" (at Y positions where joists exist)
+        joist_bottom_z_in = floor_z_ft * 12.0  # 240" for 20' above grade
+        floor_start_y_in = (
+            30.0 * 12.0
+        )  # First floor starts at Y=30' (front_setback + pile_spacing_y)
+
+        # Calculate clearance at each Run 1 tread
+        App.Console.PrintMessage(
+            '[septic_utilities] HEAD CLEARANCE CHECK (IRC R311.7.2 requires 80" min):\n'
+        )
+        App.Console.PrintMessage(
+            f"[septic_utilities]   Floor joists start at Y={floor_start_y_in/12:.1f}' (treads south of this are in open deck area)\n"
+        )
+        for step in range(run1_tread_count):
+            # Tread top Z (with offset)
+            tread_top_z_in = deck_surface_z_in - tread0_z_offset_in - (step * actual_rise_in)
+            # Tread Y position (south edge, with offset)
+            tread_y_south_in = (y_snap_ft * 12.0) - tread0_y_offset_in + (step * tread_depth_in)
+            # Tread north edge
+            tread_y_north_in = tread_y_south_in + tread_depth_in
+
+            # Check if tread is under floor joists (north edge >= floor start)
+            if tread_y_north_in >= floor_start_y_in:
+                clearance_in = joist_bottom_z_in - tread_top_z_in
+                status = "✓ OK" if clearance_in >= 80.0 else "⚠ LOW"
+                App.Console.PrintMessage(
+                    f"[septic_utilities]   Tread {step}: Y={tread_y_south_in/12:.2f}'-{tread_y_north_in/12:.2f}', Z top={tread_top_z_in:.1f}\", clearance={clearance_in:.1f}\" {status} (UNDER FLOOR)\n"
+                )
+            else:
+                App.Console.PrintMessage(
+                    f"[septic_utilities]   Tread {step}: Y={tread_y_south_in/12:.2f}'-{tread_y_north_in/12:.2f}', Z top={tread_top_z_in:.1f}\" (in deck area, open above)\n"
+                )
+
+        # Landing clearance
+        landing_z_top_in = (
+            deck_surface_z_in - tread0_z_offset_in - (run1_tread_count * actual_rise_in)
+        )
+        landing_y_south_in = (
+            (y_snap_ft * 12.0) - tread0_y_offset_in + (run1_tread_count * tread_depth_in)
+        )
+        landing_y_north_in = landing_y_south_in + landing_size_in
+        if landing_y_north_in >= floor_start_y_in:
+            landing_clearance_in = joist_bottom_z_in - landing_z_top_in
+            landing_status = "✓ OK" if landing_clearance_in >= 80.0 else "⚠ LOW"
+            App.Console.PrintMessage(
+                f"[septic_utilities]   Landing: Y={landing_y_south_in/12:.2f}'-{landing_y_north_in/12:.2f}', Z top={landing_z_top_in:.1f}\", clearance={landing_clearance_in:.1f}\" {landing_status} (UNDER FLOOR)\n"
+            )
         else:
-            # All other treads: descend from deck surface
-            tread_top_z_in = deck_surface_z_in - (step * actual_rise_in)
+            App.Console.PrintMessage(
+                f"[septic_utilities]   Landing: Y={landing_y_south_in/12:.2f}'-{landing_y_north_in/12:.2f}', Z top={landing_z_top_in:.1f}\" (in deck area, open above)\n"
+            )
 
-        tread_z_bottom_in = tread_top_z_in - tread_thick_in
+        # ===== RUN 1: Treads 0 through run1_tread_count-1 (descending NORTH) =====
+        for step in range(run1_tread_count):
+            # Z position: all treads descend from deck surface - offset
+            tread_top_z_in = deck_surface_z_in - tread0_z_offset_in - (step * actual_rise_in)
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
 
-        # Y position: top tread (step 0) starts at y_snap_ft, each subsequent tread moves NORTH (+Y)
-        tread_y_south_in = y_snap_ft * 12.0 + (
-            step * tread_depth_in
-        )  # South edge (moving north = +Y)
+            # Y position: descending north (+Y), with south offset for deck landing
+            tread_y_south_in = (y_snap_ft * 12.0) - tread0_y_offset_in + (step * tread_depth_in)
 
-        # Create tread box
-        tread = doc.addObject("Part::Feature", f"Stair_Tread_{step}")
-        tread_box = Part.makeBox(
-            bc.inch(tread_length_in),  # Width (X direction, 3')
-            bc.inch(tread_depth_in),  # Depth (Y direction, 11.25")
-            bc.inch(tread_thick_in),  # Thickness (Z direction, 1.5")
-        )
-        tread_box.Placement.Base = App.Vector(
-            bc.ft(
-                x_ft
-            ),  # West face at X position (aligned with stair rim east face = pile east face)
-            bc.inch(tread_y_south_in),  # Y position south edge (moving north with each step)
-            bc.inch(tread_z_bottom_in),  # Z position bottom of tread (descending)
-        )
-        tread.Shape = tread_box
+            # Create tread
+            tread = doc.addObject("Part::Feature", f"Stair_Run1_Tread_{step}")
+            tread_box = Part.makeBox(
+                bc.inch(tread_length_in),
+                bc.inch(tread_depth_in),
+                bc.inch(tread_thick_in),
+            )
+            tread_box.Placement.Base = App.Vector(
+                bc.ft(x_ft),
+                bc.inch(tread_y_south_in),
+                bc.inch(tread_z_bottom_in),
+            )
+            tread.Shape = tread_box
 
-        # Attach BOM metadata
-        if tread_row:
-            attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-            # Add cut length property
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
             try:
-                if "cut_length_in" not in tread.PropertiesList:
-                    tread.addProperty("App::PropertyString", "cut_length_in")
-                tread.cut_length_in = f"{tread_length_in:.2f}"
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
             except Exception:
                 pass
 
-        # Color: brown PT lumber
+            created.append(tread)
+
+        # ===== LANDING: Platform at Run 1 bottom / Run 2 top =====
+        # Landing Z: one rise below the last Run 1 tread (with tread0 offset applied)
+        landing_z_top_in = (
+            deck_surface_z_in - tread0_z_offset_in - (run1_tread_count * actual_rise_in)
+        )
+        landing_z_bottom_in = landing_z_top_in - tread_thick_in
+
+        # Landing position: at the north end of Run 1 (with Y offset applied)
+        # South edge of landing = north edge of last Run 1 tread
+        landing_y_south_in = (
+            (y_snap_ft * 12.0) - tread0_y_offset_in + (run1_tread_count * tread_depth_in)
+        )
+
+        # Landing X: depends on turn direction
+        # For "left" turn (west), landing extends west from Run 1 east edge
+        if landing_turn == "left":
+            # Run 1 east edge = x_ft + tread_width_ft
+            # Landing west edge = run1 west edge (x_ft)
+            landing_x_in = x_ft * 12.0
+        else:
+            # For "right" turn (east), landing extends east from Run 1
+            landing_x_in = x_ft * 12.0
+
+        landing = doc.addObject("Part::Feature", "Stair_Landing")
+        landing_box = Part.makeBox(
+            bc.inch(landing_size_in),  # X dimension
+            bc.inch(landing_size_in),  # Y dimension
+            bc.inch(tread_thick_in),  # Z dimension (same as treads)
+        )
+        landing_box.Placement.Base = App.Vector(
+            bc.inch(landing_x_in),
+            bc.inch(landing_y_south_in),
+            bc.inch(landing_z_bottom_in),
+        )
+        landing.Shape = landing_box
+
+        if tread_row:
+            attach_metadata(landing, tread_row, tread_label, supplier="lowes")
         try:
-            if hasattr(tread, "ViewObject") and tread.ViewObject:
-                tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)  # Brown PT lumber
+            if hasattr(landing, "ViewObject") and landing.ViewObject:
+                landing.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
         except Exception:
             pass
 
-        created.append(tread)
+        created.append(landing)
+
+        # ===== RUN 2: Remaining treads descending WEST =====
+        # Run 2 starts from the landing, descending west (-X)
+        # First Run 2 tread is one rise below landing
+        for step in range(run2_tread_count):
+            run2_step = run1_tread_count + 1 + step  # Global step number (landing counts as a step)
+            tread_top_z_in = landing_z_top_in - ((step + 1) * actual_rise_in)
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+            if run2_direction == "west":
+                # Descending west: X decreases, Y stays at landing center
+                # Tread runs north-south (Y direction), descending west (-X)
+                tread_x_east_in = landing_x_in - (step * tread_depth_in)
+                tread_y_south_in = landing_y_south_in  # Same Y as landing south edge
+
+                tread = doc.addObject("Part::Feature", f"Stair_Run2_Tread_{step}")
+                tread_box = Part.makeBox(
+                    bc.inch(tread_depth_in),  # X dimension (run)
+                    bc.inch(tread_length_in),  # Y dimension (width = 3')
+                    bc.inch(tread_thick_in),  # Z dimension
+                )
+                tread_box.Placement.Base = App.Vector(
+                    bc.inch(tread_x_east_in - tread_depth_in),  # West edge
+                    bc.inch(tread_y_south_in),
+                    bc.inch(tread_z_bottom_in),
+                )
+                tread.Shape = tread_box
+            else:
+                # Other directions (east, south) - implement as needed
+                # For now, default to west behavior
+                tread_x_east_in = landing_x_in - (step * tread_depth_in)
+                tread_y_south_in = landing_y_south_in
+
+                tread = doc.addObject("Part::Feature", f"Stair_Run2_Tread_{step}")
+                tread_box = Part.makeBox(
+                    bc.inch(tread_depth_in),
+                    bc.inch(tread_length_in),
+                    bc.inch(tread_thick_in),
+                )
+                tread_box.Placement.Base = App.Vector(
+                    bc.inch(tread_x_east_in - tread_depth_in),
+                    bc.inch(tread_y_south_in),
+                    bc.inch(tread_z_bottom_in),
+                )
+                tread.Shape = tread_box
+
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+            try:
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+            except Exception:
+                pass
+
+            created.append(tread)
+
+    elif stair_type == "double_L":
+        # DOUBLE-L STAIR: Three runs with two 90° landings (east -> north -> west)
+        # Configuration from stairs_config
+        run1_direction = stairs_config.get("run1_direction", "east")
+        run1_tread_count = stairs_config.get("run1_tread_count", 6)
+        landing1_size_ft = stairs_config.get("landing1_size_ft", 3.0)
+        landing1_turn = stairs_config.get("landing1_turn", "left")
+
+        run2_direction = stairs_config.get("run2_direction", "north")
+        run2_tread_count = stairs_config.get("run2_tread_count", 6)
+        landing2_size_ft = stairs_config.get("landing2_size_ft", 3.0)
+        landing2_turn = stairs_config.get("landing2_turn", "left")
+
+        run3_direction = stairs_config.get("run3_direction", "west")
+        # Run 3 tread count: can be specified or calculated
+        run3_tread_count_config = stairs_config.get("run3_tread_count", None)
+
+        # Landing 3 and Run 4
+        landing3_size_ft = stairs_config.get("landing3_size_ft", 0.0)
+        landing3_turn = stairs_config.get("landing3_turn", None)
+        run4_direction = stairs_config.get("run4_direction", None)
+        run4_tread_count_config = stairs_config.get("run4_tread_count", None)
+
+        # Landing 4 and Run 5 (optional - for 5-run stair)
+        landing4_size_ft = stairs_config.get("landing4_size_ft", 0.0)
+        landing4_turn = stairs_config.get("landing4_turn", None)
+        run5_direction = stairs_config.get("run5_direction", None)
+        run5_tread_count_config = stairs_config.get("run5_tread_count", None)
+
+        # Landing 5 and Run 6 (optional - for 6-run stair)
+        landing5_size_ft = stairs_config.get("landing5_size_ft", 0.0)
+        landing5_turn = stairs_config.get("landing5_turn", None)
+        run6_direction = stairs_config.get("run6_direction", None)
+
+        # Determine stair complexity
+        has_landing3 = landing3_size_ft > 0 and landing3_turn is not None
+        has_landing4 = landing4_size_ft > 0 and landing4_turn is not None
+        has_landing5 = landing5_size_ft > 0 and landing5_turn is not None
+
+        # Calculate tread counts based on stair configuration
+        if has_landing5:
+            # 6-run stair: Run 3, Run 4, Run 5 counts specified, Run 6 calculated
+            run3_tread_count = run3_tread_count_config if run3_tread_count_config else 4
+            run4_tread_count = run4_tread_count_config if run4_tread_count_config else 3
+            run5_tread_count = run5_tread_count_config if run5_tread_count_config else 4
+            # Run 6 = remaining after Run1 + L1 + Run2 + L2 + Run3 + L3 + Run4 + L4 + Run5 + L5
+            # 5 landings total, each counts as 1 rise
+            run6_tread_count = (
+                num_treads
+                - run1_tread_count
+                - run2_tread_count
+                - run3_tread_count
+                - run4_tread_count
+                - run5_tread_count
+                - 5
+            )
+        elif has_landing4:
+            # 5-run stair: Run 3, Run 4 counts specified, Run 5 calculated
+            run3_tread_count = run3_tread_count_config if run3_tread_count_config else 4
+            run4_tread_count = run4_tread_count_config if run4_tread_count_config else 3
+            # Run 5 = remaining after Run1 + L1 + Run2 + L2 + Run3 + L3 + Run4 + L4
+            # 4 landings total, each counts as 1 rise
+            run5_tread_count = (
+                num_treads
+                - run1_tread_count
+                - run2_tread_count
+                - run3_tread_count
+                - run4_tread_count
+                - 4
+            )
+            run6_tread_count = 0
+        elif has_landing3:
+            # 4-run stair (switchback): Run 3 count specified, Run 4 calculated
+            run3_tread_count = run3_tread_count_config if run3_tread_count_config else 12
+            run4_tread_count = (
+                num_treads - run1_tread_count - run2_tread_count - run3_tread_count - 4
+            )
+            run5_tread_count = 0
+            run6_tread_count = 0
+        else:
+            # 3-run stair: Run 3 gets all remaining treads
+            run3_tread_count = num_treads - run1_tread_count - run2_tread_count - 2
+            run4_tread_count = 0
+            run5_tread_count = 0
+            run6_tread_count = 0
+
+        landing1_size_in = landing1_size_ft * 12.0
+        landing2_size_in = landing2_size_ft * 12.0
+        landing3_size_in = landing3_size_ft * 12.0 if has_landing3 else 0.0
+        landing4_size_in = landing4_size_ft * 12.0 if has_landing4 else 0.0
+        landing5_size_in = landing5_size_ft * 12.0 if has_landing5 else 0.0
+
+        # TREAD 0 OFFSET: Start one rise below deck surface for head clearance
+        tread0_z_offset_in = actual_rise_in  # Drop tread 0 by one rise
+
+        if has_landing5:
+            App.Console.PrintMessage(
+                f"[septic_utilities] 6-Run spiral stair: "
+                f"Run 1 = {run1_tread_count} ({run1_direction}), "
+                f"L1, Run 2 = {run2_tread_count} ({run2_direction}), "
+                f"L2, Run 3 = {run3_tread_count} ({run3_direction}), "
+                f"L3, Run 4 = {run4_tread_count} ({run4_direction}), "
+                f"L4, Run 5 = {run5_tread_count} ({run5_direction}), "
+                f"L5, Run 6 = {run6_tread_count} ({run6_direction})\n"
+            )
+        elif has_landing4:
+            App.Console.PrintMessage(
+                f"[septic_utilities] 5-Run spiral stair: "
+                f"Run 1 = {run1_tread_count} ({run1_direction}), "
+                f"L1, Run 2 = {run2_tread_count} ({run2_direction}), "
+                f"L2, Run 3 = {run3_tread_count} ({run3_direction}), "
+                f"L3, Run 4 = {run4_tread_count} ({run4_direction}), "
+                f"L4, Run 5 = {run5_tread_count} ({run5_direction})\n"
+            )
+        elif has_landing3:
+            App.Console.PrintMessage(
+                f"[septic_utilities] Double-L + Switchback stair: "
+                f"Run 1 = {run1_tread_count} treads ({run1_direction}), "
+                f"Landing 1 = {landing1_size_ft}' x {landing1_size_ft}', "
+                f"Run 2 = {run2_tread_count} treads ({run2_direction}), "
+                f"Landing 2 = {landing2_size_ft}' x {landing2_size_ft}', "
+                f"Run 3 = {run3_tread_count} treads ({run3_direction}), "
+                f"Landing 3 = {landing3_size_ft}' x {landing3_size_ft}' ({landing3_turn}), "
+                f"Run 4 = {run4_tread_count} treads ({run4_direction})\n"
+            )
+        else:
+            App.Console.PrintMessage(
+                f"[septic_utilities] Double-L stair: "
+                f"Run 1 = {run1_tread_count} treads ({run1_direction}), "
+                f"Landing 1 = {landing1_size_ft}' x {landing1_size_ft}', "
+                f"Run 2 = {run2_tread_count} treads ({run2_direction}), "
+                f"Landing 2 = {landing2_size_ft}' x {landing2_size_ft}', "
+                f"Run 3 = {run3_tread_count} treads ({run3_direction})\n"
+            )
+
+        # ===== RUN 1: Descending EAST =====
+        # Treads oriented N-S (3' width in Y direction), descending toward +X
+        # Tread 0 west face at x_ft, south face at y_snap_ft
+        for step in range(run1_tread_count):
+            tread_top_z_in = deck_surface_z_in - tread0_z_offset_in - (step * actual_rise_in)
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+            # X position: tread west face at x_ft + (step * tread_depth)
+            # Each tread extends one tread_depth further east
+            tread_x_west_in = (x_ft * 12.0) + (step * tread_depth_in)
+
+            # Y position: constant for all Run 1 treads (south face at y_snap_ft)
+            tread_y_south_in = y_snap_ft * 12.0
+
+            tread = doc.addObject("Part::Feature", f"Stair_Run1_Tread_{step}")
+            tread_box = Part.makeBox(
+                bc.inch(tread_depth_in),  # X dimension (tread depth, descending east)
+                bc.inch(tread_length_in),  # Y dimension (3' width)
+                bc.inch(tread_thick_in),  # Z dimension
+            )
+            tread_box.Placement.Base = App.Vector(
+                bc.inch(tread_x_west_in),
+                bc.inch(tread_y_south_in),
+                bc.inch(tread_z_bottom_in),
+            )
+            tread.Shape = tread_box
+
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+            try:
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+            except Exception:
+                pass
+
+            created.append(tread)
+
+        # ===== LANDING 1: 90° left turn (east -> north) =====
+        # Landing Z: one rise below last Run 1 tread
+        landing1_z_top_in = (
+            deck_surface_z_in - tread0_z_offset_in - (run1_tread_count * actual_rise_in)
+        )
+        landing1_z_bottom_in = landing1_z_top_in - tread_thick_in
+
+        # Landing 1 position: at the east end of Run 1
+        # East edge of last Run 1 tread = x_ft + (run1_tread_count * tread_depth)
+        # Landing 1 west edge = east edge of last tread = x_ft + (run1_tread_count * tread_depth)
+        landing1_x_west_in = (x_ft * 12.0) + (run1_tread_count * tread_depth_in)
+        # Landing 1 south edge = same as Run 1 treads = y_snap_ft
+        landing1_y_south_in = y_snap_ft * 12.0
+
+        landing1 = doc.addObject("Part::Feature", "Stair_Landing_1")
+        landing1_box = Part.makeBox(
+            bc.inch(landing1_size_in),  # X dimension
+            bc.inch(landing1_size_in),  # Y dimension
+            bc.inch(tread_thick_in),  # Z dimension
+        )
+        landing1_box.Placement.Base = App.Vector(
+            bc.inch(landing1_x_west_in),
+            bc.inch(landing1_y_south_in),
+            bc.inch(landing1_z_bottom_in),
+        )
+        landing1.Shape = landing1_box
+
+        if tread_row:
+            attach_metadata(landing1, tread_row, tread_label, supplier="lowes")
+        try:
+            if hasattr(landing1, "ViewObject") and landing1.ViewObject:
+                landing1.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+        except Exception:
+            pass
+
+        created.append(landing1)
+
+        # ===== RUN 2: Descending NORTH =====
+        # Treads oriented E-W (3' width in X direction), descending toward +Y
+        # First Run 2 tread is one rise below Landing 1
+        for step in range(run2_tread_count):
+            tread_top_z_in = landing1_z_top_in - ((step + 1) * actual_rise_in)
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+            # X position: tread west edge at landing 1 west edge
+            # (Run 2 treads align with west side of Landing 1)
+            tread_x_west_in = landing1_x_west_in
+
+            # Y position: tread south face at landing 1 north edge + (step * tread_depth)
+            # Landing 1 north edge = landing1_y_south_in + landing1_size_in
+            tread_y_south_in = landing1_y_south_in + landing1_size_in + (step * tread_depth_in)
+
+            tread = doc.addObject("Part::Feature", f"Stair_Run2_Tread_{step}")
+            tread_box = Part.makeBox(
+                bc.inch(tread_length_in),  # X dimension (3' width)
+                bc.inch(tread_depth_in),  # Y dimension (tread depth, descending north)
+                bc.inch(tread_thick_in),  # Z dimension
+            )
+            tread_box.Placement.Base = App.Vector(
+                bc.inch(tread_x_west_in),
+                bc.inch(tread_y_south_in),
+                bc.inch(tread_z_bottom_in),
+            )
+            tread.Shape = tread_box
+
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+            try:
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+            except Exception:
+                pass
+
+            created.append(tread)
+
+        # ===== LANDING 2: 90° left turn (north -> west) =====
+        # Landing Z: one rise below last Run 2 tread
+        landing2_z_top_in = landing1_z_top_in - ((run2_tread_count + 1) * actual_rise_in)
+        landing2_z_bottom_in = landing2_z_top_in - tread_thick_in
+
+        # Landing 2 position: at the north end of Run 2
+        # Landing 2 west edge = Run 2 west edge = landing1_x_west_in
+        landing2_x_west_in = landing1_x_west_in
+        # Landing 2 south edge = north edge of last Run 2 tread
+        landing2_y_south_in = (
+            landing1_y_south_in + landing1_size_in + (run2_tread_count * tread_depth_in)
+        )
+
+        landing2 = doc.addObject("Part::Feature", "Stair_Landing_2")
+        landing2_box = Part.makeBox(
+            bc.inch(landing2_size_in),  # X dimension
+            bc.inch(landing2_size_in),  # Y dimension
+            bc.inch(tread_thick_in),  # Z dimension
+        )
+        landing2_box.Placement.Base = App.Vector(
+            bc.inch(landing2_x_west_in),
+            bc.inch(landing2_y_south_in),
+            bc.inch(landing2_z_bottom_in),
+        )
+        landing2.Shape = landing2_box
+
+        if tread_row:
+            attach_metadata(landing2, tread_row, tread_label, supplier="lowes")
+        try:
+            if hasattr(landing2, "ViewObject") and landing2.ViewObject:
+                landing2.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+        except Exception:
+            pass
+
+        created.append(landing2)
+
+        # ===== RUN 3: Descending WEST =====
+        # Treads oriented N-S (3' width in Y direction), descending toward -X
+        # First Run 3 tread is one rise below Landing 2
+        for step in range(run3_tread_count):
+            tread_top_z_in = landing2_z_top_in - ((step + 1) * actual_rise_in)
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+            # X position: tread east face at landing 2 west edge - (step * tread_depth)
+            # Each tread extends one tread_depth further west
+            # Tread east face = landing2_x_west_in - (step * tread_depth_in)
+            # Tread west face = tread east face - tread_depth_in
+            tread_x_east_in = landing2_x_west_in - (step * tread_depth_in)
+            tread_x_west_in = tread_x_east_in - tread_depth_in
+
+            # Y position: tread south face at landing 2 south edge
+            tread_y_south_in = landing2_y_south_in
+
+            tread = doc.addObject("Part::Feature", f"Stair_Run3_Tread_{step}")
+            tread_box = Part.makeBox(
+                bc.inch(tread_depth_in),  # X dimension (tread depth, descending west)
+                bc.inch(tread_length_in),  # Y dimension (3' width)
+                bc.inch(tread_thick_in),  # Z dimension
+            )
+            tread_box.Placement.Base = App.Vector(
+                bc.inch(tread_x_west_in),
+                bc.inch(tread_y_south_in),
+                bc.inch(tread_z_bottom_in),
+            )
+            tread.Shape = tread_box
+
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+            try:
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+            except Exception:
+                pass
+
+            created.append(tread)
+
+        # ===== LANDING 3 and RUN 4 =====
+        if has_landing3:
+            # Landing 3 Z: one rise below last Run 3 tread
+            landing3_z_top_in = landing2_z_top_in - ((run3_tread_count + 1) * actual_rise_in)
+            landing3_z_bottom_in = landing3_z_top_in - tread_thick_in
+
+            # Landing 3 position: at the west end of Run 3
+            last_run3_tread_x_west_in = landing2_x_west_in - (run3_tread_count * tread_depth_in)
+            landing3_x_east_in = last_run3_tread_x_west_in
+            landing3_x_west_in = landing3_x_east_in - landing3_size_in
+
+            if landing3_turn == "left":
+                # 90° left turn: west -> south
+                # Landing aligns with Run 3 south edge, extends west
+                landing3_y_south_in = landing2_y_south_in
+                landing3_y_north_in = landing3_y_south_in + landing3_size_in
+            else:
+                # 180° switchback: west -> east
+                # Landing extends south to make room for Run 4
+                landing3_y_south_in = landing2_y_south_in - tread_length_in
+                landing3_y_north_in = landing3_y_south_in + landing3_size_in + tread_length_in
+
+            landing3 = doc.addObject("Part::Feature", "Stair_Landing_3")
+            landing3_box = Part.makeBox(
+                bc.inch(landing3_size_in),
+                bc.inch(landing3_y_north_in - landing3_y_south_in),
+                bc.inch(tread_thick_in),
+            )
+            landing3_box.Placement.Base = App.Vector(
+                bc.inch(landing3_x_west_in),
+                bc.inch(landing3_y_south_in),
+                bc.inch(landing3_z_bottom_in),
+            )
+            landing3.Shape = landing3_box
+
+            if tread_row:
+                attach_metadata(landing3, tread_row, tread_label, supplier="lowes")
+            try:
+                if hasattr(landing3, "ViewObject") and landing3.ViewObject:
+                    landing3.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+            except Exception:
+                pass
+
+            created.append(landing3)
+
+            # ===== RUN 4 =====
+            if run4_direction == "south":
+                # Run 4: Descending SOUTH (after 90° left from west)
+                # Treads oriented E-W (3' width in X direction), descending toward -Y
+                for step in range(run4_tread_count):
+                    tread_top_z_in = landing3_z_top_in - ((step + 1) * actual_rise_in)
+                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+                    # X position: constant (west edge at landing 3 west edge)
+                    tread_x_west_in = landing3_x_west_in
+
+                    # Y position: tread north face at landing 3 south edge - (step * tread_depth)
+                    tread_y_north_in = landing3_y_south_in - (step * tread_depth_in)
+                    tread_y_south_in = tread_y_north_in - tread_depth_in
+
+                    tread = doc.addObject("Part::Feature", f"Stair_Run4_Tread_{step}")
+                    tread_box = Part.makeBox(
+                        bc.inch(tread_length_in),  # X dimension (3' width)
+                        bc.inch(tread_depth_in),  # Y dimension (tread depth, descending south)
+                        bc.inch(tread_thick_in),  # Z dimension
+                    )
+                    tread_box.Placement.Base = App.Vector(
+                        bc.inch(tread_x_west_in),
+                        bc.inch(tread_y_south_in),
+                        bc.inch(tread_z_bottom_in),
+                    )
+                    tread.Shape = tread_box
+
+                    if tread_row:
+                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+                    try:
+                        if hasattr(tread, "ViewObject") and tread.ViewObject:
+                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                    except Exception:
+                        pass
+
+                    created.append(tread)
+
+                # Track last Run 4 position for Landing 4
+                last_run4_y_south_in = landing3_y_south_in - (run4_tread_count * tread_depth_in)
+
+            elif run4_direction == "east":
+                # Run 4: Descending EAST (after 180° switchback)
+                for step in range(run4_tread_count):
+                    tread_top_z_in = landing3_z_top_in - ((step + 1) * actual_rise_in)
+                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+                    tread_x_west_in = landing3_x_east_in + (step * tread_depth_in)
+                    tread_y_south_in = landing3_y_south_in
+
+                    tread = doc.addObject("Part::Feature", f"Stair_Run4_Tread_{step}")
+                    tread_box = Part.makeBox(
+                        bc.inch(tread_depth_in),
+                        bc.inch(tread_length_in),
+                        bc.inch(tread_thick_in),
+                    )
+                    tread_box.Placement.Base = App.Vector(
+                        bc.inch(tread_x_west_in),
+                        bc.inch(tread_y_south_in),
+                        bc.inch(tread_z_bottom_in),
+                    )
+                    tread.Shape = tread_box
+
+                    if tread_row:
+                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+                    try:
+                        if hasattr(tread, "ViewObject") and tread.ViewObject:
+                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                    except Exception:
+                        pass
+
+                    created.append(tread)
+
+            # ===== LANDING 4 and RUN 5 (5-run stair) =====
+            if has_landing4:
+                # Landing 4 Z: one rise below last Run 4 tread
+                landing4_z_top_in = landing3_z_top_in - ((run4_tread_count + 1) * actual_rise_in)
+                landing4_z_bottom_in = landing4_z_top_in - tread_thick_in
+
+                # Landing 4 position: at the south end of Run 4 (when Run 4 goes south)
+                # Landing 4 is at southwest corner, turning left (south -> east)
+                landing4_x_west_in = landing3_x_west_in
+                landing4_x_east_in = landing4_x_west_in + landing4_size_in
+                landing4_y_north_in = last_run4_y_south_in
+                landing4_y_south_in = landing4_y_north_in - landing4_size_in
+
+                landing4 = doc.addObject("Part::Feature", "Stair_Landing_4")
+                landing4_box = Part.makeBox(
+                    bc.inch(landing4_size_in),
+                    bc.inch(landing4_size_in),
+                    bc.inch(tread_thick_in),
+                )
+                landing4_box.Placement.Base = App.Vector(
+                    bc.inch(landing4_x_west_in),
+                    bc.inch(landing4_y_south_in),
+                    bc.inch(landing4_z_bottom_in),
+                )
+                landing4.Shape = landing4_box
+
+                if tread_row:
+                    attach_metadata(landing4, tread_row, tread_label, supplier="lowes")
+                try:
+                    if hasattr(landing4, "ViewObject") and landing4.ViewObject:
+                        landing4.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                except Exception:
+                    pass
+
+                created.append(landing4)
+
+                # ===== RUN 5: Descending EAST to slab =====
+                # Treads oriented N-S (3' width in Y direction), descending toward +X
+                for step in range(run5_tread_count):
+                    tread_top_z_in = landing4_z_top_in - ((step + 1) * actual_rise_in)
+                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+                    # X position: tread west face at landing 4 east edge + (step * tread_depth)
+                    tread_x_west_in = landing4_x_east_in + (step * tread_depth_in)
+
+                    # Y position: constant for all Run 5 treads
+                    tread_y_south_in = landing4_y_south_in
+
+                    tread = doc.addObject("Part::Feature", f"Stair_Run5_Tread_{step}")
+                    tread_box = Part.makeBox(
+                        bc.inch(tread_depth_in),  # X dimension (tread depth, descending east)
+                        bc.inch(tread_length_in),  # Y dimension (3' width)
+                        bc.inch(tread_thick_in),  # Z dimension
+                    )
+                    tread_box.Placement.Base = App.Vector(
+                        bc.inch(tread_x_west_in),
+                        bc.inch(tread_y_south_in),
+                        bc.inch(tread_z_bottom_in),
+                    )
+                    tread.Shape = tread_box
+
+                    if tread_row:
+                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+                    try:
+                        if hasattr(tread, "ViewObject") and tread.ViewObject:
+                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                    except Exception:
+                        pass
+
+                    created.append(tread)
+
+                # Track last Run 5 position for Landing 5
+                last_run5_x_east_in = landing4_x_east_in + (run5_tread_count * tread_depth_in)
+
+                # ===== LANDING 5 and RUN 6 (6-run stair) =====
+                if has_landing5:
+                    # Landing 5 Z: one rise below last Run 5 tread
+                    landing5_z_top_in = landing4_z_top_in - (
+                        (run5_tread_count + 1) * actual_rise_in
+                    )
+                    landing5_z_bottom_in = landing5_z_top_in - tread_thick_in
+
+                    # Landing 5 position: at the east end of Run 5
+                    # After going east, turn left (east -> north)
+                    landing5_x_west_in = last_run5_x_east_in
+                    _landing5_x_east_in = landing5_x_west_in + landing5_size_in  # noqa: F841
+                    landing5_y_south_in = landing4_y_south_in
+                    landing5_y_north_in = landing5_y_south_in + landing5_size_in
+
+                    landing5 = doc.addObject("Part::Feature", "Stair_Landing_5")
+                    landing5_box = Part.makeBox(
+                        bc.inch(landing5_size_in),
+                        bc.inch(landing5_size_in),
+                        bc.inch(tread_thick_in),
+                    )
+                    landing5_box.Placement.Base = App.Vector(
+                        bc.inch(landing5_x_west_in),
+                        bc.inch(landing5_y_south_in),
+                        bc.inch(landing5_z_bottom_in),
+                    )
+                    landing5.Shape = landing5_box
+
+                    if tread_row:
+                        attach_metadata(landing5, tread_row, tread_label, supplier="lowes")
+                    try:
+                        if hasattr(landing5, "ViewObject") and landing5.ViewObject:
+                            landing5.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                    except Exception:
+                        pass
+
+                    created.append(landing5)
+
+                    # ===== RUN 6: Descending NORTH to slab =====
+                    # Treads oriented E-W (3' width in X direction), descending toward +Y
+                    for step in range(run6_tread_count):
+                        tread_top_z_in = landing5_z_top_in - ((step + 1) * actual_rise_in)
+                        tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+                        # X position: constant (west edge at landing 5 west edge)
+                        tread_x_west_in = landing5_x_west_in
+
+                        # Y position: tread south face at landing 5 north edge + (step * tread_depth)
+                        tread_y_south_in = landing5_y_north_in + (step * tread_depth_in)
+
+                        tread = doc.addObject("Part::Feature", f"Stair_Run6_Tread_{step}")
+                        tread_box = Part.makeBox(
+                            bc.inch(tread_length_in),  # X dimension (3' width)
+                            bc.inch(tread_depth_in),  # Y dimension (tread depth, descending north)
+                            bc.inch(tread_thick_in),  # Z dimension
+                        )
+                        tread_box.Placement.Base = App.Vector(
+                            bc.inch(tread_x_west_in),
+                            bc.inch(tread_y_south_in),
+                            bc.inch(tread_z_bottom_in),
+                        )
+                        tread.Shape = tread_box
+
+                        if tread_row:
+                            attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+                        try:
+                            if hasattr(tread, "ViewObject") and tread.ViewObject:
+                                tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+                        except Exception:
+                            pass
+
+                        created.append(tread)
+
+    else:
+        # STRAIGHT STAIR: Original single-run behavior
+        # Create treads (descending from deck surface to slab, NORTHWARD)
+        # Treads numbered 0 (top landing, at joist top) to num_treads-1 (bottom, nearest slab)
+        # Tread 0 = top landing (at joist top level, deck boards installed on top of it)
+        # Tread 1 = first actual step down (one rise below deck surface)
+        for step in range(num_treads):
+            # Calculate Z position for this tread
+            # Tread 0 (top): top surface at JOIST TOP (deck boards go on top of tread 0)
+            # Tread 1: one rise below DECK SURFACE (not tread 0)
+            # ...
+            # Tread num_treads-1 (bottom): num_treads-1 rises below deck surface (= one rise above slab)
+            if step == 0:
+                # Tread 0: top landing at joist top (deck boards sit on top)
+                tread_top_z_in = finished_floor_z_in
+            else:
+                # All other treads: descend from deck surface
+                tread_top_z_in = deck_surface_z_in - (step * actual_rise_in)
+
+            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+
+            # Y position: top tread (step 0) starts at y_snap_ft, each subsequent tread moves NORTH (+Y)
+            tread_y_south_in = y_snap_ft * 12.0 + (
+                step * tread_depth_in
+            )  # South edge (moving north = +Y)
+
+            # Create tread box
+            tread = doc.addObject("Part::Feature", f"Stair_Tread_{step}")
+            tread_box = Part.makeBox(
+                bc.inch(tread_length_in),  # Width (X direction, 3')
+                bc.inch(tread_depth_in),  # Depth (Y direction, 11.25")
+                bc.inch(tread_thick_in),  # Thickness (Z direction, 1.5")
+            )
+            tread_box.Placement.Base = App.Vector(
+                bc.ft(
+                    x_ft
+                ),  # West face at X position (aligned with stair rim east face = pile east face)
+                bc.inch(tread_y_south_in),  # Y position south edge (moving north with each step)
+                bc.inch(tread_z_bottom_in),  # Z position bottom of tread (descending)
+            )
+            tread.Shape = tread_box
+
+            # Attach BOM metadata
+            if tread_row:
+                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
+                # Add cut length property
+                try:
+                    if "cut_length_in" not in tread.PropertiesList:
+                        tread.addProperty("App::PropertyString", "cut_length_in")
+                    tread.cut_length_in = f"{tread_length_in:.2f}"
+                except Exception:
+                    pass
+
+            # Color: brown PT lumber
+            try:
+                if hasattr(tread, "ViewObject") and tread.ViewObject:
+                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)  # Brown PT lumber
+            except Exception:
+                pass
+
+            created.append(tread)
 
     # Group all treads
     stairs_grp = bc.create_group(doc, "Exterior_Stairs")

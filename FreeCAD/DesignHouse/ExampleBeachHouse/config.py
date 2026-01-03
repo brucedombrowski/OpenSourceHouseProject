@@ -189,6 +189,21 @@ DECKS = {
     "module_depth_ft": 8.0,  # Module depth
     # NOTE: Deck board dimensions come from lumber_catalog.csv (single source of truth)
     # See: deckboard_5_4x6x192_PT for thickness, width, etc.
+    #
+    # STAIR OPENING in Front_Deck_Right_16x12
+    # =======================================
+    # For double-L stair access through front deck:
+    #   - Joists 3-8 are shortened (cut at front rim, replaced with shorter joists)
+    #   - Header joist runs E-W to frame the opening and support shortened joists
+    #   - Opening allows stair Run 1 (descending east) to clear the deck framing
+    #
+    "stair_opening": {
+        "module": "Front_Deck_Right_16x12",  # Which deck module has the opening
+        "shortened_joists": [3, 4, 5, 6, 7, 8],  # Joist indices to shorten (1-based, joist names)
+        "header_between_joists": [2, 9],  # Header spans between Joist_2 and Joist_9
+        # Joists 3-8 connect to front rim (south) and header (north)
+        # Instead of running full length to back rim
+    },
 }
 
 # ============================================================
@@ -291,7 +306,10 @@ SEPTIC_SYSTEM = {
     "tank_depth_ft": 5.0,  # Underground
     # Leach field (drain field)
     "leach_field_x_start_ft": 10.0,  # West side of tank
-    "leach_field_y_start_ft": 80.0,  # Behind rear deck piles (back pile at Y=76.9375', clearance ~3')
+    # NOTE: leach_field_y_start_ft is CALCULATED in BeachHouse Template.FCMacro:
+    #   - Derived from last pile Y position + pile_half_thickness + 2' clearance
+    #   - This ensures leach field is always north of piles regardless of pile grid config
+    "leach_field_y_start_ft": 82.5,  # Placeholder - overridden at runtime (2' north of last pile row)
     "leach_field_length_ft": 30.0,  # 3 trenches × 5' spacing (fits within lot)
     "leach_field_width_ft": 20.0,  # Trench width + spacing
     "leach_field_trench_count": 3,
@@ -299,13 +317,12 @@ SEPTIC_SYSTEM = {
     # Drain line from house to tank (routed around piles)
     "drain_line_diameter_in": 4.0,  # 4" PVC drain
     "drain_line_depth_in": 24.0,  # 2' below grade (frost line + code)
-    # Stub-up location (east face of pile at X=33', Y=52.46875' - aligned with stair module at Floor_Middle_Right_16x8)
-    # Pile center: X=33.0', Y=52.46875' (pile index 3,4 in 0-based grid)
-    # Pile size: 12" × 12" (11.25" actual)
-    # East face of pile: X = 33.0 + (11.25"/2)/12 = 33.0 + 0.46875 = 33.46875'
-    # Pipe OD: 4", so pipe center at east face: X = 33.46875 + (4"/2)/12 = 33.46875 + 0.16667 = 33.635'
-    "stub_up_x_ft": 33.635,  # Pipe center at east face of pile (X=33.0', Y=52.46875')
-    "stub_up_y_ft": 52.46875,  # Pile center Y position
+    # NOTE: stub_up_x_ft and stub_up_y_ft are CALCULATED in BeachHouse Template.FCMacro:
+    #   - Derived from pile [3,4] (0-based) position + east face offset + pipe radius
+    #   - This ensures drain stub is always at pile east face regardless of pile grid config
+    #   - Aligns with stair module at Floor_Middle_Right_16x8
+    "stub_up_x_ft": 33.635,  # Placeholder - overridden at runtime
+    "stub_up_y_ft": 52.46875,  # Placeholder - overridden at runtime
     # Drain line routing strategy:
     # 1. Vertical stub-up through concrete slab at pile 4,5 east face: (33.635, 52.46875)
     # 2. Underground 90-degree elbow at slab bottom (Z=-24")
@@ -323,38 +340,46 @@ SEPTIC_SYSTEM = {
 # ============================================================
 
 UTILITIES = {
-    # Concrete slab (driveway thickness with stub-ups)
+    # Concrete slab (under house - covers pile area within setbacks)
     "slab_thickness_in": 6.0,  # 6" concrete (driveway grade)
-    "slab_x_start_ft": 5.0,  # Under house footprint
-    "slab_y_start_ft": 20.0,  # Front setback
-    "slab_width_ft": 40.0,  # Match house width
-    "slab_depth_ft": 48.0,  # Match house depth
+    # NOTE: slab_x_start_ft, slab_y_start_ft, slab_width_ft, slab_depth_ft are CALCULATED
+    #   in BeachHouse Template.FCMacro based on setback lines:
+    #   - Slab MUST stay within setback lines (cannot protrude into 5' side setbacks)
+    #   - West/East edges: align with left/right setback lines
+    #   - South edge: aligns with front setback line
+    #   - North edge: 6" north of last pile row
+    "slab_x_start_ft": 5.0,  # Placeholder - overridden at runtime
+    "slab_y_start_ft": 20.0,  # Placeholder - overridden at runtime
+    "slab_width_ft": 40.0,  # Placeholder - overridden at runtime
+    "slab_depth_ft": 60.0,  # Placeholder - overridden at runtime
     # Water supply (from street, south side Y=0)
-    # Stub-up at west face of pile 5,4 (X=41', Y=44.46875')
     "water_service_line_diameter_in": 1.0,  # 1" PVC water supply (typical residential)
     "water_service_depth_in": 42.0,  # 3.5' below grade (below frost line per IRC P2603.6)
-    # Pile 5,4 center: X=41.0', Y=44.46875' (pile index 4,3 in 0-based grid)
-    # West face: X = 41.0 - (11.25"/2)/12 = 40.53125'
-    # Pipe center at west face: X = 40.53125 - (1"/2)/12 = 40.53125 - 0.04167 = 40.49'
-    "water_stub_x_ft": 40.49,  # Pipe center at west face of pile 5,4
-    "water_stub_y_ft": 44.46875,  # Pile center Y position
+    # NOTE: water_stub_x_ft and water_stub_y_ft are CALCULATED in BeachHouse Template.FCMacro:
+    #   - Derived from pile [4,3] (0-based) position + west face offset - pipe radius
+    #   - This ensures water stub is always at pile west face regardless of pile grid config
+    "water_stub_x_ft": 40.49,  # Placeholder - overridden at runtime
+    "water_stub_y_ft": 44.46875,  # Placeholder - overridden at runtime
     "water_entry_from_street_y_ft": 0.0,  # Street connection point (lot south edge)
     # Route: north-south in pile gap at X=37.0' (middle between pile columns 4 and 5)
     "water_lateral_x_ft": 37.0,  # X position for north-south run (gap middle)
     # Electrical service (from street, south side Y=0)
-    # Stub-up at east face of pile 4,4 (same location as water, spaced apart)
     "electrical_service_conduit_diameter_in": 2.5,  # 2.5" Schedule 40 PVC conduit (200A service per NEC 310.12)
     "electrical_service_depth_in": 24.0,  # 2' below grade (min depth per NEC 300.5 for PVC conduit under concrete)
-    # Conduit center at east face, offset 6" from water line
-    "electrical_stub_x_ft": 33.51,  # Same X as water (side-by-side)
-    "electrical_stub_y_ft": 44.96875,  # Offset 6" north from water stub (44.46875 + 0.5)
+    # NOTE: electrical_stub_x_ft, electrical_stub_y_ft, electrical_equipment_x_ft, electrical_equipment_y_ft
+    #   are CALCULATED in BeachHouse Template.FCMacro:
+    #   - Derived from pile [3,3] (0-based) position + east face offset
+    #   - electrical_stub is offset 6" north from pile center for spacing from water
+    #   - electrical_equipment is centered on pile for meter/disconnect/panel mounting
+    "electrical_stub_x_ft": 33.51,  # Placeholder - overridden at runtime
+    "electrical_stub_y_ft": 44.96875,  # Placeholder - overridden at runtime
     "electrical_entry_from_street_y_ft": 0.0,  # Street connection point
     # Route: north-south in pile gap at X=37.0' (middle between pile columns 4 and 5)
     "electrical_lateral_x_ft": 37.0,  # X position for north-south run (gap middle)
-    # Electrical infrastructure (meter → disconnect → panel) - stacked vertically at pile 4,4
+    # Electrical infrastructure (meter -> disconnect -> panel) - stacked vertically at pile [3,3]
     # Equipment mounted on pile east face, centered on pile (not on offset stub-up)
-    "electrical_equipment_x_ft": 33.51,  # East face of pile 4,4 (same as stub-up X)
-    "electrical_equipment_y_ft": 44.46875,  # Center of pile 4,4 (NOT offset like stub-up)
+    "electrical_equipment_x_ft": 33.51,  # Placeholder - overridden at runtime
+    "electrical_equipment_y_ft": 44.46875,  # Placeholder - overridden at runtime
     # Meter box: 200A residential meter, bottom at 4' above slab
     "meter_box_offset_z_in": 48.0,  # Bottom at 4' above slab (accessible height)
     # Disconnect: 200A service disconnect, stacked above meter (NEC 230.70)
@@ -374,39 +399,144 @@ UTILITIES = {
 # ============================================================
 # STAIRS (from concrete slab to house floor)
 # ============================================================
+#
+# DOUBLE-L STAIR DESIGN - Wraps around east side of front deck
+# =============================================================
+#
+# Design: Double-L stair with 3 runs and 2 landings (east -> north -> west)
+#
+#   DECK SURFACE (Z=252.25")
+#   |
+#   | 4' deck landing (walkway from elevator to stair opening)
+#   |
+#   v
+#   [Tread 0] -----> EAST (Run 1: descend east, oriented N-S)
+#   [Tread 1]
+#   ...
+#   [Tread N]
+#   |
+#   [Landing 1] <--- 90° left turn (to north)
+#   |
+#   [Tread N+1] ---> NORTH (Run 2: descend north, oriented E-W)
+#   ...
+#   [Tread 2N]
+#   |
+#   [Landing 2] <--- 90° left turn (to west)
+#   |
+#   [Remaining] <--- WEST (Run 3: descend to slab, oriented N-S)
+#   ...
+#   SLAB (Z=0")
+#
+# Tread 0 orientation:
+#   - Runs N-S (3' wide in Y direction)
+#   - Descends EAST (+X direction)
+#   - WEST face aligns with EAST face of Front_Deck_Right_16x12_Joist_2
+#
+
+# Stair parameters defined before STAIRS dict for use in calculations
+_STAIR_TREAD_WIDTH_FT = 3.0  # Stair width (36" minimum per IRC R311.7.1)
+_STAIR_DECK_LANDING_FT = 4.0  # Deck landing depth (from elevator to stair opening)
+_STAIR_LANDING_SIZE_FT = 3.0  # Turn landing size (36" x 36" per IRC R311.7.6)
+
+# Calculate tread 0 X position:
+# Front_Deck_Right origin X = floor_start_x + 2 * 192" (two 16' deck modules)
+# floor_start_x = (50' - 3*16.25')/2 = 0.625'
+# Front_Deck_Right origin = 0.625' + 32' = 32.625' = 391.5"
+# Joist_2 center = origin + 15.25" (first joist) + 16" (one spacing) = origin + 31.25"
+# Joist_2 east face = origin + 31.25" + 0.75" (half thickness) = origin + 32"
+# Absolute: 391.5" + 32" = 423.5" = 35.292'
+_FLOOR_START_X_FT = (LOT["width_ft"] - 3 * (FIRST_FLOOR["module_16x16_width_in"] / 12.0)) / 2.0
+_FRONT_DECK_RIGHT_ORIGIN_X_FT = _FLOOR_START_X_FT + 2 * 16.0  # Two 16' modules
+_JOIST_2_EAST_FACE_IN = (
+    _FRONT_DECK_RIGHT_ORIGIN_X_FT * 12.0
+) + 32.0  # 31.25 + 0.75 from module origin
+_STAIR_TREAD0_X_FT = _JOIST_2_EAST_FACE_IN / 12.0  # Tread 0 west face at joist 2 east face
 
 STAIRS = {
-    # Exterior stairs from first floor (Z=20') down to slab (Z=0')
-    # Running along east side of house, descending north (south to north)
-    # Top tread south edge snaps to north edge of Floor_Front_Right_16x16 Rim_Front
-    # Finished floor to finished floor (slab top to joist top, excludes deck boards)
-    # Foundation alignment (critical for load transfer):
-    # - Stair rim joist left face aligns with pile east face (X = 41.46875' global, minus 2x thick for joist clearance)
-    # - Shortened joists end at pile east face - 2x thickness (creating stair opening)
-    # - Stair rim joist sits at pile east face (west face at X = 41.34375', east face at X = 41.46875')
-    # - Stair tread west face snaps to rim joist east face (X = 41.46875', pile east face)
-    # - Load path: treads → stringers → rim joist → pile (direct attachment at pile face)
+    # Double-L stairs from first floor (Z=20') down to slab (Z=0')
+    # East side of front deck, wrapping around toward west
     #
-    # Calculated positions (global coordinates):
-    #   Pile_41_28 center: X = 41' (pile grid position)
-    #   Pile_41_28 east face: X = 41.46875' (pile center + width/2 = 41' + 11.25"/24)
-    #   Shortened joist right end: X = 41.34375' (pile east face - thick = 41.46875' - 1.5"/12)
-    #   Stair rim joist left face: X = 41.34375' (flush with shortened joist ends)
-    #   Stair rim joist center: X = 41.40625' (left face + thick/2 = 41.34375' + 0.75"/12)
-    #   Stair rim joist east face: X = 41.46875' (aligned with pile east face)
-    #   Stair tread west face: X = 41.46875' (snapped to rim east face = pile east face)
-    "stair_x_ft": 41.0
-    + (
-        11.25 / 24.0
-    ),  # West face aligned with Pile_41_28 east face = 41.46875' (pile center + width/2)
-    "stair_y_snap_ft": 28.125,  # Y position where top tread south edge meets rim north edge (28' + 1.5")
+    # Tread 0 X alignment:
+    # - Tread 0 WEST face aligns with EAST face of Front_Deck_Right_16x12_Joist_2
+    #
+    # Tread 0 Y alignment:
+    # - South face at 4' deck landing north of front deck front rim (for elevator walkway)
+    #
+    "stair_x_ft": _STAIR_TREAD0_X_FT,  # Tread 0 west face X position
+    "stair_y_snap_ft": (
+        LOT["front_setback_ft"]  # Front setback line (Y=20')
+        + FOUNDATION["pile_spacing_y_ft"]  # Plus pile spacing (10')
+        - DECKS["front_deck_depth_ft"]  # Minus deck depth (12')
+        - DECKS["front_deck_rim_offset_in"] / 12.0  # Minus rim offset (0.125')
+        + _STAIR_DECK_LANDING_FT  # Plus deck landing depth (4' from front rim)
+    ),  # Tread 0 south face at 4' north of front deck front rim
     "tread_rise_in": 7.25,  # Riser height (7.25" per IRC R311.7.5.1 max 7-3/4")
-    "tread_run_in": 10.0,  # Tread depth (10" minimum per IRC R311.7.5.2)
-    "tread_width_ft": 3.0,  # Stair width (36" minimum per IRC R311.7.1)
+    "tread_run_in": 11.25,  # Tread depth (11.25" = 2x12 actual width)
+    "tread_width_ft": _STAIR_TREAD_WIDTH_FT,  # Stair width (36" minimum per IRC R311.7.1)
     "tread_stock": "2x12x96_PT",  # Tread material (2x12 PT lumber)
-    "descending_direction": "north",  # Stairs descend toward north (-Y direction)
     # Headroom clearance (IRC R311.7.2 requires minimum 80" vertical clearance)
     "headroom_clearance_in": 80.0,  # 6'8" minimum headroom from tread to joist bottom
+    #
+    # DOUBLE-L STAIR CONFIGURATION
+    # ============================
+    "stair_type": "double_L",  # "straight", "L", or "double_L"
+    #
+    # Run 1: Descends EAST from deck opening
+    # - Treads oriented N-S (3' in Y direction)
+    # - Descending toward +X (east)
+    "run1_direction": "east",  # Descending direction for Run 1
+    "run1_tread_count": 6,  # Number of treads in Run 1
+    #
+    # Landing 1: 90° left turn (east -> north)
+    "landing1_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
+    "landing1_turn": "left",  # 90° left = from east to north
+    #
+    # Run 2: Descends NORTH
+    # - Treads oriented E-W (3' in X direction)
+    # - Descending toward +Y (north)
+    # - Only 2 treads to stay within pile box
+    "run2_direction": "north",  # Descending direction for Run 2
+    "run2_tread_count": 2,  # Number of treads in Run 2 (short run to stay in pile box)
+    #
+    # Landing 2: 90° left turn (north -> west)
+    "landing2_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
+    "landing2_turn": "left",  # 90° left = from north to west
+    #
+    # Run 3: Descends WEST (short run before L-turn)
+    # - Treads oriented N-S (3' in Y direction)
+    # - Descending toward -X (west)
+    "run3_direction": "west",  # Descending direction for Run 3
+    "run3_tread_count": 4,  # 4 treads before Landing 3 (tread 5 becomes landing)
+    #
+    # Landing 3: 90° left turn (west -> south)
+    "landing3_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
+    "landing3_turn": "left",  # 90° left = from west to south
+    #
+    # Run 4: Descends SOUTH (3 treads)
+    # - Treads oriented E-W (3' in X direction)
+    # - Descending toward -Y (south)
+    "run4_direction": "south",  # Descending direction for Run 4
+    "run4_tread_count": 3,  # 3 treads before Landing 4
+    #
+    # Landing 4: 90° left turn (south -> east)
+    "landing4_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
+    "landing4_turn": "left",  # 90° left = from south to east
+    #
+    # Run 5: Descends EAST (4 treads before Landing 5)
+    # - Treads oriented N-S (3' in Y direction)
+    # - Descending toward +X (east)
+    "run5_direction": "east",  # Descending direction for Run 5
+    "run5_tread_count": 4,  # 4 treads before Landing 5
+    #
+    # Landing 5: 90° left turn (east -> north)
+    "landing5_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
+    "landing5_turn": "left",  # 90° left = from east to north
+    #
+    # Run 6: Descends NORTH to slab (remaining treads)
+    # - Treads oriented E-W (3' in X direction)
+    # - Descending toward +Y (north)
+    "run6_direction": "north",  # Descending direction for Run 6
+    # run6_tread_count is CALCULATED at runtime
 }
 
 # ============================================================
@@ -444,14 +574,16 @@ MATERIALS = {
 
 ELEVATOR = {
     # Position (south face of house, east edge - SE corner)
-    # Positioned at front of house for ground-level access
-    # South face = front setback line (Y=20'), east edge = right side
-    "elevator_x_ft": 42.0,  # East edge of house (SE corner)
-    "elevator_y_ft": 17.0,  # Just south of front face, accessible from grade
+    # elevator_x_ft is the APPROXIMATE center X position (user-specified)
+    # The deck railing code will snap the elevator to align with railing post positions
+    # so that removing sections creates a clean opening
+    "elevator_x_ft": 42.0,  # Approximate X position (will be centered in railing opening)
+    # NOTE: elevator_y_ft is CALCULATED in BeachHouse Template.FCMacro:
+    #   - North face of elevator POSTS aligns with south face of front deck rim
     # Platform dimensions
     "platform_width_ft": 4.0,  # 4' wide (ADA accessible, 48" min for wheelchair)
-    "platform_depth_ft": 5.0,  # 5' deep (north face at Y=12.0', south face at Y=7.0')
-    # NOTE: travel_height_ft is CALCULATED (= above_grade_ft) in beach_elevator.py create_beach_elevator()
+    "platform_depth_ft": 5.0,  # 5' deep
+    # NOTE: travel_height_ft is CALCULATED (= above_grade_ft) in beach_elevator.py
 }
 
 # ============================================================
@@ -459,20 +591,21 @@ ELEVATOR = {
 # ============================================================
 
 BUILD = {
-    # What to include in build
+    # What to include in build (reduced set for faster iteration)
     "include_lot_survey": True,
-    "include_septic_system": True,  # Septic tank, leach field, drain lines
-    "include_utilities": False,  # TEMP DISABLED - debugging; Concrete slab, plumbing/electrical stub-ups
-    "include_driveway": True,  # Driveway slab with rebar
+    "include_septic_system": False,  # Septic tank, leach field, drain lines
+    "include_utilities": False,  # Water/electrical service lines, stub-ups, meters, hose bibs
+    "include_driveway": False,  # Driveway slab with rebar
     "include_elevator": True,  # Beach house elevator (open metal lift)
-    "include_foundation": True,  # LVL beam system on pilings
+    "include_foundation": True,  # LVL beam system on pilings (piles only, no beams)
+    "include_concrete_slab": True,  # Concrete slab under house
     "include_deck_joists": True,  # Deck joists, rims, hangers (installed BEFORE sheathing)
     "include_first_floor": True,  # 3×3 grid: 40' × 48'
-    "include_walls": True,  # Front and rear walls (5 x 8' modules each: Window | Window | Door | Window | Window = 40')
-    "include_deck_surface": True,  # Deck boards (installed BEFORE second floor for safe work platform)
-    "include_deck_railings": True,  # Deck railing posts (48" above deck, bottom at joist bottom)
-    "include_second_floor": True,  # 20' LVL rims × 12' 2x12 joists (2×4 grid = 40' × 48')
-    "include_stairs": True,  # Exterior stairs from slab to first floor
+    "include_stairs": True,  # Exterior stairs from slab to first floor (built early for access)
+    "include_walls": False,  # Front and rear walls
+    "include_deck_surface": False,  # Deck boards (installed AFTER stairs)
+    "include_deck_railings": False,  # Deck railing posts
+    "include_second_floor": False,  # 20' LVL rims × 12' 2x12 joists
     "include_roof": False,  # Not yet implemented
     # Output options
     "save_fcstd": True,
