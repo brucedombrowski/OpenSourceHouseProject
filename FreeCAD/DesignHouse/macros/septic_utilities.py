@@ -2600,6 +2600,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             run5_tread_count = run5_tread_count_config if run5_tread_count_config else 4
             # Run 6 = remaining after Run1 + L1 + Run2 + L2 + Run3 + L3 + Run4 + L4 + Run5 + L5
             # 5 landings total, each counts as 1 rise
+            # Subtract 6 total: 5 landings + 1 for tread0 offset (first tread is 1 rise below deck)
             run6_tread_count = (
                 num_treads
                 - run1_tread_count
@@ -2607,7 +2608,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
                 - run3_tread_count
                 - run4_tread_count
                 - run5_tread_count
-                - 5
+                - 6
             )
         elif has_landing4:
             # 5-run stair: Run 3, Run 4 counts specified, Run 5 calculated
@@ -2615,18 +2616,20 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             run4_tread_count = run4_tread_count_config if run4_tread_count_config else 3
             # Run 5 = remaining after Run1 + L1 + Run2 + L2 + Run3 + L3 + Run4 + L4
             # 4 landings total, each counts as 1 rise
+            # Subtract 5 total: 4 landings + 1 for tread0 offset (first tread is 1 rise below deck)
             run5_tread_count = (
                 num_treads
                 - run1_tread_count
                 - run2_tread_count
                 - run3_tread_count
                 - run4_tread_count
-                - 4
+                - 5
             )
             run6_tread_count = 0
         elif has_landing3:
             # 4-run stair (switchback): Run 3 count specified, Run 4 calculated
             run3_tread_count = run3_tread_count_config if run3_tread_count_config else 12
+            # Subtract 4 total: 3 landings + 1 for tread0 offset
             run4_tread_count = (
                 num_treads - run1_tread_count - run2_tread_count - run3_tread_count - 4
             )
@@ -2634,7 +2637,8 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             run6_tread_count = 0
         else:
             # 3-run stair: Run 3 gets all remaining treads
-            run3_tread_count = num_treads - run1_tread_count - run2_tread_count - 2
+            # Subtract 3 total: 2 landings + 1 for tread0 offset
+            run3_tread_count = num_treads - run1_tread_count - run2_tread_count - 3
             run4_tread_count = 0
             run5_tread_count = 0
             run6_tread_count = 0
