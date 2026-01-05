@@ -13,15 +13,15 @@ For Luke Dombrowski. Stay Alive.
 #
 # Think of the lot as a 6-sided die viewed from above:
 #
-#   TOP/BOTTOM → Z axis (vertical, up/down)
-#   FRONT/REAR → Y axis (horizontal, north/south)
-#   LEFT/RIGHT → X axis (horizontal, east/west)
+#   TOP/BOTTOM -> Z axis (vertical, up/down)
+#   FRONT/REAR -> Y axis (horizontal, north/south)
+#   LEFT/RIGHT -> X axis (horizontal, east/west)
 #
 # Origin: (0, 0, 0) at southwest corner of lot, grade level
 #
-# X axis: Increases EAST (left → right when viewing from above)
-# Y axis: Increases NORTH (front → rear when viewing from above, facing north)
-# Z axis: Increases UP (bottom → top, grade → sky)
+# X axis: Increases EAST (left -> right when viewing from above)
+# Y axis: Increases NORTH (front -> rear when viewing from above, facing north)
+# Z axis: Increases UP (bottom -> top, grade -> sky)
 #
 # Lot Centerlines:
 #   EW Centerline: X = lot_width_ft / 2.0 = 25.0'
@@ -31,10 +31,10 @@ For Luke Dombrowski. Stay Alive.
 #   Lot Center Point: (25', 50', 0) where both centerlines intersect
 #
 # Setback Naming (from property lines):
-#   front_setback_ft → South edge (Y = front_setback_ft)
-#   rear_setback_ft  → North edge (Y = lot_depth_ft - rear_setback_ft)
-#   left_setback_ft  → West edge (X = left_setback_ft)
-#   right_setback_ft → East edge (X = lot_width_ft - right_setback_ft)
+#   front_setback_ft -> South edge (Y = front_setback_ft)
+#   rear_setback_ft  -> North edge (Y = lot_depth_ft - rear_setback_ft)
+#   left_setback_ft  -> West edge (X = left_setback_ft)
+#   right_setback_ft -> East edge (X = lot_width_ft - right_setback_ft)
 #
 # ============================================================
 # LOT SURVEY
@@ -55,7 +55,7 @@ LOT = {
 # ============================================================
 
 FOUNDATION = {
-    # Pile grid (calculated: grid_x × grid_y = total piles, footprint spans)
+    # Pile grid (calculated: grid_x x grid_y = total piles, footprint spans)
     "pile_spacing_x_ft": 8.0,  # Pile spacing in X direction
     "pile_spacing_y_ft": 8.0,  # Pile spacing in Y direction
     "pile_grid_x": 5,  # Number of piles in X direction
@@ -184,7 +184,7 @@ SEPTIC_SYSTEM = {
     # Leach field (drain field)
     "leach_field_x_start_ft": 10.0,  # West side of tank
     "leach_field_y_start_ft": 80.0,  # Behind rear deck piles (back pile at Y=76.9375', clearance ~3')
-    "leach_field_length_ft": 30.0,  # 3 trenches × 5' spacing (fits within lot)
+    "leach_field_length_ft": 30.0,  # 3 trenches x 5' spacing (fits within lot)
     "leach_field_width_ft": 20.0,  # Trench width + spacing
     "leach_field_trench_count": 3,
     "leach_field_trench_spacing_ft": 5.0,  # Reduced from 10' to 5' to fit within lot (rear setback at Y=90')
@@ -193,7 +193,7 @@ SEPTIC_SYSTEM = {
     "drain_line_depth_in": 24.0,  # 2' below grade (frost line + code)
     # Stub-up location (east face of pile at X=33', Y=52.46875' - aligned with stair module at Floor_Middle_Right_16x8)
     # Pile center: X=33.0', Y=52.46875' (pile index 3,4 in 0-based grid)
-    # Pile size: 12" × 12" (11.25" actual)
+    # Pile size: 12" x 12" (11.25" actual)
     # East face of pile: X = 33.0 + (11.25"/2)/12 = 33.0 + 0.46875 = 33.46875'
     # Pipe OD: 4", so pipe center at east face: X = 33.46875 + (4"/2)/12 = 33.46875 + 0.16667 = 33.635'
     "stub_up_x_ft": 33.635,  # Pipe center at east face of pile (X=33.0', Y=52.46875')
@@ -201,9 +201,9 @@ SEPTIC_SYSTEM = {
     # Drain line routing strategy:
     # 1. Vertical stub-up through concrete slab at pile 4,5 east face: (33.635, 52.46875)
     # 2. Underground 90-degree elbow at slab bottom (Z=-24")
-    # 3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) → (37.0, 52.46875)
+    # 3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) -> (37.0, 52.46875)
     # 4. Underground 90-degree elbow at gap middle
-    # 5. Underground horizontal run NORTH (with slope) in pile gap to tank: (37.0, 52.46875) → (37.0, 88.0)
+    # 5. Underground horizontal run NORTH (with slope) in pile gap to tank: (37.0, 52.46875) -> (37.0, 88.0)
     # Tank is centered at X=37.0' so north-south run goes straight into tank inlet
     "drain_line_lateral_x_ft": 37.0,  # X position for vertical drop (gap middle between pile columns 4 and 5)
     "drain_line_waypoint_x_ft": 37.0,  # Same as lateral (no turn needed - straight run to tank)
@@ -243,7 +243,7 @@ UTILITIES = {
     "electrical_entry_from_street_y_ft": 0.0,  # Street connection point
     # Route: north-south in pile gap at X=37.0' (middle between pile columns 4 and 5)
     "electrical_lateral_x_ft": 37.0,  # X position for north-south run (gap middle)
-    # Electrical infrastructure (meter → disconnect → panel) - stacked vertically at pile 4,4
+    # Electrical infrastructure (meter -> disconnect -> panel) - stacked vertically at pile 4,4
     # Equipment mounted on pile east face, centered on pile (not on offset stub-up)
     "electrical_equipment_x_ft": 33.51,  # East face of pile 4,4 (same as stub-up X)
     "electrical_equipment_y_ft": 44.46875,  # Center of pile 4,4 (NOT offset like stub-up)

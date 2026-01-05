@@ -182,6 +182,11 @@ module_left_x_ft = lot_x_ft / 2.0  # Align to lot centerline
 module_front_y_ft = front_setback_ft
 module_base_z_ft = above_grade_ft
 
+# Front deck positioning (derived from config - used by elevator and deck modules)
+front_deck_rim_offset_ft = DECKS["front_deck_rim_offset_in"] / 12.0
+front_deck_depth_ft = DECKS["front_deck_depth_ft"]  # 12' for 16x12 modules
+front_deck_y_ft = front_setback_ft + y_spacing_ft - front_deck_depth_ft - front_deck_rim_offset_ft
+
 # Sheathing parameters
 sheathing_thick_in = FIRST_FLOOR["sheathing_thickness_in"]
 sheathing_label = FIRST_FLOOR["sheathing_stock"]
@@ -283,7 +288,35 @@ lot_grp = create_lot_survey(doc, lot_x_ft, lot_y_ft, front_setback_ft, left_setb
 
 if BUILD.get("include_septic_system", False):
     App.Console.PrintMessage("[Build_950Surf] === SEPTIC SYSTEM ===\n")
-    septic_grp = su.create_septic_system(doc, SEPTIC_SYSTEM)
+    # Calculate leach field Y start from pile positions (no hardcoded values)
+    # Leach field must start north of the last pile row with clearance
+    last_pile_y_ft = y_positions_ft[-1]  # Last pile center Y
+    last_pile_north_face_ft = last_pile_y_ft + pile_half_thickness_ft
+    leach_field_clearance_ft = 2.0  # 2' clearance from pile for access/maintenance
+    calculated_leach_y_start_ft = last_pile_north_face_ft + leach_field_clearance_ft
+
+    # Calculate drain stub-up position from pile positions (no hardcoded values)
+    # Stub-up at east face of pile [3,4] (0-based indices: column 4, row 5 in 1-based)
+    # This aligns with the stair module at Floor_Middle_Right_16x8
+    drain_stub_pile_col = 3  # Pile column index (0-based)
+    drain_stub_pile_row = 4  # Pile row index (0-based)
+    drain_stub_pile_x_ft = x_positions_ft[drain_stub_pile_col]
+    drain_stub_pile_y_ft = y_positions_ft[drain_stub_pile_row]
+    drain_pipe_diameter_in = SEPTIC_SYSTEM.get("drain_line_diameter_in", 4.0)
+    # East face of pile: pile center X + pile half thickness
+    # Pipe center at east face: east face X + pipe radius
+    drain_stub_east_face_ft = drain_stub_pile_x_ft + pile_half_thickness_ft
+    drain_stub_x_ft = drain_stub_east_face_ft + (drain_pipe_diameter_in / 2.0) / 12.0
+
+    # Create septic config with calculated positions
+    septic_config = dict(SEPTIC_SYSTEM)
+    septic_config["leach_field_y_start_ft"] = calculated_leach_y_start_ft
+    septic_config["stub_up_x_ft"] = drain_stub_x_ft
+    septic_config["stub_up_y_ft"] = drain_stub_pile_y_ft
+    App.Console.PrintMessage(f"[Build_950Surf]   Leach field Y start: {calculated_leach_y_start_ft:.2f}' (2' north of last pile at Y={last_pile_y_ft:.2f}')\n")
+    App.Console.PrintMessage(f"[Build_950Surf]   Drain stub-up at pile [{drain_stub_pile_col},{drain_stub_pile_row}] east face: X={drain_stub_x_ft:.3f}', Y={drain_stub_pile_y_ft:.5f}'\n")
+
+    septic_grp = su.create_septic_system(doc, septic_config)
 else:
     App.Console.PrintMessage("[Build_950Surf] Septic system skipped (disabled in BUILD config)\n")
 
@@ -296,16 +329,16 @@ def create_foundation(doc, catalog, params):
 
     Construction Sequence:
         1. Install pilings (35 ea, 12x12x40 PT, embedded 20' below grade)
-        2. Install LVL beam assemblies (1.75"×depth×20' 2-ply, centered on piles)
+        2. Install LVL beam assemblies (1.75"xdepthx20' 2-ply, centered on piles)
         3. Notch piles for beam seats (single 3.5" wide notch per pile)
 
     Design Rationale:
-        - Pile grid: 5×7 = 35 piles @ 10' OC (efficient use of 20' LVL stock)
+        - Pile grid: 5x7 = 35 piles @ 10' OC (efficient use of 20' LVL stock)
         - Embed depth: 20' below grade (local code + storm surge + safety factor)
         - Above grade: 20' (elevated above max flood elevation per FEMA)
         - LVL beams: 2-ply laminated (3.5" total width) centered on piles
         - Three 20' segments per girder: rows 1-3, 3-5, 5-7
-        - Single notch per pile: 3.5" wide × depth deep
+        - Single notch per pile: 3.5" wide x depth deep
 
     Args:
         doc: FreeCAD document
@@ -317,7 +350,7 @@ def create_foundation(doc, catalog, params):
     Returns:
         foundation_grp: DocumentObjectGroup with subgroups:
             - Piles (35 ea)
-            - LVL_Beam_Assemblies (15 assemblies: 5 girders × 3 segments each)
+            - LVL_Beam_Assemblies (15 assemblies: 5 girders x 3 segments each)
 
     Raises:
         ValueError: If pile_label or lvl_label not found in catalog
@@ -366,7 +399,7 @@ def create_foundation(doc, catalog, params):
             f"LVL beam system requires 7 pile rows, got {len(params['y_positions_ft'])}"
         )
 
-    # Create 3 LVL segments for each girder line (5 girders × 3 segments = 15 assemblies)
+    # Create 3 LVL segments for each girder line (5 girders x 3 segments = 15 assemblies)
     # Determine LVL placement side: west girders on west face, east girders on east face
     middle_x_ft = (params["x_positions_ft"][0] + params["x_positions_ft"][-1]) / 2.0
 
@@ -444,9 +477,33 @@ if BUILD.get("include_concrete_slab", BUILD.get("include_utilities", False)):
     App.Console.PrintMessage("[Build_950Surf] === CONCRETE SLAB ===\n")
     # Pass pile positions for slab cutouts (use actual pile size, not nominal)
     pile_positions_ft = [(x, y) for x in x_positions_ft for y in y_positions_ft]
+
+    # Calculate slab dimensions from pile positions (no hardcoded values)
+    # Slab covers pile area but MUST stay within setback lines
+    # Pile outer faces already align with setback lines, so slab edge = setback line
+    # West edge: left_setback_ft (pile west face aligns here)
+    # East edge: lot_x_ft - right_setback_ft (pile east face aligns here)
+    # South edge: front_setback_ft (pile south face aligns here)
+    # North edge: last pile north face + margin (but no setback issue here - rear is for building only)
+    slab_margin_north_ft = 0.5  # 6" margin on north side only (no setback constraint)
+    calculated_slab_x_start = left_setback_ft  # West edge at left setback line
+    calculated_slab_x_end = lot_x_ft - right_setback_ft  # East edge at right setback line
+    calculated_slab_y_start = front_setback_ft  # South edge at front setback line
+    calculated_slab_y_end = y_positions_ft[-1] + pile_half_thickness_ft + slab_margin_north_ft  # North edge with margin
+    calculated_slab_width = calculated_slab_x_end - calculated_slab_x_start
+    calculated_slab_depth = calculated_slab_y_end - calculated_slab_y_start
+
+    # Override slab dimensions in utilities config
+    utilities_slab_config = dict(UTILITIES)
+    utilities_slab_config["slab_x_start_ft"] = calculated_slab_x_start
+    utilities_slab_config["slab_y_start_ft"] = calculated_slab_y_start
+    utilities_slab_config["slab_width_ft"] = calculated_slab_width
+    utilities_slab_config["slab_depth_ft"] = calculated_slab_depth
+    App.Console.PrintMessage(f"[Build_950Surf]   Slab within setbacks: X={calculated_slab_x_start:.2f}'-{calculated_slab_x_end:.2f}', Y={calculated_slab_y_start:.2f}'-{calculated_slab_y_end:.2f}'\n")
+
     slab_grp = su.create_concrete_slab_group(
         doc,
-        UTILITIES,
+        utilities_slab_config,
         pile_positions_ft=pile_positions_ft,
         pile_size_in=FOUNDATION.get("pile_actual_size_in", FOUNDATION["pile_size_in"])
     )
@@ -455,8 +512,43 @@ else:
 
 if BUILD.get("include_utilities", False):
     App.Console.PrintMessage("[Build_950Surf] === UTILITIES ===\n")
+
+    # Calculate water stub-up position from pile positions (no hardcoded values)
+    # Water stub at west face of pile [4,3] (0-based indices: column 5, row 4 in 1-based)
+    water_stub_pile_col = 4  # Pile column index (0-based)
+    water_stub_pile_row = 3  # Pile row index (0-based)
+    water_stub_pile_x_ft = x_positions_ft[water_stub_pile_col]
+    water_stub_pile_y_ft = y_positions_ft[water_stub_pile_row]
+    water_pipe_diameter_in = UTILITIES.get("water_service_line_diameter_in", 1.0)
+    # West face of pile: pile center X - pile half thickness
+    # Pipe center at west face: west face X - pipe radius
+    water_stub_west_face_ft = water_stub_pile_x_ft - pile_half_thickness_ft
+    water_stub_x_ft = water_stub_west_face_ft - (water_pipe_diameter_in / 2.0) / 12.0
+
+    # Calculate electrical equipment position from pile positions (no hardcoded values)
+    # Electrical at east face of pile [3,3] (0-based indices: column 4, row 4 in 1-based)
+    elec_pile_col = 3  # Pile column index (0-based)
+    elec_pile_row = 3  # Pile row index (0-based)
+    elec_pile_x_ft = x_positions_ft[elec_pile_col]
+    elec_pile_y_ft = y_positions_ft[elec_pile_row]
+    # East face of pile: pile center X + pile half thickness
+    elec_equipment_x_ft = elec_pile_x_ft + pile_half_thickness_ft
+
+    # Create utilities config with calculated positions
+    utilities_config = dict(UTILITIES)
+    utilities_config["water_stub_x_ft"] = water_stub_x_ft
+    utilities_config["water_stub_y_ft"] = water_stub_pile_y_ft
+    utilities_config["electrical_equipment_x_ft"] = elec_equipment_x_ft
+    utilities_config["electrical_equipment_y_ft"] = elec_pile_y_ft
+    # Also set electrical_stub for backward compatibility (offset 6" north from water)
+    utilities_config["electrical_stub_x_ft"] = elec_equipment_x_ft
+    utilities_config["electrical_stub_y_ft"] = elec_pile_y_ft + 0.5  # 6" offset north
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Water stub-up at pile [{water_stub_pile_col},{water_stub_pile_row}] west face: X={water_stub_x_ft:.3f}', Y={water_stub_pile_y_ft:.5f}'\n")
+    App.Console.PrintMessage(f"[Build_950Surf]   Electrical equipment at pile [{elec_pile_col},{elec_pile_row}] east face: X={elec_equipment_x_ft:.5f}', Y={elec_pile_y_ft:.5f}'\n")
+
     # Pass STAIRS, FOUNDATION, and LOT configs for foot wash station and pile hose bibs
-    utilities_grp = su.create_utilities_group(doc, UTILITIES, stairs_config=STAIRS, foundation_config=FOUNDATION, lot_config=LOT)
+    utilities_grp = su.create_utilities_group(doc, utilities_config, stairs_config=STAIRS, foundation_config=FOUNDATION, lot_config=LOT)
 else:
     App.Console.PrintMessage("[Build_950Surf] Utilities skipped (disabled in BUILD config)\n")
 
@@ -470,16 +562,6 @@ if BUILD.get("include_driveway", False):
     driveway_grp = su.create_driveway_slab_group(doc, DRIVEWAY, utilities_config=UTILITIES)
 else:
     App.Console.PrintMessage("[Build_950Surf] Driveway skipped (disabled in BUILD config)\n")
-
-# ============================================================
-# SECTION 4.4: BEACH ELEVATOR (open metal lift)
-# ============================================================
-
-if BUILD.get("include_elevator", False):
-    App.Console.PrintMessage("[Build_950Surf] === BEACH ELEVATOR ===\n")
-    elevator_grp = be.create_beach_elevator(doc, ELEVATOR, foundation_config=FOUNDATION)
-else:
-    App.Console.PrintMessage("[Build_950Surf] Beach elevator skipped (disabled in BUILD config)\n")
 
 # ============================================================
 # SECTION 4.45: EXTERIOR STAIRS (from slab to floor)
@@ -511,19 +593,14 @@ if BUILD.get("include_deck_joists", False):
 
     deck_z_base_in = above_grade_ft * 12.0  # Same level as foundation top
 
-    # Calculate deck positions
-    # Front deck: south of front setback, 12' deep modules with rim offset for alignment
-    front_deck_rim_offset_ft = DECKS["front_deck_rim_offset_in"] / 12.0
-    front_deck_depth_ft = DECKS["front_deck_depth_ft"]  # 12' for 16x12 modules
-    front_deck_y_ft = front_setback_ft + y_spacing_ft - front_deck_depth_ft - front_deck_rim_offset_ft
-
-    # Rear deck: starts at back edge of floor area (3×3 grid of 16x16 modules = 48' deep)
-    floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows × 16' = 48'
+    # front_deck_y_ft is calculated at module level (line ~188) from DECKS config
+    # Rear deck: starts at back edge of floor area (3x3 grid of 16x16 modules = 48' deep)
+    floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows x 16' = 48'
     rear_deck_y_ft = front_setback_ft + y_spacing_ft + floor_depth_ft
 
     # Deck X positioning: snap to first floor joists
-    # Floor width from module dimensions (3×3 grid of 16x16 modules = 48' wide)
-    floor_width_ft_local = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns × 16' = 48'
+    # Floor width from module dimensions (3x3 grid of 16x16 modules = 48' wide)
+    floor_width_ft_local = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns x 16' = 48'
     floor_start_x_ft = (lot_x_ft - floor_width_ft_local) / 2.0  # Center floor on lot
     deck_left_x_ft = floor_start_x_ft  # Snap deck left edge to floor left edge
 
@@ -531,9 +608,9 @@ if BUILD.get("include_deck_joists", False):
 
     # ============================================================
     # FRONT DECK: 3 modules of 16x12 (joists run N-S, rims run E-W)
-    # Module layout: 16' wide × 12' deep, deck boards run E-W
+    # Module layout: 16' wide x 12' deep, deck boards run E-W
     # ============================================================
-    App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 × 16x12 modules)...\n")
+    App.Console.PrintMessage("[Build_950Surf]   Creating front deck joists (3 x 16x12 modules)...\n")
 
     # NOTE: Blocking is NOT created here in the joist modules. Instead, blocking is added
     # after deck surface is complete (in SECTION 8D) so it can be properly positioned
@@ -568,13 +645,15 @@ if BUILD.get("include_deck_joists", False):
     )
     deck_joist_assemblies.append(front_deck_center)
 
-    # Right module (east)
+    # Right module (east) - with stair opening if configured
+    stair_opening_config = DECKS.get("stair_opening", None)
     front_deck_right = parts.create_deck_module_front_16x12(
         doc,
         catalog_rows,
         assembly_name="Front_Deck_Right_16x12",
         make_pressure_treated=True,
         blocking_positions_in=None,  # Blocking added later with deck surface
+        stair_opening=stair_opening_config,
     )
     lc.snap_assembly_corner_to_corner(
         front_deck_right, front_deck_center, target_corner="bottom_right", assembly_corner="bottom_left"
@@ -583,7 +662,7 @@ if BUILD.get("include_deck_joists", False):
 
     # Calculate filler module width from actual assembly dimensions
     # Floor modules are 195" wide (16' + 3" for rims), front deck modules are 192" wide (16' flat)
-    # Gap = (floor_module_width × 3) - (front_deck_module_width × 3)
+    # Gap = (floor_module_width x 3) - (front_deck_module_width x 3)
     floor_module_width_in = FIRST_FLOOR["module_16x16_width_in"]  # 195"
     front_deck_module_width_in = 192.0  # 16' flat (from create_deck_module_front_16x12)
     filler_width_in = (floor_module_width_in * 3) - (front_deck_module_width_in * 3)  # 9"
@@ -611,7 +690,7 @@ if BUILD.get("include_deck_joists", False):
     # Rear deck joists: 3 x 16x4 modules + 9" filler (same pattern as front deck)
     # Using 4' depth modules (joists cut from 8' stock)
     rear_deck_depth_ft = DECKS["rear_deck_depth_ft"]  # 4' from config
-    App.Console.PrintMessage(f"[Build_950Surf]   Creating rear deck joists (3 × 16x{rear_deck_depth_ft:.0f} modules + filler)...\n")
+    App.Console.PrintMessage(f"[Build_950Surf]   Creating rear deck joists (3 x 16x{rear_deck_depth_ft:.0f} modules + filler)...\n")
 
     # Left module (west)
     rear_deck_joists_left = parts.create_deck_module_front_16x4(
@@ -650,7 +729,7 @@ if BUILD.get("include_deck_joists", False):
 
     # Calculate filler module width (same as front deck)
     # Floor modules are 195" wide, deck modules are 192" wide
-    # Gap = (195 × 3) - (192 × 3) = 9"
+    # Gap = (195 x 3) - (192 x 3) = 9"
     rear_deck_module_width_in = 192.0  # 16' flat
     rear_filler_width_in = (floor_module_width_in * 3) - (rear_deck_module_width_in * 3)  # 9"
     rear_filler_width_ft = rear_filler_width_in / 12.0
@@ -682,6 +761,33 @@ else:
     App.Console.PrintMessage("[Build_950Surf] Deck joists skipped (disabled in BUILD config)\n")
 
 # ============================================================
+# SECTION 4.6: BEACH ELEVATOR (open metal lift)
+# Uses front_deck_y_ft (calculated at module level) for positioning
+# ============================================================
+
+if BUILD.get("include_elevator", False):
+    App.Console.PrintMessage("[Build_950Surf] === BEACH ELEVATOR ===\n")
+
+    # Get elevator config values (user-specified approximate position and size)
+    elevator_x_ft = ELEVATOR.get("elevator_x_ft", 42.0)
+    platform_depth_ft = ELEVATOR.get("platform_depth_ft", 5.0)
+    platform_width_ft = ELEVATOR.get("platform_width_ft", 4.0)
+    elev_post_size_in = 4.0  # 4" square steel posts
+
+    # Calculate Y position (north face of elevator posts align with deck rim south face)
+    elevator_y_ft = front_deck_y_ft - platform_depth_ft / 2.0 - (elev_post_size_in / 2.0) / 12.0
+
+    App.Console.PrintMessage(f"[Build_950Surf]   Elevator: {platform_width_ft:.1f}' x {platform_depth_ft:.1f}' at X={elevator_x_ft:.1f}'\n")
+
+    # Create elevator with config values (railing code will align opening to posts)
+    elevator_config = dict(ELEVATOR)
+    elevator_config["elevator_y_ft"] = elevator_y_ft
+
+    elevator_grp = be.create_beach_elevator(doc, elevator_config, foundation_config=FOUNDATION)
+else:
+    App.Console.PrintMessage("[Build_950Surf] Beach elevator skipped (disabled in BUILD config)\n")
+
+# ============================================================
 # SECTION 5: FIRST FLOOR JOISTS (Assembly-Based Modules)
 # ============================================================
 
@@ -696,18 +802,18 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     Design Rationale:
         - Reusable modules eliminate code duplication
         - Assembly snapping ensures perfect alignment (0.0000mm gaps)
-        - Clean hierarchy: Floor → Module (assembly) → Joists + Hardware
+        - Clean hierarchy: Floor -> Module (assembly) -> Joists + Hardware
 
-    Floor Layout (3×3 grid pattern):
+    Floor Layout (3x3 grid pattern):
         - Grid uses (row, col) naming like piles: Floor_R{row}_C{col}
         - Row 1 (front), Row 2 (center), Row 3 (back)
         - Col 1 (left/west), Col 2 (middle), Col 3 (right/east)
 
-        Row 1 (front):  16x16 + 16x16 + 16x16 = 48' wide × 16' deep
-        Row 2 (center): 16x16 + 16x16 + 16x16 = 48' wide × 16' deep
-        Row 3 (back):   16x16 + 16x16 + 16x16 = 48' wide × 16' deep
+        Row 1 (front):  16x16 + 16x16 + 16x16 = 48' wide x 16' deep
+        Row 2 (center): 16x16 + 16x16 + 16x16 = 48' wide x 16' deep
+        Row 3 (back):   16x16 + 16x16 + 16x16 = 48' wide x 16' deep
 
-        Total: 48' wide × 48' deep (9 identical modules)
+        Total: 48' wide x 48' deep (9 identical modules)
 
     Args:
         doc: FreeCAD document
@@ -744,13 +850,13 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
 
     # Calculate floor start position (centered on lot)
     module_width_ft = FIRST_FLOOR["module_16x16_width_in"] / 12.0
-    floor_width_ft = module_width_ft * 3  # 3 columns × 16' = 48'
+    floor_width_ft = module_width_ft * 3  # 3 columns x 16' = 48'
     floor_start_x_ft = (params["lot_x_ft"] - floor_width_ft) / 2.0  # Center on lot
 
     # ============================================================
-    # CREATE FLOOR MODULES IN 3×3 GRID PATTERN
-    # All modules are 16'×16' for uniform construction
-    # Grid: 3 rows × 3 columns = 9 modules = 48' × 48'
+    # CREATE FLOOR MODULES IN 3x3 GRID PATTERN
+    # All modules are 16'x16' for uniform construction
+    # Grid: 3 rows x 3 columns = 9 modules = 48' x 48'
     # Row 1 = front (south), Row 2 = center, Row 3 = back (north)
     # Col 1 = left (west), Col 2 = middle, Col 3 = right (east)
     # ============================================================
@@ -765,21 +871,11 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
         for col in range(1, 4):  # Columns 1, 2, 3 (left, middle, right)
             assembly_name = f"Floor_R{row}_C{col}_16x16"
 
-            # Special case: Row 1, Col 3 may need stair cutout
-            if row == 1 and col == 3 and BUILD.get("include_stairs", False):
-                App.Console.PrintMessage(f"[Build_950Surf]   Creating {assembly_name} (STAIR CUTOUT)...\n")
-                module = parts.create_joist_module_16x16_stair_cutout(
-                    doc,
-                    catalog_rows,
-                    assembly_name=assembly_name,
-                    make_pressure_treated=False,
-                    stair_config=STAIRS,
-                )
-            else:
-                App.Console.PrintMessage(f"[Build_950Surf]   Creating {assembly_name}...\n")
-                module = parts.create_joist_module_16x16(
-                    doc, catalog_rows, assembly_name=assembly_name, make_pressure_treated=False
-                )
+            # All floor modules are standard 16x16 (no stair cutout in floor - stairs in front deck)
+            App.Console.PrintMessage(f"[Build_950Surf]   Creating {assembly_name}...\n")
+            module = parts.create_joist_module_16x16(
+                doc, catalog_rows, assembly_name=assembly_name, make_pressure_treated=False
+            )
 
             # Position module using snapping
             if row == 1 and col == 1:
@@ -803,16 +899,16 @@ def create_first_floor_joists(doc, catalog, params, macro_dir):
     floor_grp = bc.create_group(doc, "First_Floor_Joists")
     bc.add_to_group(floor_grp, modules)
 
-    App.Console.PrintMessage(f"[Build_950Surf]   ✓ Created {len(modules)} floor modules (3×3 grid = 48' × 48')\n")
+    App.Console.PrintMessage(f"[Build_950Surf]   (done) Created {len(modules)} floor modules (3x3 grid = 48' x 48')\n")
     App.Console.PrintMessage("[Build_950Surf] First floor joists complete.\\n")
 
     return floor_grp
 
 # Create first floor joists
 # Calculate floor start position from module dimensions in config
-# Floor layout: 3×3 grid of 16'×16' modules = 48' × 48'
-floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns × 16' = 48'
-floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows × 16' = 48'
+# Floor layout: 3x3 grid of 16'x16' modules = 48' x 48'
+floor_width_ft = (FIRST_FLOOR["module_16x16_width_in"] * 3) / 12.0  # 3 columns x 16' = 48'
+floor_depth_ft = (FIRST_FLOOR["module_16x16_depth_in"] * 3) / 12.0  # 3 rows x 16' = 48'
 
 if BUILD.get("include_first_floor", False):
     floor_params = {
@@ -827,18 +923,10 @@ else:
     App.Console.PrintMessage("[Build_950Surf] First floor joists skipped (disabled in BUILD config)\n")
 
 # ============================================================
-# SECTION 5.5: STAIR OPENING (integrated into floor joist assembly above)
-# ============================================================
-# Stair opening is now created directly in the Floor_Front_Right_16x16 module
-# using create_joist_module_16x16_stair_cutout() when BUILD["include_stairs"] = True
-# This approach:
-# - Shortens joists that conflict with stair headroom
-# - Adds a rim joist at the stair cutout edge to frame the opening
-# - Places hangers on both sides of the stair rim (shortened joists + full-length joists)
-
-# ============================================================
 # SECTION 6: FIRST FLOOR SHEATHING
 # ============================================================
+# NOTE: Stair opening is now in front deck area (not floor joists)
+# The front deck joist module will include stair opening framing (future implementation)
 
 if BUILD.get("include_first_floor", False):
     App.Console.PrintMessage("[Build_950Surf] Adding first floor sheathing...\n")
@@ -934,11 +1022,11 @@ if BUILD.get("include_walls", False):
     front_wall_x_start_ft = sheathing_x_start_ft + wall_offset_ft
     front_wall_y_ft = sheathing_y_start_ft
 
-    # Sheathing width = 40' (5 × 8' wall modules)
+    # Sheathing width = 40' (5 x 8' wall modules)
     sheathing_width_ft = 40.0
 
     # Wall assemblies are created in default orientation (Y = wall length)
-    # Then rotated 90° around Z to run along X (front of house)
+    # Then rotated 90 degrees around Z to run along X (front of house)
     # After rotation: X = wall length (along front), Y = wall thickness (depth into house), Z = vertical
 
     # Front wall module positions (left to right, 8' each)
@@ -949,11 +1037,11 @@ if BUILD.get("include_walls", False):
     # Get wall module width from config
     wall_module_width_ft = WALLS["wall_module_width_ft"]
 
-    # Helper to rotate wall 90° around Z axis
+    # Helper to rotate wall 90 degrees around Z axis
     def rotate_wall_90(wall, x_offset_ft):
-        """Rotate wall 90° CCW around Z axis and snap bottom-left corner to sheathing"""
+        """Rotate wall 90 degrees CCW around Z axis and snap bottom-left corner to sheathing"""
         # Wall is created at origin with orientation: X=thickness, Y=length, Z=vertical
-        # Rotate 90° CCW around Z: new orientation is X=length, Y=thickness, Z=vertical
+        # Rotate 90 degrees CCW around Z: new orientation is X=length, Y=thickness, Z=vertical
         wall.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
 
         # Snap bottom-left corner of wall to sheathing
@@ -1041,7 +1129,7 @@ if BUILD.get("include_walls", False):
 
     # Helper to rotate and position rear wall
     def rotate_rear_wall_90(wall, x_offset_ft):
-        """Rotate wall 90° CCW around Z axis and position at rear of house"""
+        """Rotate wall 90 degrees CCW around Z axis and position at rear of house"""
         wall.Placement.Rotation = App.Rotation(App.Vector(0, 0, 1), 90)
 
         # Position at rear edge, accounting for wall thickness
@@ -1124,7 +1212,7 @@ if BUILD.get("include_walls", False):
 #   - This provides continuous structural plates on the side walls for load transfer
 #
 # Side walls run north-south (along Y axis) from front wall to rear wall
-# Floor depth is 48' (3 rows × 16')
+# Floor depth is 48' (3 rows x 16')
 # Side walls sit ON the sheathing (inside the front/rear walls) using corner alignment:
 #   - Front module: 16' (192"), starts inside front wall
 #   - Center module: 185" (16' minus 7" for wall overlap at corners)
@@ -1429,8 +1517,8 @@ if BUILD.get("include_deck_surface", False):
     # Define zones (areas with same board direction)
     # ============================================================
     # Board direction is perpendicular to joist direction:
-    # - NS joists (front/rear decks) → EW boards
-    # - EW joists (side decks/floor) → NS boards
+    # - NS joists (front/rear decks) -> EW boards
+    # - EW joists (side decks/floor) -> NS boards
 
     # Calculate first joist offset for EW boards (front/rear decks)
     # Front deck joists (running NS) are at X positions:
@@ -1543,23 +1631,8 @@ if BUILD.get("include_deck_surface", False):
 
     deck_surface_assemblies = [unified_deck]
 
-    # Perpendicular deck boards over stair opening (only if stairs enabled)
-    if BUILD.get("include_stairs", False):
-        # Position: stair rim east face (pile east face = 41.46875')
-        App.Console.PrintMessage("[Build_950Surf]   Creating perpendicular deck boards over stair opening...\n")
-        stair_rim_east_face_x_ft = 41.0 + (11.25 / 24.0)  # Pile_41_28 east face = 41.46875'
-        stair_y_snap_ft = STAIRS["stair_y_snap_ft"]  # Top tread south edge position
-        stair_deck_surface_perpendicular = da.create_deck_surface_perpendicular_over_stair(
-            doc,
-            catalog_rows,
-            assembly_name="Deck_Surface_Stair_Perpendicular",
-            stair_config=STAIRS,
-            x_base=stair_rim_east_face_x_ft * 12.0,  # Position at stair rim east face
-            y_base=stair_y_snap_ft * 12.0,  # Y position where boards start (front rim north edge)
-            z_base=deck_z_base_in,
-            supplier="lowes",
-        )
-        deck_surface_assemblies.append(stair_deck_surface_perpendicular)
+    # NOTE: Perpendicular deck boards over stair opening removed - stairs now in front deck area
+    # The stair opening will be framed as part of the front deck joist module (future implementation)
 
     # Create Deck_Surface group
     deck_surface_grp = bc.create_group(doc, "Deck_Surface")
@@ -1633,6 +1706,110 @@ if BUILD.get("include_deck_railings", False):
         "y_max_in": sheathing_y_min_in,  # Up to where sheathing starts (house wall)
     }
 
+    # =========================================================================
+    # ELEVATOR OPENING: Remove railing section(s) and center elevator in opening
+    # =========================================================================
+    front_deck_gate_openings = []
+
+    if BUILD.get("include_elevator", False):
+        # Get elevator position and size from config
+        elev_x_ft = ELEVATOR.get("elevator_x_ft", 42.0)
+        elev_width_ft = ELEVATOR.get("platform_width_ft", 4.0)
+        elev_x_in = elev_x_ft * 12.0
+        elev_width_in = elev_width_ft * 12.0
+
+        # Calculate post positions along south edge (must match railing module logic!)
+        # Railing module uses RUN boundaries at rim inside face (perimeter - rim_thick)
+        # Then places posts with centers at run_boundary + post_thick/2
+        railing_rim_thick_in = 1.5  # 2x rim joist actual thickness
+        railing_post_thick_in = 3.5  # 4x4 PT actual
+
+        # Run boundaries: at rim inside faces (where posts can start/end)
+        south_run_x_start_in = deck_frame_x_min_in + railing_rim_thick_in  # Run start at west rim inside face
+        south_run_x_end_in = deck_frame_x_max_in - railing_rim_thick_in    # Run end at east rim inside face
+        south_run_length_in = south_run_x_end_in - south_run_x_start_in
+
+        railing_max_spacing_in = 48.0  # IRC R507.9.1 max
+        num_spans = int((south_run_length_in - railing_post_thick_in) / railing_max_spacing_in) + 1
+        actual_spacing_in = (south_run_length_in - railing_post_thick_in) / num_spans
+
+        # Find which section(s) the elevator overlaps
+        elev_west_in = elev_x_in - elev_width_in / 2.0
+        elev_east_in = elev_x_in + elev_width_in / 2.0
+
+        # Post positions (absolute X coordinates, matching railing module calculation)
+        # _calculate_post_positions places first post at run_start + post_thick/2
+        # So first post center is at south_run_x_start_in + post_thick/2
+        post_positions_in = []
+        for i in range(num_spans + 1):
+            post_x = south_run_x_start_in + railing_post_thick_in / 2.0 + i * actual_spacing_in
+            post_positions_in.append(post_x)
+
+        # Find sections that the elevator overlaps (section = gap between adjacent posts)
+        overlapped_sections = []
+        for i in range(len(post_positions_in) - 1):
+            section_west = post_positions_in[i]
+            section_east = post_positions_in[i + 1]
+            # Check if elevator overlaps this section
+            if elev_west_in < section_east and elev_east_in > section_west:
+                overlapped_sections.append(i)
+
+        if overlapped_sections:
+            # Create opening that spans all overlapped sections
+            # opening_west_post: post at WEST edge of opening (stays, railing attaches to it)
+            # opening_east_post: post at EAST edge of opening (stays, railing attaches to it)
+            first_section = overlapped_sections[0]
+            last_section = overlapped_sections[-1]
+            opening_west_post_center = post_positions_in[first_section]
+            opening_east_post_center = post_positions_in[last_section + 1]
+
+            # Gate opening starts at west post east edge, ends at east post west edge
+            # This allows segment 1 to end with west post, segment 2 to start with east post
+            half_post = railing_post_thick_in / 2.0
+            opening_start_in = (opening_west_post_center + half_post) - south_run_x_start_in
+            opening_end_in = (opening_east_post_center - half_post) - south_run_x_start_in
+            opening_width_in = opening_end_in - opening_start_in
+
+            front_deck_gate_openings.append({
+                "side": "south",
+                "start_in": opening_start_in,
+                "width_in": opening_width_in,
+            })
+
+            # Align elevator to WEST edge of opening (setback constraint: ground elements can't exceed offset)
+            # Elevator SW post should align with opening west railing post
+            # Elevator center = opening_west_post_center + platform_width/2
+            new_elev_x_in = opening_west_post_center + elev_width_in / 2.0
+            new_elev_x_ft = new_elev_x_in / 12.0
+
+            App.Console.PrintMessage(f"[Build_950Surf]   Elevator opening: sections {first_section + 1}-{last_section + 1} removed\n")
+            App.Console.PrintMessage(f"[Build_950Surf]   Opening: between post {first_section + 1} (X={opening_west_post_center / 12.0:.2f}') and post {last_section + 2} (X={opening_east_post_center / 12.0:.2f}')\n")
+
+            # Move elevator to west edge of opening
+            if abs(new_elev_x_ft - elev_x_ft) > 0.01:
+                App.Console.PrintMessage(f"[Build_950Surf]   Elevator moved: X={elev_x_ft:.2f}' -> {new_elev_x_ft:.2f}' (aligned to west edge)\n")
+                # Update elevator position in document
+                if "elevator_grp" in dir() and elevator_grp:
+                    # Move the elevator group to the new position
+                    dx_mm = (new_elev_x_ft - elev_x_ft) * 12.0 * 25.4
+                    for obj in elevator_grp.Group:
+                        obj.Placement.Base.x += dx_mm
+
+            # Calculate east-side gap between elevator SE post and deck railing post
+            # Elevator SE post X = new_elev_x + platform_width/2 = opening_west_post_center + platform_width
+            elevator_se_post_x_in = new_elev_x_in + elev_width_in / 2.0
+            east_gap_in = opening_east_post_center - elevator_se_post_x_in
+
+            # Store for east-side railing section (added after main railing creation)
+            elevator_east_railing_config = {
+                "deck_post_x_in": opening_east_post_center,
+                "elevator_se_x_in": elevator_se_post_x_in,
+                "gap_in": east_gap_in,
+                "deck_surface_z_in": deck_surface_top_z_in,
+                "deck_y_min_in": deck_frame_y_min_in,
+            }
+            App.Console.PrintMessage(f"[Build_950Surf]   East-side gap: {east_gap_in:.1f}\" ({east_gap_in / 12.0:.2f}') between elevator SE post and deck post\n")
+
     front_deck_railings = ra.create_deck_railings(
         doc,
         catalog_rows,
@@ -1641,10 +1818,151 @@ if BUILD.get("include_deck_railings", False):
         assembly_name="Front_Deck_Railings",
         supplier="lowes",
         exclude_sides=["north"],  # No railing against house
+        gate_openings=front_deck_gate_openings,
         post_height_above_deck_in=48.0,  # 48" above deck surface
         joist_depth_in=joist_depth_in,
         deck_board_thick_in=deck_board_thick_in,
     )
+
+    # =========================================================================
+    # ELEVATOR OPENING RAILING: Complete railing at east edge of elevator opening
+    # =========================================================================
+    # Add a complete railing section (post, top rail, bottom rail, balusters)
+    # between the elevator SE post and the deck railing post
+    if BUILD.get("include_elevator", False) and "elevator_east_railing_config" in dir():
+        config = elevator_east_railing_config
+        gap_in = config["gap_in"]  # X gap between elevator SE post and deck post
+
+        # Only add railing if there's a meaningful gap
+        if gap_in > 6.0:
+            deck_post_x_in = config["deck_post_x_in"]  # East edge post X (center)
+            elevator_se_x_in = config["elevator_se_x_in"]  # Elevator SE post X (center)
+            deck_surface_z_in = config["deck_surface_z_in"]
+            deck_y_min_in = config["deck_y_min_in"]
+
+            # Railing dimensions (match deck railing module)
+            railing_rim_thick_in = 1.5
+            post_thick_in = 3.5  # 4x4 PT actual
+            post_height_in = 48.0  # 48" above deck
+            rail_thick_in = 1.5  # 2x4 rail thickness
+            rail_width_in = 3.5  # 2x4 rail width
+            baluster_thick_in = 1.5  # 2x2 baluster
+            baluster_spacing_max_in = 4.0  # IRC R312.1.3: max 4" sphere opening
+
+            # Y position: at deck frame south edge (outer face of rim joist)
+            # This aligns with where the elevator opening is and where balusters should fill
+            railing_y_in = deck_y_min_in
+
+            # Railing runs E-W from elevator SE post to deck post
+            # Start X: elevator SE post east edge
+            # End X: deck post west edge
+            half_post = post_thick_in / 2.0
+            start_x_in = elevator_se_x_in + half_post  # Elevator SE post east edge
+            end_x_in = deck_post_x_in - half_post  # Deck post west edge
+            rail_length_in = end_x_in - start_x_in
+
+            App.Console.PrintMessage(f"[Build_950Surf]   Creating elevator opening railing: {rail_length_in:.1f}\" long (X={start_x_in / 12.0:.2f}' to {end_x_in / 12.0:.2f}')\n")
+
+            # Create assembly for elevator opening railing
+            import Part as ElevPart
+            elev_railing_parts = []
+
+            # Z positions
+            post_base_z_in = deck_surface_z_in
+            bottom_rail_z_in = deck_surface_z_in + 3.0  # 3" above deck
+            top_rail_z_in = deck_surface_z_in + post_height_in - rail_width_in  # Below post top
+            baluster_base_z_in = bottom_rail_z_in + rail_width_in  # On top of bottom rail
+            baluster_height_in = top_rail_z_in - baluster_base_z_in  # Between rails
+
+            # Helper to safely set color
+            def safe_set_color(obj, color):
+                try:
+                    if hasattr(obj, "ViewObject") and obj.ViewObject:
+                        obj.ViewObject.ShapeColor = color
+                except Exception:
+                    pass
+
+            # PT wood color
+            pt_color = (0.55, 0.45, 0.35)
+
+            # 1. Transition post at elevator SE (4x4 PT on deck surface)
+            transition_post = doc.addObject("Part::Box", "Elevator_Opening_Post")
+            transition_post.Length = bc.inch(post_thick_in)
+            transition_post.Width = bc.inch(post_thick_in)
+            transition_post.Height = bc.inch(post_height_in)
+            transition_post.Placement.Base = App.Vector(
+                bc.inch(elevator_se_x_in - half_post),
+                bc.inch(railing_y_in - half_post),
+                bc.inch(post_base_z_in),
+            )
+            safe_set_color(transition_post, pt_color)
+            elev_railing_parts.append(transition_post)
+
+            # 2. Top rail (2x4 PT, runs E-W)
+            top_rail = doc.addObject("Part::Box", "Elevator_Opening_Top_Rail")
+            top_rail.Length = bc.inch(rail_length_in)
+            top_rail.Width = bc.inch(rail_thick_in)
+            top_rail.Height = bc.inch(rail_width_in)
+            top_rail.Placement.Base = App.Vector(
+                bc.inch(start_x_in),
+                bc.inch(railing_y_in - rail_thick_in / 2.0),
+                bc.inch(top_rail_z_in),
+            )
+            safe_set_color(top_rail, pt_color)
+            elev_railing_parts.append(top_rail)
+
+            # 3. Bottom rail (2x4 PT, runs E-W)
+            bottom_rail = doc.addObject("Part::Box", "Elevator_Opening_Bottom_Rail")
+            bottom_rail.Length = bc.inch(rail_length_in)
+            bottom_rail.Width = bc.inch(rail_thick_in)
+            bottom_rail.Height = bc.inch(rail_width_in)
+            bottom_rail.Placement.Base = App.Vector(
+                bc.inch(start_x_in),
+                bc.inch(railing_y_in - rail_thick_in / 2.0),
+                bc.inch(bottom_rail_z_in),
+            )
+            safe_set_color(bottom_rail, pt_color)
+            elev_railing_parts.append(bottom_rail)
+
+            # 4. Balusters (2x2 PT, spaced to meet 4" sphere rule)
+            # Calculate number of balusters needed
+            # Available space = rail_length_in
+            # Each baluster takes baluster_thick_in, gaps must be <= 4"
+            # n balusters create (n+1) gaps: rail_length = n*baluster_thick + (n+1)*gap
+            # For gap <= 4": n >= (rail_length - 4) / (baluster_thick + 4)
+            import math
+            num_balusters = max(1, int(math.ceil((rail_length_in - baluster_spacing_max_in) / (baluster_thick_in + baluster_spacing_max_in))))
+            # Actual gap with n balusters
+            total_baluster_width = num_balusters * baluster_thick_in
+            total_gap_space = rail_length_in - total_baluster_width
+            num_gaps = num_balusters + 1
+            actual_gap_in = total_gap_space / num_gaps
+
+            for i in range(num_balusters):
+                # Baluster center X = start_x + gap + (i * (baluster + gap)) + baluster/2
+                bal_center_x_in = start_x_in + actual_gap_in + i * (baluster_thick_in + actual_gap_in) + baluster_thick_in / 2.0
+
+                baluster = doc.addObject("Part::Box", f"Elevator_Opening_Baluster_{i+1}")
+                baluster.Length = bc.inch(baluster_thick_in)
+                baluster.Width = bc.inch(baluster_thick_in)
+                baluster.Height = bc.inch(baluster_height_in)
+                baluster.Placement.Base = App.Vector(
+                    bc.inch(bal_center_x_in - baluster_thick_in / 2.0),
+                    bc.inch(railing_y_in - baluster_thick_in / 2.0),
+                    bc.inch(baluster_base_z_in),
+                )
+                safe_set_color(baluster, pt_color)
+                elev_railing_parts.append(baluster)
+
+            # Create assembly
+            elev_opening_assembly = doc.addObject("App::Part", "Elevator_Opening_Railing")
+            elev_opening_assembly.Label = "Elevator_Opening_Railing"
+            for obj in elev_railing_parts:
+                elev_opening_assembly.addObject(obj)
+
+            App.Console.PrintMessage(f"[Build_950Surf]   Created elevator opening railing: 1 post, 2 rails, {num_balusters} balusters (gap: {actual_gap_in:.2f}\")\n")
+        else:
+            App.Console.PrintMessage(f"[Build_950Surf]   Elevator east gap too small ({gap_in:.1f}\"), no railing needed\n")
 
     # Rear deck: North edge (continuous), plus west/east sections from house wall
     rear_deck_railing_perimeter = {
@@ -1861,7 +2179,7 @@ if BUILD.get("include_deck_railings", False):
     for obj in corner_railings:
         corner_transition_assembly.addObject(obj)
 
-    App.Console.PrintMessage(f"[railing] ✓ Corner transitions complete: 4 corners, {len(corner_railings)} components\n")
+    App.Console.PrintMessage(f"[railing] (done) Corner transitions complete: 4 corners, {len(corner_railings)} components\n")
 
     # Create Deck_Railings group
     deck_railing_grp = bc.create_group(doc, "Deck_Railings")
@@ -1872,16 +2190,16 @@ else:
     App.Console.PrintMessage("[Build_950Surf] Deck railings skipped (disabled in BUILD config)\n")
 
 # ============================================================
-# SECTION 8E: SECOND FLOOR JOIST MODULES (20' LVL rims × 12' 2x12 joists)
+# SECTION 8E: SECOND FLOOR JOIST MODULES (20' LVL rims x 12' 2x12 joists)
 # ============================================================
 # Second floor sits on top of first floor walls
-# Layout: 2 columns × 4 rows = 8 modules = 40' × 48'
-# Module dimensions: 20' wide (E-W) × 12' deep (N-S)
+# Layout: 2 columns x 4 rows = 8 modules = 40' x 48'
+# Module dimensions: 20' wide (E-W) x 12' deep (N-S)
 # Materials: 20' LVL rims (E-W), 12' 2x12 joists (N-S) at 16" OC
 
 if BUILD.get("include_second_floor", False):
     App.Console.PrintMessage("[Build_950Surf] === SECOND FLOOR ===\n")
-    App.Console.PrintMessage("[Build_950Surf] Building second floor joist modules (2×4 grid = 8 modules)...\n")
+    App.Console.PrintMessage("[Build_950Surf] Building second floor joist modules (2x4 grid = 8 modules)...\n")
 
     # Import parts module (already in sys.path via _macros_dir)
     import lumber_common as lc
@@ -1924,9 +2242,9 @@ if BUILD.get("include_second_floor", False):
     # Calculate target floor dimensions to match first floor walls
     # First floor sheathing spans from left wall to right wall = 40'
     # This is derived from: lot_width - left_setback - right_setback = 50 - 5 - 5 = 40'
-    # We want 2 modules × target_module_width = 40'
+    # We want 2 modules x target_module_width = 40'
     target_floor_width_ft = LOT["width_ft"] - LOT["left_setback_ft"] - LOT["right_setback_ft"]  # 40'
-    target_floor_depth_ft = module_depth_ft * grid_rows  # 12' × 4 = 48'
+    target_floor_depth_ft = module_depth_ft * grid_rows  # 12' x 4 = 48'
     target_floor_depth_in = target_floor_depth_ft * 12.0  # 576"
 
     # Calculate target module width (including side rims) - NO MAGIC NUMBERS
@@ -1946,7 +2264,7 @@ if BUILD.get("include_second_floor", False):
     remaining_depth_in = target_floor_depth_in - (full_rows * full_module_depth_in)  # 576 - 3*147.5 = 133.5"
 
     App.Console.PrintMessage(
-        f"[Build_950Surf]   Target floor: {target_floor_width_ft:.0f}' × {target_floor_depth_ft:.0f}' ({target_floor_depth_in:.0f}\")\n"
+        f"[Build_950Surf]   Target floor: {target_floor_width_ft:.0f}' x {target_floor_depth_ft:.0f}' ({target_floor_depth_in:.0f}\")\n"
     )
     App.Console.PrintMessage(
         f"[Build_950Surf]   Rows 1-{full_rows}: full joists ({joist_stock_length_in:.0f}\"), module depth = {full_module_depth_in:.2f}\"\n"
@@ -2024,8 +2342,8 @@ if BUILD.get("include_second_floor", False):
     bc.add_to_group(second_floor_parent, [second_floor_joists_grp])
 
     App.Console.PrintMessage(
-        f"[Build_950Surf]   ✓ Created {len(second_floor_assemblies)} second floor modules "
-        f"({grid_columns}×{grid_rows} grid = {target_floor_width_ft:.0f}' × {target_floor_depth_ft:.0f}')\n"
+        f"[Build_950Surf]   (done) Created {len(second_floor_assemblies)} second floor modules "
+        f"({grid_columns}x{grid_rows} grid = {target_floor_width_ft:.0f}' x {target_floor_depth_ft:.0f}')\n"
     )
     App.Console.PrintMessage("[Build_950Surf] Second floor complete.\n")
 else:

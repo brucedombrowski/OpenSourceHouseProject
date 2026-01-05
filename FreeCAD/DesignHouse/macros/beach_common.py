@@ -98,7 +98,7 @@ def load_beach_catalog():
                 if not label:
                     continue
 
-                # Normalize BeachHouse format → lumber_common format
+                # Normalize BeachHouse format -> lumber_common format
                 if "sku" in row and "sku_lowes" not in row:
                     # BeachHouse catalog: map generic fields to lowes fields
                     row["sku_lowes"] = row.get("sku", "")
@@ -324,7 +324,7 @@ def make_beam(doc, catalog, label, name, x_ft, y_start_ft, z_base_in, length_in,
     Construction Notes:
         - Beams typically run perpendicular to joists
         - Placed with bottom at z_base_in, extends along orientation axis
-        - For double beams, call twice with x_ft offset ±0.75"
+        - For double beams, call twice with x_ft offset +/-0.75"
     """
     row = find_stock(catalog, label)
     thick_in = float(row["actual_thickness_in"])

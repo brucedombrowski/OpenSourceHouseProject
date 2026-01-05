@@ -246,7 +246,7 @@ def create_joist_module(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[parts] ✓ Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[parts] (done) Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -268,6 +268,7 @@ def create_deck_module_front(
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
     blocking_positions_in=None,
+    stair_opening=None,
 ):
     """
     Create a front deck joist assembly with rotated orientation.
@@ -289,6 +290,10 @@ def create_deck_module_front(
         blocking_positions_in: List of Y positions (inches from module origin) for blocking.
                               Blocking runs E-W between joists to support perpendicular
                               seam boards on the deck surface. Pass None for no blocking.
+        stair_opening: Dict for stair opening configuration:
+            - shortened_joists: List of joist indices (1-based) to shorten
+            - header_between_joists: [left_idx, right_idx] for header placement
+            - header_y_position_in: Y position where header runs (inches from front rim)
 
     Returns:
         App::Part assembly with LCS markers for snapping
@@ -421,14 +426,86 @@ def create_deck_module_front(
     # Hardware group
     hanger_grp = doc.addObject("App::DocumentObjectGroup", f"{assembly_name}_Hangers")
 
+    # Parse stair opening configuration
+    shortened_joist_indices = []
+    header_y_position_in = None
+    header_left_joist_idx = None
+    header_right_joist_idx = None
+    if stair_opening:
+        shortened_joist_indices = stair_opening.get("shortened_joists", [])
+        header_between = stair_opening.get("header_between_joists", [])
+        if len(header_between) == 2:
+            header_left_joist_idx = header_between[0]
+            header_right_joist_idx = header_between[1]
+        # Header Y position: 4' (48") from front rim back face = thick + 48"
+        # This creates ~4' landing space between front deck rim and stair opening
+        header_y_position_in = stair_opening.get("header_y_position_in", thick + 48.0)
+
+    def make_joist_y_shortened(name, x_pos, length_in, y_start_in):
+        """Create joist running in Y direction with custom Y start."""
+        box = make_box(thick, length_in, depth)
+        obj = doc.addObject("Part::Feature", name)
+        obj.Shape = box
+        obj.Placement.Base = App.Vector(inch(x_pos - thick / 2.0), inch(y_start_in), 0)
+        attach_metadata(obj, joist_row, joist_label_use, supplier="lowes")
+        return obj
+
     for i, x_center in enumerate(positions):
-        joist = make_joist_y(f"{assembly_name}_Joist_{i+1}", x_center, joist_run)
-        created.append(joist)
-        # Hangers at front and back rims
-        hanger_grp.addObject(make_hanger_y_front(f"{assembly_name}_Hanger_Front_{i+1}", x_center))
-        hanger_grp.addObject(
-            make_hanger_y_back(f"{assembly_name}_Hanger_Back_{i+1}", x_center, module_y_in)
-        )
+        joist_idx = i + 1  # 1-based index for joist naming
+
+        if joist_idx in shortened_joist_indices and header_y_position_in:
+            # Shortened joist: runs from front rim to header (not full length)
+            # Joist length: from front rim back face to header position
+            shortened_length = header_y_position_in - thick
+            joist = make_joist_y(f"{assembly_name}_Joist_{joist_idx}", x_center, shortened_length)
+            created.append(joist)
+            # Only front hanger (no back hanger - joist connects to header)
+            hanger_grp.addObject(
+                make_hanger_y_front(f"{assembly_name}_Hanger_Front_{joist_idx}", x_center)
+            )
+        else:
+            # Full-length joist
+            joist = make_joist_y(f"{assembly_name}_Joist_{joist_idx}", x_center, joist_run)
+            created.append(joist)
+            # Hangers at front and back rims
+            hanger_grp.addObject(
+                make_hanger_y_front(f"{assembly_name}_Hanger_Front_{joist_idx}", x_center)
+            )
+            hanger_grp.addObject(
+                make_hanger_y_back(
+                    f"{assembly_name}_Hanger_Back_{joist_idx}", x_center, module_y_in
+                )
+            )
+
+    # Create header joist for stair opening (if configured)
+    if stair_opening and header_left_joist_idx and header_right_joist_idx:
+        # Find X positions of header boundary joists
+        # Include edge joists in position lookup
+        all_positions = {1: positions[0] if positions else thick / 2.0}
+        for i, x in enumerate(positions):
+            all_positions[i + 1] = x
+
+        if header_left_joist_idx in all_positions and header_right_joist_idx in all_positions:
+            left_x = all_positions[header_left_joist_idx]
+            right_x = all_positions[header_right_joist_idx]
+            # Header runs from east face of left joist to west face of right joist
+            header_x_start = left_x + thick / 2.0
+            header_length = right_x - thick / 2.0 - header_x_start
+            if header_length > 0:
+                header = make_box(header_length, thick, depth)
+                header_obj = doc.addObject("Part::Feature", f"{assembly_name}_Header")
+                header_obj.Shape = header
+                header_obj.Placement.Base = App.Vector(
+                    inch(header_x_start),
+                    inch(header_y_position_in),
+                    0,
+                )
+                attach_metadata(header_obj, joist_row, joist_label_use, supplier="lowes")
+                created.append(header_obj)
+                App.Console.PrintMessage(
+                    f'[parts] Created stair opening header at Y={header_y_position_in:.1f}" '
+                    f"spanning joists {header_left_joist_idx} to {header_right_joist_idx}\n"
+                )
 
     # Blocking between joists at specified Y positions (for seam board support)
     # Blocking runs E-W (X direction) between adjacent joists
@@ -525,7 +602,7 @@ def create_deck_module_front(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f"[parts] ✓ Front deck '{assembly_name}' complete: "
+        f"[parts] (done) Front deck '{assembly_name}' complete: "
         f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
@@ -539,6 +616,7 @@ def create_deck_module_front_16x12(
     make_pressure_treated=True,
     hanger_label="hanger_LU210",
     blocking_positions_in=None,
+    stair_opening=None,
 ):
     """
     Create a 16x12 front deck module (16' rims E-W, 12' joists N-S).
@@ -551,6 +629,7 @@ def create_deck_module_front_16x12(
     Args:
         blocking_positions_in: List of Y positions (inches) for blocking.
                               For 12' deck, position 72" (6') would add blocking at midpoint.
+        stair_opening: Dict for stair opening configuration (see create_deck_module_front).
     """
     return create_deck_module_front(
         doc,
@@ -563,6 +642,7 @@ def create_deck_module_front_16x12(
         make_pressure_treated=make_pressure_treated,
         hanger_label=hanger_label,
         blocking_positions_in=blocking_positions_in,
+        stair_opening=stair_opening,
     )
 
 
@@ -852,7 +932,7 @@ def create_joist_module_16x16(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[joist_modules] ✓ Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[joist_modules] (done) Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -1284,7 +1364,7 @@ def create_joist_module_16x16_stair_cutout(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[parts] ✓ Stair-cutout assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[parts] (done) Stair-cutout assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -1476,7 +1556,7 @@ def create_joist_module_16x8(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[joist_modules] ✓ Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[joist_modules] (done) Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -1655,7 +1735,7 @@ def create_joist_module_8x16(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[joist_modules] ✓ Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[joist_modules] (done) Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -1670,7 +1750,7 @@ def create_joist_module_8x8(
     hanger_label="hanger_LU210",
 ):
     """
-    Create an 8x8 joist assembly (8' × 8').
+    Create an 8x8 joist assembly (8' x 8').
 
     Module dimensions:
     - X (width): 99" = 1.5" (left rim) + 96" (8') + 1.5" (right rim)
@@ -1827,7 +1907,7 @@ def create_joist_module_8x8(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f'[joist_modules] ✓ Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
+        f'[joist_modules] (done) Assembly \'{assembly_name}\' complete: {bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
     return assembly
@@ -1855,8 +1935,8 @@ def create_second_floor_module_20x12(
     Design:
     - 20' LVL beams as rim joists running E-W (X direction)
     - 12' 2x12 joists running N-S (Y direction) at 16" OC
-    - Module dimensions: 20' wide (E-W) × 12' deep (N-S)
-    - Designed for 2 columns × 4 rows = 8 modules to cover 40' × 48' floor
+    - Module dimensions: 20' wide (E-W) x 12' deep (N-S)
+    - Designed for 2 columns x 4 rows = 8 modules to cover 40' x 48' floor
 
     Args:
         doc: FreeCAD document
@@ -2164,7 +2244,7 @@ def create_second_floor_module_20x12(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f"[parts] ✓ Second floor module '{assembly_name}' complete: "
+        f"[parts] (done) Second floor module '{assembly_name}' complete: "
         f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 
@@ -2381,7 +2461,7 @@ def create_sheathing_for_floor(
 
     bbox = get_assembly_bbox(assembly)
     App.Console.PrintMessage(
-        f"[create_sheathing] ✓ Created {len(created)} sheathing panels ({group_name}): "
+        f"[create_sheathing] (done) Created {len(created)} sheathing panels ({group_name}): "
         f'{bbox.XLength / 25.4:.2f}" x {bbox.YLength / 25.4:.2f}" x {bbox.ZLength / 25.4:.2f}"\n'
     )
 

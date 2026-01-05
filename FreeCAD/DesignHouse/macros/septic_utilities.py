@@ -16,9 +16,9 @@ Design Notes:
   - Leach field: 30' x 20' with 3 trenches @ 5' OC
   - Drain line routing (aligns with stair module at Floor_Middle_Right_16x8):
     * Vertical stub-up through slab at pile 4,5 east face (X=33.635', Y=52.46875')
-    * Underground 90° elbow at slab bottom
+    * Underground 90 degrees elbow at slab bottom
     * Underground horizontal run EAST to gap middle at X=37.0' (between pile columns 4 and 5)
-    * Underground 90° elbow at gap middle
+    * Underground 90 degrees elbow at gap middle
     * North-south "home run" in pile gap directly to tank inlet (all underground with slope)
   - Concrete slab: 6" thick (driveway grade per ACI 332)
   - Stub-ups: Extend 12" above slab for future plumbing/electrical
@@ -116,7 +116,7 @@ def create_pipe_hanger(doc, x_ft, y_ft, z_ft, pipe_od_in, pile_size_in=12.0):
     hanger_width_in = pipe_od_in + 1.0  # Wide enough to wrap around pipe + clearance
     hanger_height_in = 3.0  # Height of U-bracket
     hanger_thickness_in = 0.25  # Steel thickness
-    mounting_hole_dia_in = 0.5  # 1/2" bolt holes
+    _mounting_hole_dia_in = 0.5  # 1/2" bolt holes  # noqa: F841
 
     # Create U-shaped bracket (simplified as rectangular band)
     # This wraps around the pipe from the pile side
@@ -238,9 +238,9 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
     Routing Strategy (for 950 Surf):
         1. Vertical stub-up through concrete slab at pile 4,5 east face (X=33.635', Y=52.46875')
         2. Underground 90-degree elbow at slab bottom
-        3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) → (37.0, 52.46875)
+        3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) -> (37.0, 52.46875)
         4. Underground 90-degree elbow at gap middle
-        5. Underground horizontal run NORTH in pile gap: (37.0, 52.46875) → (37.0, 88.0)
+        5. Underground horizontal run NORTH in pile gap: (37.0, 52.46875) -> (37.0, 88.0)
         6. Septic tank centered at X=37.0' (north-south run goes straight into tank)
 
         The north-south "home run" is positioned in the middle of pile gaps (between pile
@@ -286,8 +286,8 @@ def create_drain_line(doc, config, start_x_ft, start_y_ft, end_x_ft, end_y_ft):
     run_1_ft = ((waypoint_x_ft - lateral_x_ft) ** 2 + (waypoint_y_ft - start_y_ft) ** 2) ** 0.5
     run_2_ft = ((end_x_ft - waypoint_x_ft) ** 2 + (end_y_ft - waypoint_y_ft) ** 2) ** 0.5
 
-    depth_at_waypoint_in = depth_start_in + (run_1_ft * slope_in_per_ft)
-    depth_end_in = depth_start_in + ((run_1_ft + run_2_ft) * slope_in_per_ft)
+    _depth_at_waypoint_in = depth_start_in + (run_1_ft * slope_in_per_ft)  # noqa: F841
+    _depth_end_in = depth_start_in + ((run_1_ft + run_2_ft) * slope_in_per_ft)  # noqa: F841
 
     # PVC pipe parameters
     pipe_od_in = diameter_in  # 4" nominal (outer diameter)
@@ -875,11 +875,11 @@ def create_90_degree_elbow(
         diameter_in: Pipe outer diameter (inches)
         bend_radius_in: Centerline bend radius (inches)
         axis1: Incoming direction ("+X", "-X", "+Y", "-Y", "+Z", "-Z")
-        axis2: Outgoing direction (must be 90° from axis1)
+        axis2: Outgoing direction (must be 90 degrees from axis1)
         color: Optional RGB tuple (0-1 range)
 
     Returns:
-        Part::Feature object (90° elbow)
+        Part::Feature object (90 degrees elbow)
     """
     # Map axis strings to vectors
     axis_map = {
@@ -972,7 +972,7 @@ def create_water_service_line(doc, config):
     street_y_ft = config["water_entry_from_street_y_ft"]
 
     # Bend radius: 6x diameter (typical for 1" PVC per IRC/NEC)
-    bend_radius_in = diameter_in * 6.0
+    _bend_radius_in = diameter_in * 6.0  # noqa: F841
 
     # Color: blue for water
     water_color = (0.2, 0.4, 0.8)
@@ -1083,7 +1083,7 @@ def create_electrical_service_line(doc, config):
     street_y_ft = config["electrical_entry_from_street_y_ft"]
 
     # Bend radius: 6x diameter (NEC 300.5, IRC E3802.3 for PVC conduit)
-    bend_radius_in = diameter_in * 6.0
+    _bend_radius_in = diameter_in * 6.0  # noqa: F841
 
     # Color: orange for electrical (standard conduit color)
     elec_color = (1.0, 0.5, 0.0)
@@ -1529,7 +1529,7 @@ def create_hose_bib(doc, name, x_ft, y_ft, z_in, diameter_in=0.75, angle_deg=45)
 
     Typical residential hose bib:
     - Body length: 4" to 6" (using 5.0")
-    - Spout extends at 45° downward angle
+    - Spout extends at 45 degrees downward angle
     - Spout diameter: 0.75" (standard garden hose thread)
 
     Args:
@@ -1538,7 +1538,7 @@ def create_hose_bib(doc, name, x_ft, y_ft, z_in, diameter_in=0.75, angle_deg=45)
         x_ft, y_ft: Horizontal position (feet)
         z_in: Vertical position at connection point (inches)
         diameter_in: Connection diameter (inches)
-        angle_deg: Spout angle from horizontal (45° typical)
+        angle_deg: Spout angle from horizontal (45 degrees typical)
 
     Returns:
         Part::Feature object (hose bib)
@@ -1557,12 +1557,12 @@ def create_hose_bib(doc, name, x_ft, y_ft, z_in, diameter_in=0.75, angle_deg=45)
         App.Vector(1, 0, 0),  # Horizontal orientation
     )
 
-    # Create spout (angled downward at 45°)
+    # Create spout (angled downward at 45 degrees)
     import math
 
     angle_rad = math.radians(angle_deg)
-    spout_dx_in = spout_length_in * math.cos(angle_rad)
-    spout_dz_in = -spout_length_in * math.sin(angle_rad)  # Downward
+    _spout_dx_in = spout_length_in * math.cos(angle_rad)  # noqa: F841
+    _spout_dz_in = -spout_length_in * math.sin(angle_rad)  # Downward  # noqa: F841
 
     spout = Part.makeCylinder(
         bc.inch(spout_diameter_in / 2.0),  # Spout radius
@@ -2207,6 +2207,1334 @@ def create_driveway_slab_group(doc, driveway_config, utilities_config=None):
     return driveway_grp
 
 
+# ============================================================
+# STAIR STRUCTURAL COMPONENTS
+# ============================================================
+
+
+def create_cut_stringer(
+    doc,
+    catalog_rows,
+    stringer_label,
+    name,
+    num_steps,
+    rise_per_step_in,
+    run_per_step_in,
+    stringer_thick_in,
+    start_x_in,
+    start_y_in,
+    top_z_in,
+    direction,
+    supplier="lowes",
+    bottom_cut="horizontal",
+    tread_overhang_in=1.0,
+    header_depth_in=0.0,
+    landing_z_in=None,  # Z level of landing surface for bottom cut (if None, calculated from steps)
+):
+    """
+    Create a cut stringer (sawtooth notched) for stair support.
+
+    Built like a real framer would:
+    1. Start with a 2x12 board positioned at the stair angle
+    2. Use boolean cuts to remove triangular notches for each tread
+    3. Notches have PLUMB (vertical) riser cuts and LEVEL (horizontal) tread cuts
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        stringer_label: Catalog label for stringer stock (e.g., "2x12x192_PT")
+        name: Object name for the stringer
+        num_steps: Number of steps (treads) this stringer supports
+        rise_per_step_in: Vertical rise per step (inches)
+        run_per_step_in: Horizontal run per step (inches, typically tread depth)
+        stringer_thick_in: Stringer thickness (1.5" for 2x lumber) - passed but we use catalog
+        start_x_in: X position of stringer west face (for east direction)
+        start_y_in: Y position of stringer south face
+        top_z_in: Z position where profile Z=0 maps (tread 0 bottom / header top)
+        direction: Stair direction ("east", "west", "north", "south")
+        supplier: Supplier for catalog metadata
+        bottom_cut: "horizontal" (flat seat on landing/slab) or "angled" (follows slope)
+        tread_overhang_in: How much tread overhangs past riser (default 1")
+        header_depth_in: Depth of header board (11.25" for 2x12). Limits top plumb cut.
+
+    Returns:
+        Part::Feature object representing the stringer
+    """
+    import math
+
+    from lumber_common import attach_metadata, find_stock
+
+    # ==========================================================================
+    # STRINGER: 2D profile (XZ plane) extruded in Y
+    # ==========================================================================
+    #
+    # Build a 2D sawtooth profile representing the stringer cross-section,
+    # then extrude it by the board thickness (1.5").
+    #
+    # Profile coordinate system:
+    # - X = run direction (horizontal, +X = east/downstairs)
+    # - Z = vertical (+Z = up)
+    # - Y = thickness direction (extrusion)
+    # - Origin at top-west corner where stringer meets header
+
+    # Look up stringer stock
+    stringer_row = find_stock(catalog_rows, stringer_label)
+    if not stringer_row:
+        App.Console.PrintWarning(
+            f"[septic_utilities] Stringer stock '{stringer_label}' not found in catalog\n"
+        )
+        return None
+
+    board_width_in = float(stringer_row["actual_width_in"])  # 11.25" for 2x12
+    board_thick_in = float(stringer_row["actual_thickness_in"])  # 1.5"
+
+    # Calculate geometry
+    total_rise_in = num_steps * rise_per_step_in
+    total_run_in = num_steps * run_per_step_in
+    stair_angle_rad = math.atan(rise_per_step_in / run_per_step_in)
+
+    # Notch dimensions
+    # run_per_step_in is the tread spacing (tread_depth - overhang)
+    # The notch run equals the tread spacing (level cut where tread sits)
+    # First notch is shorter by header thickness (tread 0 level cut starts at header east face)
+    # header_thick_in is only used if there's actually a header
+    header_thick_in = 1.5 if header_depth_in > 0 else 0.0
+    standard_notch_run_in = run_per_step_in  # Level cut = tread spacing
+    if header_depth_in > 0:
+        first_notch_run_in = run_per_step_in - header_thick_in
+    else:
+        first_notch_run_in = standard_notch_run_in
+
+    # Throat: remaining wood below notches (perpendicular to slope)
+    # For 2x12 with standard notch, throat is typically 5-6"
+    throat_in = 5.0
+
+    App.Console.PrintMessage(
+        f"[septic_utilities] Creating stringer '{name}': {num_steps} steps, "
+        f'rise={rise_per_step_in:.2f}", run={run_per_step_in:.2f}", '
+        f'throat={throat_in:.1f}", notch0={first_notch_run_in:.2f}", notch_std={standard_notch_run_in:.2f}"\n'
+    )
+
+    # ==========================================================================
+    # Build stringer: 2x12 board on edge, rotated to stair angle
+    # ==========================================================================
+    #
+    # Create a simple 2x12 board at origin, then use Placement to:
+    # 1. Rotate to match stair pitch (around Y axis)
+    # 2. Rotate to match stair direction (around Z axis)
+    # 3. Translate to final position
+
+    # Calculate the stringer board length along the slope
+    stair_hyp_in = math.sqrt(total_rise_in**2 + total_run_in**2)
+    board_length_in = stair_hyp_in + 12.0  # Add extra for top/bottom
+
+    # Create 2x12 board at origin, lying along +X axis, on edge
+    # - Length along X (will become run direction after rotation)
+    # - Thickness along Y (1.5")
+    # - Height along Z (11.25" on edge)
+    base_board = Part.makeBox(
+        bc.inch(board_length_in), bc.inch(board_thick_in), bc.inch(board_width_in)
+    )
+
+    # Stair pitch angle in degrees
+    pitch_deg = math.degrees(stair_angle_rad)
+    sin_angle = math.sin(stair_angle_rad)
+    cos_angle = math.cos(stair_angle_rad)
+
+    # Rotate the board shape first (notches must be cut after rotation for level/plumb cuts)
+    # Pitch first (around Y), then rotate to direction, then 180° flip for N/S to fix descent direction
+    if direction == "east":
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 1, 0), pitch_deg)
+    elif direction == "west":
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 1, 0), pitch_deg)
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), 180)
+    elif direction == "north":
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 1, 0), pitch_deg)
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), -90)
+        base_board = base_board.rotate(
+            App.Vector(0, 0, 0), App.Vector(0, 0, 1), 180
+        )  # Flip to descend toward +Y
+    elif direction == "south":
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 1, 0), pitch_deg)
+        base_board = base_board.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), 90)
+        base_board = base_board.rotate(
+            App.Vector(0, 0, 0), App.Vector(0, 0, 1), 180
+        )  # Flip to descend toward -Y
+
+    # Calculate reference point and translate board to final position
+    # The translation is direction-dependent because the board rotation changes
+    # which axis the board extends along
+    d = first_notch_run_in * sin_angle
+    ref_offset = (board_width_in - d) * sin_angle
+    ref_z = (board_width_in - d) * cos_angle
+
+    if direction == "east":
+        # Board extends along +X, thickness along Y
+        base_board.translate(
+            App.Vector(
+                bc.inch(start_x_in - ref_offset), bc.inch(start_y_in), bc.inch(top_z_in - ref_z)
+            )
+        )
+    elif direction == "west":
+        # Board extends along -X (rotated 180°), thickness along Y
+        base_board.translate(
+            App.Vector(
+                bc.inch(start_x_in + ref_offset), bc.inch(start_y_in), bc.inch(top_z_in - ref_z)
+            )
+        )
+    elif direction == "north":
+        # Board extends along +Y (rotated -90° then 180°), thickness along X
+        base_board.translate(
+            App.Vector(
+                bc.inch(start_x_in), bc.inch(start_y_in - ref_offset), bc.inch(top_z_in - ref_z)
+            )
+        )
+    elif direction == "south":
+        # Board extends along -Y (rotated 90° then 180°), thickness along X
+        base_board.translate(
+            App.Vector(
+                bc.inch(start_x_in), bc.inch(start_y_in + ref_offset), bc.inch(top_z_in - ref_z)
+            )
+        )
+
+    # Debug: print board bounding box
+    bb = base_board.BoundBox
+    App.Console.PrintMessage(
+        f'[septic_utilities] Board BoundBox: X={bb.XMin/25.4:.2f}" to {bb.XMax/25.4:.2f}", '
+        f'Z={bb.ZMin/25.4:.2f}" to {bb.ZMax/25.4:.2f}"\n'
+    )
+
+    # Now cut notches with axis-aligned boxes (level and plumb cuts)
+    # Notches are positioned relative to tread locations in world coordinates
+    #
+    # For "east" direction stairs (descending toward +X):
+    # - Plumb cut (riser face) is at the WEST edge of each notch
+    # - Level cut (tread surface) extends EAST from plumb cut
+    # - First notch: plumb at header east face (start_x), level extends east
+    #
+    # For "north" direction stairs (descending toward +Y):
+    # - Plumb cut is at the SOUTH edge of each notch
+    # - Level cut extends NORTH from plumb cut
+    #
+    # Header position (tread 0 edge aligns here)
+    header_west_in = start_x_in - header_thick_in  # For E/W
+    header_south_in = start_y_in - header_thick_in  # For N/S
+
+    App.Console.PrintMessage(
+        f'[septic_utilities] Stringer notch cutting ({direction}): start=({start_x_in:.2f}", {start_y_in:.2f}"), top_z={top_z_in:.2f}"\n'
+    )
+
+    # Direction-specific notch cutting
+    if direction == "east":
+        # EAST: notches along +X axis, board thickness along Y
+        # First plumb cut: at header east face, extends WEST to cut board top
+        first_plumb_x = start_x_in  # Header east face
+        first_cut_box = Part.makeBox(
+            bc.inch(standard_notch_run_in),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        first_cut_box.translate(
+            App.Vector(
+                bc.inch(first_plumb_x - standard_notch_run_in),
+                bc.inch(start_y_in - 3),
+                bc.inch(top_z_in - total_rise_in),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   First plumb: x={first_plumb_x:.2f}"\n')
+        base_board = base_board.cut(first_cut_box)
+
+        # All tread notches
+        for step in range(num_steps):
+            level_z = top_z_in - step * rise_per_step_in
+            tread_west = header_west_in + step * run_per_step_in
+            plumb_x = tread_west
+
+            notch_box = Part.makeBox(
+                bc.inch(standard_notch_run_in),
+                bc.inch(board_thick_in + 6),
+                bc.inch(rise_per_step_in + board_width_in),
+            )
+            notch_box.translate(
+                App.Vector(bc.inch(plumb_x), bc.inch(start_y_in - 3), bc.inch(level_z))
+            )
+            App.Console.PrintMessage(
+                f'[septic_utilities]   Step {step}: plumb_x={plumb_x:.2f}", level_z={level_z:.2f}"\n'
+            )
+            base_board = base_board.cut(notch_box)
+
+        # Final plumb cut
+        last_tread_west = header_west_in + (num_steps - 1) * run_per_step_in
+        final_plumb_x = last_tread_west + run_per_step_in
+        final_cut_box = Part.makeBox(
+            bc.inch(board_length_in),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        final_cut_box.translate(
+            App.Vector(
+                bc.inch(final_plumb_x), bc.inch(start_y_in - 3), bc.inch(top_z_in - total_rise_in)
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Final plumb: x={final_plumb_x:.2f}"\n')
+        base_board = base_board.cut(final_cut_box)
+
+        # Bottom horizontal cut
+        if landing_z_in is not None:
+            bottom_cut_z = landing_z_in
+        else:
+            bottom_cut_z = top_z_in - num_steps * rise_per_step_in
+        bottom_cut_box = Part.makeBox(
+            bc.inch(board_length_in * 2),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        bottom_cut_box.translate(
+            App.Vector(
+                bc.inch(header_west_in - board_length_in),
+                bc.inch(start_y_in - 3),
+                bc.inch(bottom_cut_z - total_rise_in - board_width_in * 2),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Bottom cut: z={bottom_cut_z:.2f}"\n')
+        base_board = base_board.cut(bottom_cut_box)
+
+    elif direction == "west":
+        # WEST: notches along -X axis, board thickness along Y
+        # Treads descend toward -X, so notch positions decrease with each step
+        # start_x_in is the first tread EAST face (where stringer starts)
+        header_east_in = start_x_in + header_thick_in  # For west, header is on east side
+
+        # First plumb cut: at start position, extends EAST to cut board top
+        first_plumb_x = start_x_in
+        first_cut_box = Part.makeBox(
+            bc.inch(standard_notch_run_in),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        first_cut_box.translate(
+            App.Vector(
+                bc.inch(first_plumb_x), bc.inch(start_y_in - 3), bc.inch(top_z_in - total_rise_in)
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   First plumb: x={first_plumb_x:.2f}"\n')
+        base_board = base_board.cut(first_cut_box)
+
+        # All tread notches - positions decrease toward -X
+        for step in range(num_steps):
+            level_z = top_z_in - step * rise_per_step_in
+            # Tread east face = start - step * spacing
+            tread_east = header_east_in - step * run_per_step_in
+            plumb_x = tread_east  # Plumb cut at tread east face
+
+            notch_box = Part.makeBox(
+                bc.inch(standard_notch_run_in),
+                bc.inch(board_thick_in + 6),
+                bc.inch(rise_per_step_in + board_width_in),
+            )
+            notch_box.translate(
+                App.Vector(
+                    bc.inch(plumb_x - standard_notch_run_in),  # Extends west from plumb
+                    bc.inch(start_y_in - 3),
+                    bc.inch(level_z),
+                )
+            )
+            App.Console.PrintMessage(
+                f'[septic_utilities]   Step {step}: plumb_x={plumb_x:.2f}", level_z={level_z:.2f}"\n'
+            )
+            base_board = base_board.cut(notch_box)
+
+        # Final plumb cut - at last tread west edge
+        last_tread_east = header_east_in - (num_steps - 1) * run_per_step_in
+        final_plumb_x = last_tread_east - run_per_step_in
+        final_cut_box = Part.makeBox(
+            bc.inch(board_length_in),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        final_cut_box.translate(
+            App.Vector(
+                bc.inch(final_plumb_x - board_length_in),  # Extends west past board end
+                bc.inch(start_y_in - 3),
+                bc.inch(top_z_in - total_rise_in),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Final plumb: x={final_plumb_x:.2f}"\n')
+        base_board = base_board.cut(final_cut_box)
+
+        # Bottom horizontal cut
+        if landing_z_in is not None:
+            bottom_cut_z = landing_z_in
+        else:
+            bottom_cut_z = top_z_in - num_steps * rise_per_step_in
+        bottom_cut_box = Part.makeBox(
+            bc.inch(board_length_in * 2),
+            bc.inch(board_thick_in + 6),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        bottom_cut_box.translate(
+            App.Vector(
+                bc.inch(final_plumb_x - board_length_in),
+                bc.inch(start_y_in - 3),
+                bc.inch(bottom_cut_z - total_rise_in - board_width_in * 2),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Bottom cut: z={bottom_cut_z:.2f}"\n')
+        base_board = base_board.cut(bottom_cut_box)
+
+    elif direction == "north":
+        # NORTH: notches along +Y axis, board thickness along X
+        # Treads descend toward +Y
+        header_north_in = start_y_in + header_thick_in
+
+        # First plumb cut: at start position, extends SOUTH
+        first_plumb_y = start_y_in
+        first_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(standard_notch_run_in),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        first_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3),
+                bc.inch(first_plumb_y - standard_notch_run_in),
+                bc.inch(top_z_in - total_rise_in),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   First plumb: y={first_plumb_y:.2f}"\n')
+        base_board = base_board.cut(first_cut_box)
+
+        # All tread notches - positions increase toward +Y
+        for step in range(num_steps):
+            level_z = top_z_in - step * rise_per_step_in
+            tread_south = header_south_in + step * run_per_step_in
+            plumb_y = tread_south
+
+            notch_box = Part.makeBox(
+                bc.inch(board_thick_in + 6),
+                bc.inch(standard_notch_run_in),
+                bc.inch(rise_per_step_in + board_width_in),
+            )
+            notch_box.translate(
+                App.Vector(bc.inch(start_x_in - 3), bc.inch(plumb_y), bc.inch(level_z))
+            )
+            App.Console.PrintMessage(
+                f'[septic_utilities]   Step {step}: plumb_y={plumb_y:.2f}", level_z={level_z:.2f}"\n'
+            )
+            base_board = base_board.cut(notch_box)
+
+        # Final plumb cut
+        last_tread_south = header_south_in + (num_steps - 1) * run_per_step_in
+        final_plumb_y = last_tread_south + run_per_step_in
+        final_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(board_length_in),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        final_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3), bc.inch(final_plumb_y), bc.inch(top_z_in - total_rise_in)
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Final plumb: y={final_plumb_y:.2f}"\n')
+        base_board = base_board.cut(final_cut_box)
+
+        # Bottom horizontal cut
+        if landing_z_in is not None:
+            bottom_cut_z = landing_z_in
+        else:
+            bottom_cut_z = top_z_in - num_steps * rise_per_step_in
+        bottom_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(board_length_in * 2),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        bottom_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3),
+                bc.inch(header_south_in - board_length_in),
+                bc.inch(bottom_cut_z - total_rise_in - board_width_in * 2),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Bottom cut: z={bottom_cut_z:.2f}"\n')
+        base_board = base_board.cut(bottom_cut_box)
+
+    elif direction == "south":
+        # SOUTH: notches along -Y axis, board thickness along X
+        # Treads descend toward -Y
+        header_north_in = start_y_in + header_thick_in
+
+        # First plumb cut: at start position, extends NORTH
+        first_plumb_y = start_y_in
+        first_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(standard_notch_run_in),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        first_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3), bc.inch(first_plumb_y), bc.inch(top_z_in - total_rise_in)
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   First plumb: y={first_plumb_y:.2f}"\n')
+        base_board = base_board.cut(first_cut_box)
+
+        # All tread notches - positions decrease toward -Y
+        for step in range(num_steps):
+            level_z = top_z_in - step * rise_per_step_in
+            tread_north = header_north_in - step * run_per_step_in
+            plumb_y = tread_north
+
+            notch_box = Part.makeBox(
+                bc.inch(board_thick_in + 6),
+                bc.inch(standard_notch_run_in),
+                bc.inch(rise_per_step_in + board_width_in),
+            )
+            notch_box.translate(
+                App.Vector(
+                    bc.inch(start_x_in - 3),
+                    bc.inch(plumb_y - standard_notch_run_in),  # Extends south from plumb
+                    bc.inch(level_z),
+                )
+            )
+            App.Console.PrintMessage(
+                f'[septic_utilities]   Step {step}: plumb_y={plumb_y:.2f}", level_z={level_z:.2f}"\n'
+            )
+            base_board = base_board.cut(notch_box)
+
+        # Final plumb cut - at last tread south edge
+        last_tread_north = header_north_in - (num_steps - 1) * run_per_step_in
+        final_plumb_y = last_tread_north - run_per_step_in
+        final_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(board_length_in),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        final_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3),
+                bc.inch(final_plumb_y - board_length_in),
+                bc.inch(top_z_in - total_rise_in),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Final plumb: y={final_plumb_y:.2f}"\n')
+        base_board = base_board.cut(final_cut_box)
+
+        # Bottom horizontal cut
+        if landing_z_in is not None:
+            bottom_cut_z = landing_z_in
+        else:
+            bottom_cut_z = top_z_in - num_steps * rise_per_step_in
+        bottom_cut_box = Part.makeBox(
+            bc.inch(board_thick_in + 6),
+            bc.inch(board_length_in * 2),
+            bc.inch(total_rise_in + board_width_in * 2),
+        )
+        bottom_cut_box.translate(
+            App.Vector(
+                bc.inch(start_x_in - 3),
+                bc.inch(final_plumb_y - board_length_in),
+                bc.inch(bottom_cut_z - total_rise_in - board_width_in * 2),
+            )
+        )
+        App.Console.PrintMessage(f'[septic_utilities]   Bottom cut: z={bottom_cut_z:.2f}"\n')
+        base_board = base_board.cut(bottom_cut_box)
+
+    # Create Part::Feature with the cut shape
+    stringer = doc.addObject("Part::Feature", name)
+    stringer.Shape = base_board
+
+    # Attach catalog metadata
+    attach_metadata(stringer, stringer_row, stringer_label, supplier=supplier)
+
+    # Set color (brown for PT lumber)
+    try:
+        if hasattr(stringer, "ViewObject") and stringer.ViewObject:
+            stringer.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+    except Exception:
+        pass
+
+    return stringer
+
+
+def create_stair_run(
+    doc,
+    catalog_rows,
+    run_idx,
+    direction,
+    tread_count,
+    start_x_in,
+    start_y_in,
+    top_z_in,
+    landing_z_in,
+    tread_depth_in,
+    tread_length_in,
+    tread_thick_in,
+    rise_per_step_in,
+    tread_label="2x12x96_PT",
+    stringer_label="2x12x96_PT",
+    header_label=None,  # If provided, creates header at start of run
+    supplier="lowes",
+    tread_overhang_in=1.0,
+):
+    """
+    Create a complete stair run with treads and stringers.
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        run_idx: Run number for naming (1, 2, 3, etc.)
+        direction: Descent direction ("east", "west", "north", "south")
+        tread_count: Number of treads in this run
+        start_x_in: X position of first tread (west edge for E/W, or tread position for N/S)
+        start_y_in: Y position of first tread (south edge for N/S, or tread position for E/W)
+        top_z_in: Z of first tread top surface
+        landing_z_in: Z of landing at bottom (for stringer bottom cut)
+        tread_depth_in: Tread depth (11.25" for 2x12)
+        tread_length_in: Tread length/width (36" for 3' stairs)
+        tread_thick_in: Tread thickness (1.5" for 2x lumber)
+        rise_per_step_in: Vertical rise per step
+        tread_label: Catalog label for tread stock
+        stringer_label: Catalog label for stringer stock
+        header_label: If provided, creates a header at the start (only Run 1 typically)
+        supplier: Supplier for catalog metadata
+        tread_overhang_in: Nosing overhang (1" default)
+
+    Returns:
+        dict with 'treads', 'stringers', 'header' (if any), and position info for next landing
+    """
+    from lumber_common import attach_metadata, find_stock
+
+    created = {"treads": [], "stringers": [], "header": None}
+
+    # Look up tread stock
+    tread_row = find_stock(catalog_rows, tread_label)
+
+    # Tread spacing accounts for overhang (treads overlap)
+    tread_spacing_in = tread_depth_in - tread_overhang_in
+
+    # Direction determines box dimensions and position increments
+    # East/West: treads span N-S (length in Y), depth in X
+    # North/South: treads span E-W (length in X), depth in Y
+    if direction in ("east", "west"):
+        box_x = tread_depth_in
+        box_y = tread_length_in
+    else:  # north, south
+        box_x = tread_length_in
+        box_y = tread_depth_in
+
+    # Create treads
+    for step in range(tread_count):
+        tread_top_z = top_z_in - (step * rise_per_step_in)
+        tread_z_bottom = tread_top_z - tread_thick_in
+
+        # Calculate position based on direction
+        if direction == "east":
+            tread_x = start_x_in + (step * tread_spacing_in)
+            tread_y = start_y_in
+        elif direction == "west":
+            tread_x = start_x_in - (step * tread_spacing_in) - tread_depth_in
+            tread_y = start_y_in
+        elif direction == "north":
+            tread_x = start_x_in
+            tread_y = start_y_in + (step * tread_spacing_in)
+        elif direction == "south":
+            tread_x = start_x_in
+            tread_y = start_y_in - (step * tread_spacing_in) - tread_depth_in
+
+        tread = doc.addObject("Part::Feature", f"Stair_Run{run_idx}_Tread_{step}")
+        tread_box = Part.makeBox(
+            bc.inch(box_x),
+            bc.inch(box_y),
+            bc.inch(tread_thick_in),
+        )
+        tread_box.Placement.Base = App.Vector(
+            bc.inch(tread_x),
+            bc.inch(tread_y),
+            bc.inch(tread_z_bottom),
+        )
+        tread.Shape = tread_box
+
+        if tread_row:
+            attach_metadata(tread, tread_row, tread_label, supplier=supplier)
+        try:
+            if hasattr(tread, "ViewObject") and tread.ViewObject:
+                tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+        except Exception:
+            pass
+
+        created["treads"].append(tread)
+
+    # Create header if specified (only for Run 1 typically)
+    header_thick_in = 1.5  # Default
+    header_depth_in = 11.25  # Default
+    if header_label:
+        header_row = find_stock(catalog_rows, header_label)
+        if header_row:
+            header_thick_in = float(header_row["actual_thickness_in"])
+            header_depth_in = float(header_row["actual_width_in"])
+
+        # Header position depends on direction
+        header_top_z = top_z_in - tread_thick_in
+        header_bottom_z = header_top_z - header_depth_in
+
+        if direction == "east":
+            # Header at west edge of tread 0, runs N-S
+            header_box = Part.makeBox(
+                bc.inch(header_thick_in),
+                bc.inch(tread_length_in),
+                bc.inch(header_depth_in),
+            )
+            header_box.Placement.Base = App.Vector(
+                bc.inch(start_x_in),
+                bc.inch(start_y_in),
+                bc.inch(header_bottom_z),
+            )
+        elif direction == "west":
+            # Header at east edge of tread 0, runs N-S
+            header_box = Part.makeBox(
+                bc.inch(header_thick_in),
+                bc.inch(tread_length_in),
+                bc.inch(header_depth_in),
+            )
+            header_box.Placement.Base = App.Vector(
+                bc.inch(start_x_in - header_thick_in),
+                bc.inch(start_y_in),
+                bc.inch(header_bottom_z),
+            )
+        elif direction == "north":
+            # Header at south edge of tread 0, runs E-W
+            header_box = Part.makeBox(
+                bc.inch(tread_length_in),
+                bc.inch(header_thick_in),
+                bc.inch(header_depth_in),
+            )
+            header_box.Placement.Base = App.Vector(
+                bc.inch(start_x_in),
+                bc.inch(start_y_in),
+                bc.inch(header_bottom_z),
+            )
+        elif direction == "south":
+            # Header at north edge of tread 0, runs E-W
+            header_box = Part.makeBox(
+                bc.inch(tread_length_in),
+                bc.inch(header_thick_in),
+                bc.inch(header_depth_in),
+            )
+            header_box.Placement.Base = App.Vector(
+                bc.inch(start_x_in),
+                bc.inch(start_y_in - header_thick_in),
+                bc.inch(header_bottom_z),
+            )
+
+        header = doc.addObject("Part::Feature", f"Stair_Run{run_idx}_Header")
+        header.Shape = header_box
+        if header_row:
+            attach_metadata(header, header_row, header_label, supplier=supplier)
+        try:
+            if hasattr(header, "ViewObject") and header.ViewObject:
+                header.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+        except Exception:
+            pass
+        created["header"] = header
+
+    # Create stringers - 4 stringers at 12" OC
+    stringer_top_z = top_z_in - tread_thick_in  # Stringer top at first tread bottom
+
+    # Stringer positions depend on direction
+    # Stringers run parallel to descent, spaced across tread width
+    # If there's a header, stringers start at header's far face (east face for east direction)
+    # Determine header_depth for stringer notch calculations
+    stringer_header_depth = header_depth_in if header_label else 0.0
+
+    if direction == "east":
+        # If header exists, stringers start at header east face (start_x + header_thick)
+        stringer_start_x = start_x_in + header_thick_in if header_label else start_x_in
+        stringer_offsets = [0.0, 12.0, 24.0, tread_length_in - tread_thick_in]
+        for idx, offset in enumerate(stringer_offsets):
+            stringer = create_cut_stringer(
+                doc=doc,
+                catalog_rows=catalog_rows,
+                stringer_label=stringer_label,
+                name=f"Stair_Run{run_idx}_Stringer_{idx}",
+                num_steps=tread_count,
+                rise_per_step_in=rise_per_step_in,
+                run_per_step_in=tread_spacing_in,
+                stringer_thick_in=tread_thick_in,
+                start_x_in=stringer_start_x,
+                start_y_in=start_y_in + offset,
+                top_z_in=stringer_top_z,
+                direction=direction,
+                supplier=supplier,
+                bottom_cut="horizontal",
+                landing_z_in=landing_z_in,
+                tread_overhang_in=tread_overhang_in,
+                header_depth_in=stringer_header_depth,
+            )
+            if stringer:
+                created["stringers"].append(stringer)
+
+    elif direction == "west":
+        # If header exists, stringers start at header west face (start_x - header_thick)
+        stringer_start_x = start_x_in - header_thick_in if header_label else start_x_in
+        stringer_offsets = [0.0, 12.0, 24.0, tread_length_in - tread_thick_in]
+        for idx, offset in enumerate(stringer_offsets):
+            stringer = create_cut_stringer(
+                doc=doc,
+                catalog_rows=catalog_rows,
+                stringer_label=stringer_label,
+                name=f"Stair_Run{run_idx}_Stringer_{idx}",
+                num_steps=tread_count,
+                rise_per_step_in=rise_per_step_in,
+                run_per_step_in=tread_spacing_in,
+                stringer_thick_in=tread_thick_in,
+                start_x_in=stringer_start_x,
+                start_y_in=start_y_in + offset,
+                top_z_in=stringer_top_z,
+                direction=direction,
+                supplier=supplier,
+                bottom_cut="horizontal",
+                landing_z_in=landing_z_in,
+                tread_overhang_in=tread_overhang_in,
+                header_depth_in=stringer_header_depth,
+            )
+            if stringer:
+                created["stringers"].append(stringer)
+
+    elif direction == "north":
+        # If header exists, stringers start at header north face (start_y + header_thick)
+        stringer_start_y = start_y_in + header_thick_in if header_label else start_y_in
+        stringer_offsets = [tread_thick_in, 12.0, 24.0, 36.0]
+        for idx, offset in enumerate(stringer_offsets):
+            stringer = create_cut_stringer(
+                doc=doc,
+                catalog_rows=catalog_rows,
+                stringer_label=stringer_label,
+                name=f"Stair_Run{run_idx}_Stringer_{idx}",
+                num_steps=tread_count,
+                rise_per_step_in=rise_per_step_in,
+                run_per_step_in=tread_spacing_in,
+                stringer_thick_in=tread_thick_in,
+                start_x_in=start_x_in + offset,
+                start_y_in=stringer_start_y,
+                top_z_in=stringer_top_z,
+                direction=direction,
+                supplier=supplier,
+                bottom_cut="horizontal",
+                landing_z_in=landing_z_in,
+                tread_overhang_in=tread_overhang_in,
+                header_depth_in=stringer_header_depth,
+            )
+            if stringer:
+                created["stringers"].append(stringer)
+
+    elif direction == "south":
+        # If header exists, stringers start at header south face (start_y - header_thick)
+        stringer_start_y = start_y_in - header_thick_in if header_label else start_y_in
+        stringer_offsets = [0.0, 12.0, 24.0, tread_length_in - tread_thick_in]
+        for idx, offset in enumerate(stringer_offsets):
+            stringer = create_cut_stringer(
+                doc=doc,
+                catalog_rows=catalog_rows,
+                stringer_label=stringer_label,
+                name=f"Stair_Run{run_idx}_Stringer_{idx}",
+                num_steps=tread_count,
+                rise_per_step_in=rise_per_step_in,
+                run_per_step_in=tread_spacing_in,
+                stringer_thick_in=tread_thick_in,
+                start_x_in=start_x_in + offset,
+                start_y_in=stringer_start_y,
+                top_z_in=stringer_top_z,
+                direction=direction,
+                supplier=supplier,
+                bottom_cut="horizontal",
+                landing_z_in=landing_z_in,
+                tread_overhang_in=tread_overhang_in,
+                header_depth_in=stringer_header_depth,
+            )
+            if stringer:
+                created["stringers"].append(stringer)
+
+    # Calculate end position for next landing
+    if direction == "east":
+        end_x = start_x_in + ((tread_count - 1) * tread_spacing_in)
+        end_y = start_y_in
+    elif direction == "west":
+        end_x = start_x_in - ((tread_count - 1) * tread_spacing_in)
+        end_y = start_y_in
+    elif direction == "north":
+        end_x = start_x_in
+        end_y = start_y_in + ((tread_count - 1) * tread_spacing_in)
+    elif direction == "south":
+        end_x = start_x_in
+        end_y = start_y_in - ((tread_count - 1) * tread_spacing_in)
+
+    created["end_x_in"] = end_x
+    created["end_y_in"] = end_y
+    created["end_z_in"] = landing_z_in
+
+    return created
+
+
+def create_landing_support_posts(
+    doc,
+    catalog_rows,
+    landing_x_west_in,
+    landing_y_south_in,
+    landing_size_in,
+    landing_z_top_in,
+    slab_z_in,
+    post_label="post_4x4x96_PT",
+    landing_idx=1,
+    supplier="lowes",
+    rim_joist_depth_in=11.25,
+    rim_joist_thick_in=1.5,
+    deck_board_thick_in=1.0,
+    incoming_stringer_dir=None,
+    outgoing_stringer_dir=None,
+):
+    """
+    Create 4 corner posts to support a stair landing.
+
+    Posts extend from slab up to landing surface level. Stringers bolt to
+    the inside face of posts (no notching required). This is simpler and
+    stronger than notching, especially at corners where two stringer runs meet.
+
+    Post layout (plan view):
+        Post at each corner of landing, inset by half post width so post
+        centerline aligns with landing edge. Stringers bolt to inside face.
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        landing_x_west_in: X position of landing west edge (inches)
+        landing_y_south_in: Y position of landing south edge (inches)
+        landing_size_in: Landing size (inches, assumed square)
+        landing_z_top_in: Z position of landing top surface (inches) - the walking surface
+        slab_z_in: Z position of slab top (inches, typically 0)
+        post_label: Catalog label for post stock
+        landing_idx: Landing number for naming
+        supplier: Supplier for catalog metadata
+        rim_joist_depth_in: (unused, kept for API compatibility)
+        rim_joist_thick_in: (unused, kept for API compatibility)
+        deck_board_thick_in: (unused, kept for API compatibility)
+        incoming_stringer_dir: (unused, kept for API compatibility)
+        outgoing_stringer_dir: (unused, kept for API compatibility)
+
+    Returns:
+        List of Part::Feature objects (4 corner posts)
+    """
+    from lumber_common import attach_metadata, find_stock
+
+    post_row = find_stock(catalog_rows, post_label)
+    if not post_row:
+        App.Console.PrintWarning(
+            f"[septic_utilities] Post stock '{post_label}' not found in catalog\n"
+        )
+        return []
+
+    post_size_in = float(post_row["actual_thickness_in"])  # 3.5" for 4x4
+
+    # Post extends from slab to landing top (stringers bolt to inside face of post)
+    post_height_in = landing_z_top_in - slab_z_in
+
+    if post_height_in <= 0:
+        App.Console.PrintWarning(
+            f'[septic_utilities] Invalid post height {post_height_in:.2f}" for landing {landing_idx}\n'
+        )
+        return []
+
+    # Inset posts from landing corners by half post width
+    # This puts post centerline at landing edge, with half the post inside and half outside
+    inset = post_size_in / 2.0
+
+    # Corner positions (post center coordinates)
+    corner_positions = {
+        "SW": (landing_x_west_in + inset, landing_y_south_in + inset),
+        "SE": (landing_x_west_in + landing_size_in - inset, landing_y_south_in + inset),
+        "NW": (landing_x_west_in + inset, landing_y_south_in + landing_size_in - inset),
+        "NE": (
+            landing_x_west_in + landing_size_in - inset,
+            landing_y_south_in + landing_size_in - inset,
+        ),
+    }
+
+    posts = []
+    for corner_name, (cx, cy) in corner_positions.items():
+        # Simple post box - no notches, stringers bolt to inside face
+        post_west_in = cx - post_size_in / 2.0
+        post_south_in = cy - post_size_in / 2.0
+
+        # Create shape and wrap in Part::Feature (Part::Box doesn't support addProperty)
+        post_shape = Part.makeBox(
+            bc.inch(post_size_in),
+            bc.inch(post_size_in),
+            bc.inch(post_height_in),
+        )
+        post_shape.Placement.Base = App.Vector(
+            bc.inch(post_west_in),
+            bc.inch(post_south_in),
+            bc.inch(slab_z_in),
+        )
+        post = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Post_{corner_name}")
+        post.Shape = post_shape
+
+        attach_metadata(post, post_row, post_label, supplier=supplier)
+
+        # Set color (brown for PT lumber)
+        try:
+            if hasattr(post, "ViewObject") and post.ViewObject:
+                post.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
+        except Exception:
+            pass
+
+        posts.append(post)
+
+    App.Console.PrintMessage(
+        f"[septic_utilities] Landing {landing_idx}: Created 4 corner posts "
+        f'({post_size_in:.1f}" x {post_size_in:.1f}" x {post_height_in:.1f}"h, stringers bolt to face)\n'
+    )
+
+    return posts
+
+
+def create_landing_frame(
+    doc,
+    catalog_rows,
+    landing_x_center_in,
+    landing_y_center_in,
+    landing_size_in,
+    landing_z_top_in,
+    slab_z_in,
+    landing_idx=1,
+    post_label="post_4x4x96_PT",
+    rim_label="2x12x96_PT",
+    deck_board_label="deckboard_5_4x6x96_PT",
+    supplier="lowes",
+    post_bottom_z_in=None,  # Override post bottom (e.g., for stacked landings)
+):
+    """
+    Create a complete landing frame assembly.
+
+    Structure (from bottom to top):
+        1. 4 corner posts (4x4, from slab to rim bottom)
+        2. 4 rim joists (2x12 on edge, forming box on posts)
+        3. Deck boards (5/4 decking on rim frame)
+
+    The landing_z_top is the top of the deck boards - this is where
+    the stringers from above will rest (their horizontal bottom cut
+    sits on this surface).
+
+    Args:
+        doc: FreeCAD document
+        catalog_rows: Loaded catalog data
+        landing_x_center_in: X center position (inches)
+        landing_y_center_in: Y center position (inches)
+        landing_size_in: Outer dimension of landing (inches, square)
+        landing_z_top_in: Z of deck board top surface (inches) - where stringers rest
+        slab_z_in: Z of slab top (inches, typically 0)
+        landing_idx: Landing number for naming
+        post_label: Catalog label for 4x4 posts
+        rim_label: Catalog label for 2x12 rim joists
+        deck_board_label: Catalog label for 5/4 deck boards
+        supplier: Supplier for catalog metadata
+        post_bottom_z_in: Override for post bottom Z (if None, uses slab_z_in).
+                          Use this when a landing sits above another landing.
+
+    Returns:
+        Dict with keys: 'posts', 'rims', 'deck_boards', 'group'
+    """
+    from lumber_common import attach_metadata, find_stock
+
+    # Look up lumber dimensions from catalog
+    post_row = find_stock(catalog_rows, post_label)
+    rim_row = find_stock(catalog_rows, rim_label)
+    deck_row = find_stock(catalog_rows, deck_board_label)
+
+    if not post_row:
+        App.Console.PrintWarning(f"[septic_utilities] Post stock '{post_label}' not found\n")
+        return None
+    if not rim_row:
+        App.Console.PrintWarning(f"[septic_utilities] Rim stock '{rim_label}' not found\n")
+        return None
+    if not deck_row:
+        App.Console.PrintWarning(
+            f"[septic_utilities] Deck board stock '{deck_board_label}' not found\n"
+        )
+        return None
+
+    # Actual dimensions from catalog
+    post_size_in = float(post_row["actual_thickness_in"])  # 3.5" for 4x4
+    rim_depth_in = float(rim_row["actual_width_in"])  # 11.25" for 2x12
+    rim_thick_in = float(rim_row["actual_thickness_in"])  # 1.5" for 2x
+    deck_thick_in = float(deck_row["actual_thickness_in"])  # 1.0" for 5/4
+    deck_width_in = float(deck_row["actual_width_in"])  # 5.5" for 5/4x6
+
+    # Z levels (working down from top)
+    deck_board_top_z = landing_z_top_in
+    deck_board_bottom_z = deck_board_top_z - deck_thick_in
+    rim_top_z = deck_board_bottom_z  # Rim sits under deck boards
+    rim_bottom_z = rim_top_z - rim_depth_in
+    post_top_z = rim_bottom_z  # Posts support rim from below
+    post_bottom_z = post_bottom_z_in if post_bottom_z_in is not None else slab_z_in
+
+    post_height_in = post_top_z - post_bottom_z
+    if post_height_in <= 0:
+        App.Console.PrintWarning(
+            f'[septic_utilities] Invalid post height {post_height_in:.2f}" for landing {landing_idx}\n'
+        )
+        return None
+
+    # Landing boundaries (from center)
+    west_edge = landing_x_center_in - landing_size_in / 2.0
+    east_edge = landing_x_center_in + landing_size_in / 2.0
+    south_edge = landing_y_center_in - landing_size_in / 2.0
+    north_edge = landing_y_center_in + landing_size_in / 2.0
+
+    created_parts = {"posts": [], "rims": [], "deck_boards": [], "group": None}
+
+    # Color for PT lumber
+    pt_color = (0.55, 0.45, 0.35)
+
+    # ============================================================
+    # 1. CORNER POSTS (4x4, at corners, support rim joists)
+    # ============================================================
+    # Posts are at corners, inset so outer face aligns with landing edge
+    corner_positions = {
+        "SW": (west_edge + post_size_in / 2.0, south_edge + post_size_in / 2.0),
+        "SE": (east_edge - post_size_in / 2.0, south_edge + post_size_in / 2.0),
+        "NW": (west_edge + post_size_in / 2.0, north_edge - post_size_in / 2.0),
+        "NE": (east_edge - post_size_in / 2.0, north_edge - post_size_in / 2.0),
+    }
+
+    for corner_name, (cx, cy) in corner_positions.items():
+        # Create shape and wrap in Part::Feature (Part::Box doesn't support addProperty)
+        post_shape = Part.makeBox(
+            bc.inch(post_size_in),
+            bc.inch(post_size_in),
+            bc.inch(post_height_in),
+        )
+        post_shape.Placement.Base = App.Vector(
+            bc.inch(cx - post_size_in / 2.0),
+            bc.inch(cy - post_size_in / 2.0),
+            bc.inch(post_bottom_z),
+        )
+        post = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Post_{corner_name}")
+        post.Shape = post_shape
+        attach_metadata(post, post_row, post_label, supplier=supplier)
+        try:
+            if hasattr(post, "ViewObject") and post.ViewObject:
+                post.ViewObject.ShapeColor = pt_color
+        except Exception:
+            pass
+        created_parts["posts"].append(post)
+
+    # ============================================================
+    # 2. RIM JOIST BOX (4x 2x12 forming square frame on posts)
+    # ============================================================
+    # Rim joists sit ON TOP of posts, forming a box frame
+    # The box outer dimension = landing_size
+    # Each rim runs along one edge
+
+    # South rim (runs E-W along south edge)
+    south_rim_shape = Part.makeBox(
+        bc.inch(landing_size_in),  # Full width E-W
+        bc.inch(rim_thick_in),
+        bc.inch(rim_depth_in),
+    )
+    south_rim_shape.Placement.Base = App.Vector(
+        bc.inch(west_edge),
+        bc.inch(south_edge),
+        bc.inch(rim_bottom_z),
+    )
+    south_rim = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Rim_South")
+    south_rim.Shape = south_rim_shape
+    attach_metadata(south_rim, rim_row, rim_label, supplier=supplier)
+    try:
+        if hasattr(south_rim, "ViewObject") and south_rim.ViewObject:
+            south_rim.ViewObject.ShapeColor = pt_color
+    except Exception:
+        pass
+    created_parts["rims"].append(south_rim)
+
+    # North rim (runs E-W along north edge)
+    north_rim_shape = Part.makeBox(
+        bc.inch(landing_size_in),
+        bc.inch(rim_thick_in),
+        bc.inch(rim_depth_in),
+    )
+    north_rim_shape.Placement.Base = App.Vector(
+        bc.inch(west_edge),
+        bc.inch(north_edge - rim_thick_in),
+        bc.inch(rim_bottom_z),
+    )
+    north_rim = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Rim_North")
+    north_rim.Shape = north_rim_shape
+    attach_metadata(north_rim, rim_row, rim_label, supplier=supplier)
+    try:
+        if hasattr(north_rim, "ViewObject") and north_rim.ViewObject:
+            north_rim.ViewObject.ShapeColor = pt_color
+    except Exception:
+        pass
+    created_parts["rims"].append(north_rim)
+
+    # West rim (runs N-S along west edge, between south and north rims)
+    west_rim_length = landing_size_in - 2 * rim_thick_in
+    west_rim_shape = Part.makeBox(
+        bc.inch(rim_thick_in),
+        bc.inch(west_rim_length),
+        bc.inch(rim_depth_in),
+    )
+    west_rim_shape.Placement.Base = App.Vector(
+        bc.inch(west_edge),
+        bc.inch(south_edge + rim_thick_in),
+        bc.inch(rim_bottom_z),
+    )
+    west_rim = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Rim_West")
+    west_rim.Shape = west_rim_shape
+    attach_metadata(west_rim, rim_row, rim_label, supplier=supplier)
+    try:
+        if hasattr(west_rim, "ViewObject") and west_rim.ViewObject:
+            west_rim.ViewObject.ShapeColor = pt_color
+    except Exception:
+        pass
+    created_parts["rims"].append(west_rim)
+
+    # East rim (runs N-S along east edge, between south and north rims)
+    east_rim_shape = Part.makeBox(
+        bc.inch(rim_thick_in),
+        bc.inch(west_rim_length),  # Same as west rim
+        bc.inch(rim_depth_in),
+    )
+    east_rim_shape.Placement.Base = App.Vector(
+        bc.inch(east_edge - rim_thick_in),
+        bc.inch(south_edge + rim_thick_in),
+        bc.inch(rim_bottom_z),
+    )
+    east_rim = doc.addObject("Part::Feature", f"Landing_{landing_idx}_Rim_East")
+    east_rim.Shape = east_rim_shape
+    attach_metadata(east_rim, rim_row, rim_label, supplier=supplier)
+    try:
+        if hasattr(east_rim, "ViewObject") and east_rim.ViewObject:
+            east_rim.ViewObject.ShapeColor = pt_color
+    except Exception:
+        pass
+    created_parts["rims"].append(east_rim)
+
+    # ============================================================
+    # 3. DECK BOARDS (5/4 decking on rim frame) - 45 degree angle
+    # ============================================================
+    # Deck boards run at 45 degrees since landings have 90 degree turns
+    # Deck boards extend to OUTSIDE edges of rim joists (full landing size)
+    board_spacing_in = 0.125  # 1/8" gap between boards
+
+    # For 45 degree boards, the diagonal of the landing is sqrt(2) * landing_size
+    # Boards need to be longer than the diagonal to cover corner to corner
+    import math
+
+    diagonal_span = math.sqrt(2) * landing_size_in
+    board_length_in = diagonal_span + deck_width_in * 2  # Extra length for clipping
+
+    # Calculate number of boards needed to cover the diagonal
+    # The width perpendicular to the boards that needs covering is sqrt(2) * landing_size
+    num_boards = int((diagonal_span + board_spacing_in) / (deck_width_in + board_spacing_in)) + 2
+
+    # Center point of the landing (full landing size, not inner)
+    center_x = west_edge + landing_size_in / 2.0
+    center_y = south_edge + landing_size_in / 2.0
+
+    # Create a clipping box matching the FULL landing area (outside edges of rim joists)
+    clip_box = Part.makeBox(
+        bc.inch(landing_size_in),
+        bc.inch(landing_size_in),
+        bc.inch(deck_thick_in + 1),  # Slightly taller to ensure full intersection
+    )
+    clip_box.translate(
+        App.Vector(
+            bc.inch(west_edge),
+            bc.inch(south_edge),
+            bc.inch(deck_board_bottom_z - 0.5),
+        )
+    )
+
+    board_count = 0
+    # Boards are centered on the landing center, offset perpendicular to 45 degree line
+    # First board starts at SW corner, last at NE corner
+    for i in range(-num_boards // 2, num_boards // 2 + 1):
+        # Offset perpendicular to the 45-degree board direction
+        offset = i * (deck_width_in + board_spacing_in)
+
+        # Create board at origin, then rotate and translate
+        board_shape = Part.makeBox(
+            bc.inch(board_length_in),
+            bc.inch(deck_width_in),
+            bc.inch(deck_thick_in),
+        )
+
+        # Position board centered at origin for rotation
+        board_shape.translate(
+            App.Vector(
+                bc.inch(-board_length_in / 2.0),
+                bc.inch(-deck_width_in / 2.0),
+                0,
+            )
+        )
+
+        # Rotate 45 degrees around Z axis
+        board_shape.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), 45)
+
+        # Translate to landing center, then offset perpendicular to board direction
+        # Perpendicular direction at 45 degrees is (-sin45, cos45) = (-0.707, 0.707)
+        perp_x = -offset * math.sin(math.radians(45))
+        perp_y = offset * math.cos(math.radians(45))
+
+        board_shape.translate(
+            App.Vector(
+                bc.inch(center_x + perp_x),
+                bc.inch(center_y + perp_y),
+                bc.inch(deck_board_bottom_z),
+            )
+        )
+
+        # Clip to landing area using boolean intersection
+        try:
+            clipped_shape = board_shape.common(clip_box)
+            if clipped_shape.Volume > 0:
+                board_count += 1
+                deck_board = doc.addObject(
+                    "Part::Feature", f"Landing_{landing_idx}_DeckBoard_{board_count}"
+                )
+                deck_board.Shape = clipped_shape
+                attach_metadata(deck_board, deck_row, deck_board_label, supplier=supplier)
+                try:
+                    if hasattr(deck_board, "ViewObject") and deck_board.ViewObject:
+                        deck_board.ViewObject.ShapeColor = pt_color
+                except Exception:
+                    pass
+                created_parts["deck_boards"].append(deck_board)
+        except Exception:
+            # Skip boards that don't intersect the landing
+            pass
+
+    num_boards = board_count  # Update for logging
+
+    # Create group for landing
+    landing_grp = bc.create_group(doc, f"Landing_{landing_idx}_Frame")
+    all_parts = created_parts["posts"] + created_parts["rims"] + created_parts["deck_boards"]
+    bc.add_to_group(landing_grp, all_parts)
+    created_parts["group"] = landing_grp
+
+    App.Console.PrintMessage(
+        f"[septic_utilities] Landing {landing_idx} frame: "
+        f'4 posts ({post_size_in:.1f}"x{post_height_in:.1f}"h), '
+        f'4 rim joists ({rim_thick_in:.1f}"x{rim_depth_in:.1f}"), '
+        f"{num_boards} deck boards, "
+        f'top Z={landing_z_top_in:.1f}"\n'
+    )
+
+    return created_parts
+
+
 def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
     """
     Create exterior stairs descending from first floor to concrete slab (simple tread model).
@@ -2223,7 +3551,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
 
     Supports two stair types:
         - "straight": Single run descending in one direction (default)
-        - "L": L-shaped stair with landing and 90° turn
+        - "L": L-shaped stair with landing and 90 degrees turn
 
     L-Stair Configuration (when stair_type == "L"):
         - run1_direction: Direction for Run 1 (e.g., "north")
@@ -2256,7 +3584,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
     x_ft = stairs_config["stair_x_ft"]
     y_snap_ft = stairs_config["stair_y_snap_ft"]  # Top tread south edge position
     rise_in = stairs_config["tread_rise_in"]
-    run_in = stairs_config["tread_run_in"]
+    _run_in = stairs_config["tread_run_in"]  # noqa: F841
     width_ft = stairs_config["tread_width_ft"]
     tread_label = stairs_config["tread_stock"]
 
@@ -2325,7 +3653,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
     num_treads = num_risers
 
     App.Console.PrintMessage(
-        f'[septic_utilities] Stair calculation: {total_rise_in:.2f}" rise (slab {slab_top_z_in:.1f}" → deck surface {deck_surface_z_in:.1f}") ÷ {rise_in:.2f}" target = '
+        f'[septic_utilities] Stair calculation: {total_rise_in:.2f}" rise (slab {slab_top_z_in:.1f}" -> deck surface {deck_surface_z_in:.1f}") ÷ {rise_in:.2f}" target = '
         f'{num_risers} risers @ {actual_rise_in:.4f}" each, {num_treads} treads\n'
     )
 
@@ -2352,7 +3680,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
 
         App.Console.PrintMessage(
             f"[septic_utilities] L-stair: Run 1 = {run1_tread_count} treads (north), "
-            f"Landing = {landing_size_ft}' × {landing_size_ft}', "
+            f"Landing = {landing_size_ft}' x {landing_size_ft}', "
             f"Run 2 = {run2_tread_count} treads ({run2_direction})\n"
         )
         App.Console.PrintMessage(
@@ -2391,7 +3719,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             # Check if tread is under floor joists (north edge >= floor start)
             if tread_y_north_in >= floor_start_y_in:
                 clearance_in = joist_bottom_z_in - tread_top_z_in
-                status = "✓ OK" if clearance_in >= 80.0 else "⚠ LOW"
+                status = "(correct) OK" if clearance_in >= 80.0 else "⚠ LOW"
                 App.Console.PrintMessage(
                     f"[septic_utilities]   Tread {step}: Y={tread_y_south_in/12:.2f}'-{tread_y_north_in/12:.2f}', Z top={tread_top_z_in:.1f}\", clearance={clearance_in:.1f}\" {status} (UNDER FLOOR)\n"
                 )
@@ -2410,7 +3738,7 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         landing_y_north_in = landing_y_south_in + landing_size_in
         if landing_y_north_in >= floor_start_y_in:
             landing_clearance_in = joist_bottom_z_in - landing_z_top_in
-            landing_status = "✓ OK" if landing_clearance_in >= 80.0 else "⚠ LOW"
+            landing_status = "(correct) OK" if landing_clearance_in >= 80.0 else "⚠ LOW"
             App.Console.PrintMessage(
                 f"[septic_utilities]   Landing: Y={landing_y_south_in/12:.2f}'-{landing_y_north_in/12:.2f}', Z top={landing_z_top_in:.1f}\", clearance={landing_clearance_in:.1f}\" {landing_status} (UNDER FLOOR)\n"
             )
@@ -2502,7 +3830,8 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         # Run 2 starts from the landing, descending west (-X)
         # First Run 2 tread is one rise below landing
         for step in range(run2_tread_count):
-            run2_step = run1_tread_count + 1 + step  # Global step number (landing counts as a step)
+            # Global step number (landing counts as a step)
+            _run2_step = run1_tread_count + 1 + step  # noqa: F841
             tread_top_z_in = landing_z_top_in - ((step + 1) * actual_rise_in)
             tread_z_bottom_in = tread_top_z_in - tread_thick_in
 
@@ -2554,43 +3883,75 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             created.append(tread)
 
     elif stair_type == "double_L":
-        # DOUBLE-L STAIR: Three runs with two 90° landings (east -> north -> west)
+        # DOUBLE-L STAIR: Three runs with two 90 degrees landings (east -> north -> west)
         # Configuration from stairs_config
         run1_direction = stairs_config.get("run1_direction", "east")
         run1_tread_count = stairs_config.get("run1_tread_count", 6)
-        landing1_size_ft = stairs_config.get("landing1_size_ft", 3.0)
-        landing1_turn = stairs_config.get("landing1_turn", "left")
+        _landing1_turn = stairs_config.get("landing1_turn", "left")  # noqa: F841
 
         run2_direction = stairs_config.get("run2_direction", "north")
         run2_tread_count = stairs_config.get("run2_tread_count", 6)
-        landing2_size_ft = stairs_config.get("landing2_size_ft", 3.0)
-        landing2_turn = stairs_config.get("landing2_turn", "left")
+        _landing2_turn = stairs_config.get("landing2_turn", "left")  # noqa: F841
 
         run3_direction = stairs_config.get("run3_direction", "west")
         # Run 3 tread count: can be specified or calculated
         run3_tread_count_config = stairs_config.get("run3_tread_count", None)
 
         # Landing 3 and Run 4
-        landing3_size_ft = stairs_config.get("landing3_size_ft", 0.0)
         landing3_turn = stairs_config.get("landing3_turn", None)
         run4_direction = stairs_config.get("run4_direction", None)
         run4_tread_count_config = stairs_config.get("run4_tread_count", None)
 
         # Landing 4 and Run 5 (optional - for 5-run stair)
-        landing4_size_ft = stairs_config.get("landing4_size_ft", 0.0)
         landing4_turn = stairs_config.get("landing4_turn", None)
         run5_direction = stairs_config.get("run5_direction", None)
         run5_tread_count_config = stairs_config.get("run5_tread_count", None)
 
         # Landing 5 and Run 6 (optional - for 6-run stair)
-        landing5_size_ft = stairs_config.get("landing5_size_ft", 0.0)
         landing5_turn = stairs_config.get("landing5_turn", None)
         run6_direction = stairs_config.get("run6_direction", None)
 
-        # Determine stair complexity
-        has_landing3 = landing3_size_ft > 0 and landing3_turn is not None
-        has_landing4 = landing4_size_ft > 0 and landing4_turn is not None
-        has_landing5 = landing5_size_ft > 0 and landing5_turn is not None
+        # ===== DERIVE LANDING SIZE FROM TREAD WIDTH =====
+        # Landing size is derived, not configured. Reasoning:
+        # - Walkable deck area must be 36"x36" (code requirement for stair width)
+        # - Posts at corners with outer face at landing edge
+        # - Railings mount to posts, reducing walkable area
+        # - Interior clear space = landing_size - 2*(post_size + railing_thick)
+        # Formula: landing_size = tread_length + 2*(post_size + railing_thick)
+
+        # Get post dimensions from catalog for landing sizing calculations
+        post_label = "post_4x4x96_PT"
+        post_row = find_stock(rows, post_label)
+        if post_row:
+            post_size_in = float(post_row["actual_thickness_in"])  # 3.5" for 4x4
+        else:
+            post_size_in = 3.5  # Fallback
+
+        # Get railing width from catalog (2x4 top/bottom rails - 3.5" wide)
+        railing_label = "2x4x96_PT"
+        railing_row = find_stock(rows, railing_label)
+        if railing_row:
+            railing_width_in = float(railing_row["actual_width_in"])  # 3.5" for 2x4
+        else:
+            railing_width_in = 3.5  # Fallback
+
+        # Landing size = tread_length + 2*(post + railing) = 36 + 2*(3.5 + 3.5) = 50"
+        landing_size_in_derived = tread_length_in + (2.0 * (post_size_in + railing_width_in))
+
+        # Offset to center treads on landing (half the perimeter allowance)
+        landing_tread_offset_in = post_size_in + railing_width_in  # 7" each side
+
+        # Convert to feet for legacy compatibility in log messages
+        landing1_size_ft = landing_size_in_derived / 12.0
+        landing2_size_ft = landing_size_in_derived / 12.0
+        landing3_size_ft = landing_size_in_derived / 12.0
+        _landing4_size_ft = landing_size_in_derived / 12.0  # noqa: F841
+        _landing5_size_ft = landing_size_in_derived / 12.0  # noqa: F841
+
+        # Determine stair complexity (based on turn config, not landing size)
+        has_landing3 = landing3_turn is not None
+        has_landing4 = landing4_turn is not None
+        has_landing5 = landing5_turn is not None
 
         # Calculate tread counts based on stair configuration
         if has_landing5:
@@ -2643,11 +4004,12 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             run5_tread_count = 0
             run6_tread_count = 0
 
-        landing1_size_in = landing1_size_ft * 12.0
-        landing2_size_in = landing2_size_ft * 12.0
-        landing3_size_in = landing3_size_ft * 12.0 if has_landing3 else 0.0
-        landing4_size_in = landing4_size_ft * 12.0 if has_landing4 else 0.0
-        landing5_size_in = landing5_size_ft * 12.0 if has_landing5 else 0.0
+        # All landings use the derived size
+        landing1_size_in = landing_size_in_derived
+        landing2_size_in = landing_size_in_derived
+        landing3_size_in = landing_size_in_derived if has_landing3 else 0.0
+        landing4_size_in = landing_size_in_derived if has_landing4 else 0.0
+        landing5_size_in = landing_size_in_derived if has_landing5 else 0.0
 
         # TREAD 0 OFFSET: Start one rise below deck surface for head clearance
         tread0_z_offset_in = actual_rise_in  # Drop tread 0 by one rise
@@ -2693,457 +4055,426 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
             )
 
         # ===== RUN 1: Descending EAST =====
-        # Treads oriented N-S (3' width in Y direction), descending toward +X
-        # Tread 0 west face at x_ft, south face at y_snap_ft
-        for step in range(run1_tread_count):
-            tread_top_z_in = deck_surface_z_in - tread0_z_offset_in - (step * actual_rise_in)
-            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+        # Use create_stair_run helper function
+        tread_overhang_in = stairs_config.get("tread_overhang_in", 1.0)
+        tread_spacing_in = tread_depth_in - tread_overhang_in  # 11.25 - 1 = 10.25"
 
-            # X position: tread west face at x_ft + (step * tread_depth)
-            # Each tread extends one tread_depth further east
-            tread_x_west_in = (x_ft * 12.0) + (step * tread_depth_in)
-
-            # Y position: constant for all Run 1 treads (south face at y_snap_ft)
-            tread_y_south_in = y_snap_ft * 12.0
-
-            tread = doc.addObject("Part::Feature", f"Stair_Run1_Tread_{step}")
-            tread_box = Part.makeBox(
-                bc.inch(tread_depth_in),  # X dimension (tread depth, descending east)
-                bc.inch(tread_length_in),  # Y dimension (3' width)
-                bc.inch(tread_thick_in),  # Z dimension
-            )
-            tread_box.Placement.Base = App.Vector(
-                bc.inch(tread_x_west_in),
-                bc.inch(tread_y_south_in),
-                bc.inch(tread_z_bottom_in),
-            )
-            tread.Shape = tread_box
-
-            if tread_row:
-                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-            try:
-                if hasattr(tread, "ViewObject") and tread.ViewObject:
-                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-            except Exception:
-                pass
-
-            created.append(tread)
-
-        # ===== LANDING 1: 90° left turn (east -> north) =====
-        # Landing Z: one rise below last Run 1 tread
+        # Landing 1 Z: one rise below last Run 1 tread top
         landing1_z_top_in = (
             deck_surface_z_in - tread0_z_offset_in - (run1_tread_count * actual_rise_in)
         )
-        landing1_z_bottom_in = landing1_z_top_in - tread_thick_in
+
+        run1_result = create_stair_run(
+            doc=doc,
+            catalog_rows=rows,
+            run_idx=1,
+            direction="east",
+            tread_count=run1_tread_count,
+            start_x_in=x_ft * 12.0,
+            start_y_in=y_snap_ft * 12.0,
+            top_z_in=deck_surface_z_in - tread0_z_offset_in,
+            landing_z_in=landing1_z_top_in,
+            tread_depth_in=tread_depth_in,
+            tread_length_in=tread_length_in,
+            tread_thick_in=tread_thick_in,
+            rise_per_step_in=actual_rise_in,
+            tread_label=tread_label,
+            stringer_label="2x12x96_PT",
+            header_label="2x12x48_PT",  # Only Run 1 has a header
+            supplier="lowes",
+            tread_overhang_in=tread_overhang_in,
+        )
+        created.extend(run1_result["treads"])
+        if run1_result["header"]:
+            created.append(run1_result["header"])
+        created.extend(run1_result["stringers"])
 
         # Landing 1 position: at the east end of Run 1
-        # East edge of last Run 1 tread = x_ft + (run1_tread_count * tread_depth)
-        # Landing 1 west edge = east edge of last tread = x_ft + (run1_tread_count * tread_depth)
-        landing1_x_west_in = (x_ft * 12.0) + (run1_tread_count * tread_depth_in)
-        # Landing 1 south edge = same as Run 1 treads = y_snap_ft
-        landing1_y_south_in = y_snap_ft * 12.0
+        # Landing west edge = last tread west edge
+        # Last tread (index run1_tread_count - 1) west edge = x_ft + ((run1_tread_count - 1) * tread_spacing)
+        last_tread_west_in = (x_ft * 12.0) + ((run1_tread_count - 1) * tread_spacing_in)
+        landing1_x_west_in = last_tread_west_in
+        # Landing 1 south edge: offset south by landing_tread_offset so Run 1 treads are centered on landing
+        # Run 1 treads have south edge at y_snap_ft, so landing south edge = y_snap - offset
+        landing1_y_south_in = (y_snap_ft * 12.0) - landing_tread_offset_in
 
-        landing1 = doc.addObject("Part::Feature", "Stair_Landing_1")
-        landing1_box = Part.makeBox(
-            bc.inch(landing1_size_in),  # X dimension
-            bc.inch(landing1_size_in),  # Y dimension
-            bc.inch(tread_thick_in),  # Z dimension
+        # Convert to center coordinates for create_landing_frame()
+        landing1_x_center_in = landing1_x_west_in + landing1_size_in / 2.0
+        landing1_y_center_in = landing1_y_south_in + landing1_size_in / 2.0
+
+        # Create landing frame (posts + rim joists + deck boards)
+        landing1_frame = create_landing_frame(
+            doc=doc,
+            catalog_rows=rows,
+            landing_x_center_in=landing1_x_center_in,
+            landing_y_center_in=landing1_y_center_in,
+            landing_size_in=landing1_size_in,
+            landing_z_top_in=landing1_z_top_in,
+            slab_z_in=slab_top_z_in,
+            landing_idx=1,
+            post_label="post_4x4x96_PT",
+            rim_label="2x12x96_PT",
+            deck_board_label="deckboard_5_4x6x96_PT",
+            supplier="lowes",
         )
-        landing1_box.Placement.Base = App.Vector(
-            bc.inch(landing1_x_west_in),
-            bc.inch(landing1_y_south_in),
-            bc.inch(landing1_z_bottom_in),
-        )
-        landing1.Shape = landing1_box
-
-        if tread_row:
-            attach_metadata(landing1, tread_row, tread_label, supplier="lowes")
-        try:
-            if hasattr(landing1, "ViewObject") and landing1.ViewObject:
-                landing1.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-        except Exception:
-            pass
-
-        created.append(landing1)
+        if landing1_frame:
+            created.append(landing1_frame["group"])
 
         # ===== RUN 2: Descending NORTH =====
-        # Treads oriented E-W (3' width in X direction), descending toward +Y
-        # First Run 2 tread is one rise below Landing 1
-        for step in range(run2_tread_count):
-            tread_top_z_in = landing1_z_top_in - ((step + 1) * actual_rise_in)
-            tread_z_bottom_in = tread_top_z_in - tread_thick_in
-
-            # X position: tread west edge at landing 1 west edge
-            # (Run 2 treads align with west side of Landing 1)
-            tread_x_west_in = landing1_x_west_in
-
-            # Y position: tread south face at landing 1 north edge + (step * tread_depth)
-            # Landing 1 north edge = landing1_y_south_in + landing1_size_in
-            tread_y_south_in = landing1_y_south_in + landing1_size_in + (step * tread_depth_in)
-
-            tread = doc.addObject("Part::Feature", f"Stair_Run2_Tread_{step}")
-            tread_box = Part.makeBox(
-                bc.inch(tread_length_in),  # X dimension (3' width)
-                bc.inch(tread_depth_in),  # Y dimension (tread depth, descending north)
-                bc.inch(tread_thick_in),  # Z dimension
-            )
-            tread_box.Placement.Base = App.Vector(
-                bc.inch(tread_x_west_in),
-                bc.inch(tread_y_south_in),
-                bc.inch(tread_z_bottom_in),
-            )
-            tread.Shape = tread_box
-
-            if tread_row:
-                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-            try:
-                if hasattr(tread, "ViewObject") and tread.ViewObject:
-                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-            except Exception:
-                pass
-
-            created.append(tread)
-
-        # ===== LANDING 2: 90° left turn (north -> west) =====
-        # Landing Z: one rise below last Run 2 tread
+        # Use create_stair_run helper function
+        # Landing 2 Z: one rise below last Run 2 tread
         landing2_z_top_in = landing1_z_top_in - ((run2_tread_count + 1) * actual_rise_in)
-        landing2_z_bottom_in = landing2_z_top_in - tread_thick_in
+
+        # Run 2 starts at landing 1 north edge, offset to center on landing
+        run2_start_x_in = landing1_x_west_in + landing_tread_offset_in
+        run2_start_y_in = landing1_y_south_in + landing1_size_in
+
+        run2_result = create_stair_run(
+            doc=doc,
+            catalog_rows=rows,
+            run_idx=2,
+            direction="north",
+            tread_count=run2_tread_count,
+            start_x_in=run2_start_x_in,
+            start_y_in=run2_start_y_in,
+            top_z_in=landing1_z_top_in
+            - actual_rise_in,  # First Run 2 tread is one rise below landing 1
+            landing_z_in=landing2_z_top_in,
+            tread_depth_in=tread_depth_in,
+            tread_length_in=tread_length_in,
+            tread_thick_in=tread_thick_in,
+            rise_per_step_in=actual_rise_in,
+            tread_label=tread_label,
+            stringer_label="2x12x96_PT",
+            header_label="2x12x96_PT",  # Header for Run 2
+            supplier="lowes",
+            tread_overhang_in=tread_overhang_in,
+        )
+        created.extend(run2_result["treads"])
+        if run2_result["header"]:
+            created.append(run2_result["header"])
+        created.extend(run2_result["stringers"])
 
         # Landing 2 position: at the north end of Run 2
-        # Landing 2 west edge = Run 2 west edge = landing1_x_west_in
+        # Landing 2 south edge = last tread south edge (same pattern as Landing 1)
+        # Last Run 2 tread south edge = run2_start_y_in + ((run2_tread_count - 1) * tread_spacing_in)
+        last_run2_tread_south_in = run2_start_y_in + ((run2_tread_count - 1) * tread_spacing_in)
+        landing2_y_south_in = last_run2_tread_south_in
+
+        # Landing 2 west edge aligns with Landing 1 west edge
         landing2_x_west_in = landing1_x_west_in
-        # Landing 2 south edge = north edge of last Run 2 tread
-        landing2_y_south_in = (
-            landing1_y_south_in + landing1_size_in + (run2_tread_count * tread_depth_in)
-        )
 
-        landing2 = doc.addObject("Part::Feature", "Stair_Landing_2")
-        landing2_box = Part.makeBox(
-            bc.inch(landing2_size_in),  # X dimension
-            bc.inch(landing2_size_in),  # Y dimension
-            bc.inch(tread_thick_in),  # Z dimension
-        )
-        landing2_box.Placement.Base = App.Vector(
-            bc.inch(landing2_x_west_in),
-            bc.inch(landing2_y_south_in),
-            bc.inch(landing2_z_bottom_in),
-        )
-        landing2.Shape = landing2_box
+        # Convert to center coordinates for create_landing_frame()
+        landing2_x_center_in = landing2_x_west_in + landing2_size_in / 2.0
+        landing2_y_center_in = landing2_y_south_in + landing2_size_in / 2.0
 
-        if tread_row:
-            attach_metadata(landing2, tread_row, tread_label, supplier="lowes")
-        try:
-            if hasattr(landing2, "ViewObject") and landing2.ViewObject:
-                landing2.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-        except Exception:
-            pass
-
-        created.append(landing2)
+        # Create landing frame (posts + rim joists + deck boards)
+        landing2_frame = create_landing_frame(
+            doc=doc,
+            catalog_rows=rows,
+            landing_x_center_in=landing2_x_center_in,
+            landing_y_center_in=landing2_y_center_in,
+            landing_size_in=landing2_size_in,
+            landing_z_top_in=landing2_z_top_in,
+            slab_z_in=slab_top_z_in,
+            landing_idx=2,
+            post_label="post_4x4x96_PT",
+            rim_label="2x12x96_PT",
+            deck_board_label="deckboard_5_4x6x96_PT",
+            supplier="lowes",
+        )
+        if landing2_frame:
+            created.append(landing2_frame["group"])
 
         # ===== RUN 3: Descending WEST =====
-        # Treads oriented N-S (3' width in Y direction), descending toward -X
-        # First Run 3 tread is one rise below Landing 2
-        for step in range(run3_tread_count):
-            tread_top_z_in = landing2_z_top_in - ((step + 1) * actual_rise_in)
-            tread_z_bottom_in = tread_top_z_in - tread_thick_in
+        # Use create_stair_run helper function
+        # Landing 3 Z: one rise below last Run 3 tread
+        landing3_z_top_in = landing2_z_top_in - ((run3_tread_count + 1) * actual_rise_in)
 
-            # X position: tread east face at landing 2 west edge - (step * tread_depth)
-            # Each tread extends one tread_depth further west
-            # Tread east face = landing2_x_west_in - (step * tread_depth_in)
-            # Tread west face = tread east face - tread_depth_in
-            tread_x_east_in = landing2_x_west_in - (step * tread_depth_in)
-            tread_x_west_in = tread_x_east_in - tread_depth_in
+        # Run 3 starts at landing 2 west edge, offset to center on landing
+        run3_start_x_in = landing2_x_west_in
+        run3_start_y_in = landing2_y_south_in + landing_tread_offset_in
 
-            # Y position: tread south face at landing 2 south edge
-            tread_y_south_in = landing2_y_south_in
-
-            tread = doc.addObject("Part::Feature", f"Stair_Run3_Tread_{step}")
-            tread_box = Part.makeBox(
-                bc.inch(tread_depth_in),  # X dimension (tread depth, descending west)
-                bc.inch(tread_length_in),  # Y dimension (3' width)
-                bc.inch(tread_thick_in),  # Z dimension
-            )
-            tread_box.Placement.Base = App.Vector(
-                bc.inch(tread_x_west_in),
-                bc.inch(tread_y_south_in),
-                bc.inch(tread_z_bottom_in),
-            )
-            tread.Shape = tread_box
-
-            if tread_row:
-                attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-            try:
-                if hasattr(tread, "ViewObject") and tread.ViewObject:
-                    tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-            except Exception:
-                pass
-
-            created.append(tread)
+        run3_result = create_stair_run(
+            doc=doc,
+            catalog_rows=rows,
+            run_idx=3,
+            direction="west",
+            tread_count=run3_tread_count,
+            start_x_in=run3_start_x_in,
+            start_y_in=run3_start_y_in,
+            top_z_in=landing2_z_top_in
+            - actual_rise_in,  # First Run 3 tread is one rise below landing 2
+            landing_z_in=landing3_z_top_in,
+            tread_depth_in=tread_depth_in,
+            tread_length_in=tread_length_in,
+            tread_thick_in=tread_thick_in,
+            rise_per_step_in=actual_rise_in,
+            tread_label=tread_label,
+            stringer_label="2x12x96_PT",
+            header_label="2x12x96_PT",  # Header for Run 3
+            supplier="lowes",
+            tread_overhang_in=tread_overhang_in,
+        )
+        created.extend(run3_result["treads"])
+        if run3_result["header"]:
+            created.append(run3_result["header"])
+        created.extend(run3_result["stringers"])
 
         # ===== LANDING 3 and RUN 4 =====
         if has_landing3:
-            # Landing 3 Z: one rise below last Run 3 tread
-            landing3_z_top_in = landing2_z_top_in - ((run3_tread_count + 1) * actual_rise_in)
-            landing3_z_bottom_in = landing3_z_top_in - tread_thick_in
 
             # Landing 3 position: at the west end of Run 3
-            last_run3_tread_x_west_in = landing2_x_west_in - (run3_tread_count * tread_depth_in)
-            landing3_x_east_in = last_run3_tread_x_west_in
+            # Same pattern as Landing 1: landing edge = last tread edge
+            # For west direction, landing east edge = last tread east edge
+            # Last Run 3 tread east edge = run3_start_x_in - ((run3_tread_count - 1) * tread_spacing_in)
+            last_run3_tread_east_in = run3_start_x_in - ((run3_tread_count - 1) * tread_spacing_in)
+            landing3_x_east_in = last_run3_tread_east_in
             landing3_x_west_in = landing3_x_east_in - landing3_size_in
 
             if landing3_turn == "left":
-                # 90° left turn: west -> south
-                # Landing aligns with Run 3 south edge, extends west
-                landing3_y_south_in = landing2_y_south_in
-                landing3_y_north_in = landing3_y_south_in + landing3_size_in
+                # 90 degrees left turn: west -> south
+                # Landing Y aligns with Run 3 treads south edge
+                landing3_y_south_in = run3_start_y_in - landing_tread_offset_in
             else:
-                # 180° switchback: west -> east
+                # 180 degrees switchback: west -> east
                 # Landing extends south to make room for Run 4
-                landing3_y_south_in = landing2_y_south_in - tread_length_in
-                landing3_y_north_in = landing3_y_south_in + landing3_size_in + tread_length_in
+                landing3_y_south_in = run3_start_y_in - landing_tread_offset_in - tread_length_in
 
-            landing3 = doc.addObject("Part::Feature", "Stair_Landing_3")
-            landing3_box = Part.makeBox(
-                bc.inch(landing3_size_in),
-                bc.inch(landing3_y_north_in - landing3_y_south_in),
-                bc.inch(tread_thick_in),
+            # Convert to center coordinates for create_landing_frame()
+            landing3_x_center_in = landing3_x_west_in + landing3_size_in / 2.0
+            landing3_y_center_in = landing3_y_south_in + landing3_size_in / 2.0
+
+            # Create landing frame (posts + rim joists + deck boards)
+            landing3_frame = create_landing_frame(
+                doc=doc,
+                catalog_rows=rows,
+                landing_x_center_in=landing3_x_center_in,
+                landing_y_center_in=landing3_y_center_in,
+                landing_size_in=landing3_size_in,
+                landing_z_top_in=landing3_z_top_in,
+                slab_z_in=slab_top_z_in,
+                landing_idx=3,
+                post_label="post_4x4x96_PT",
+                rim_label="2x12x96_PT",
+                deck_board_label="deckboard_5_4x6x96_PT",
+                supplier="lowes",
             )
-            landing3_box.Placement.Base = App.Vector(
-                bc.inch(landing3_x_west_in),
-                bc.inch(landing3_y_south_in),
-                bc.inch(landing3_z_bottom_in),
-            )
-            landing3.Shape = landing3_box
-
-            if tread_row:
-                attach_metadata(landing3, tread_row, tread_label, supplier="lowes")
-            try:
-                if hasattr(landing3, "ViewObject") and landing3.ViewObject:
-                    landing3.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-            except Exception:
-                pass
-
-            created.append(landing3)
+            if landing3_frame:
+                created.append(landing3_frame["group"])
 
             # ===== RUN 4 =====
+            # Calculate landing4 Z for stringer bottom cut
+            landing4_z_top_in = landing3_z_top_in - ((run4_tread_count + 1) * actual_rise_in)
+
             if run4_direction == "south":
-                # Run 4: Descending SOUTH (after 90° left from west)
-                # Treads oriented E-W (3' width in X direction), descending toward -Y
-                for step in range(run4_tread_count):
-                    tread_top_z_in = landing3_z_top_in - ((step + 1) * actual_rise_in)
-                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
+                # Run 4: Descending SOUTH (after 90 degrees left from west)
+                # Use create_stair_run helper function
+                run4_start_x_in = landing3_x_west_in + landing_tread_offset_in
+                run4_start_y_in = landing3_y_south_in
 
-                    # X position: constant (west edge at landing 3 west edge)
-                    tread_x_west_in = landing3_x_west_in
+                run4_result = create_stair_run(
+                    doc=doc,
+                    catalog_rows=rows,
+                    run_idx=4,
+                    direction="south",
+                    tread_count=run4_tread_count,
+                    start_x_in=run4_start_x_in,
+                    start_y_in=run4_start_y_in,
+                    top_z_in=landing3_z_top_in
+                    - actual_rise_in,  # First Run 4 tread is one rise below landing 3
+                    landing_z_in=landing4_z_top_in,
+                    tread_depth_in=tread_depth_in,
+                    tread_length_in=tread_length_in,
+                    tread_thick_in=tread_thick_in,
+                    rise_per_step_in=actual_rise_in,
+                    tread_label=tread_label,
+                    stringer_label="2x12x96_PT",
+                    header_label="2x12x96_PT",  # Header for Run 4
+                    supplier="lowes",
+                    tread_overhang_in=tread_overhang_in,
+                )
+                created.extend(run4_result["treads"])
+                if run4_result["header"]:
+                    created.append(run4_result["header"])
+                created.extend(run4_result["stringers"])
 
-                    # Y position: tread north face at landing 3 south edge - (step * tread_depth)
-                    tread_y_north_in = landing3_y_south_in - (step * tread_depth_in)
-                    tread_y_south_in = tread_y_north_in - tread_depth_in
-
-                    tread = doc.addObject("Part::Feature", f"Stair_Run4_Tread_{step}")
-                    tread_box = Part.makeBox(
-                        bc.inch(tread_length_in),  # X dimension (3' width)
-                        bc.inch(tread_depth_in),  # Y dimension (tread depth, descending south)
-                        bc.inch(tread_thick_in),  # Z dimension
-                    )
-                    tread_box.Placement.Base = App.Vector(
-                        bc.inch(tread_x_west_in),
-                        bc.inch(tread_y_south_in),
-                        bc.inch(tread_z_bottom_in),
-                    )
-                    tread.Shape = tread_box
-
-                    if tread_row:
-                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-                    try:
-                        if hasattr(tread, "ViewObject") and tread.ViewObject:
-                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                    except Exception:
-                        pass
-
-                    created.append(tread)
-
-                # Track last Run 4 position for Landing 4
-                last_run4_y_south_in = landing3_y_south_in - (run4_tread_count * tread_depth_in)
+                # Track last Run 4 position for Landing 4 (same pattern as Landing 1)
+                # Last Run 4 tread north edge = run4_start_y_in - ((run4_tread_count - 1) * tread_spacing_in)
+                last_run4_tread_north_in = run4_start_y_in - (
+                    (run4_tread_count - 1) * tread_spacing_in
+                )
 
             elif run4_direction == "east":
-                # Run 4: Descending EAST (after 180° switchback)
-                for step in range(run4_tread_count):
-                    tread_top_z_in = landing3_z_top_in - ((step + 1) * actual_rise_in)
-                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
+                # Run 4: Descending EAST (after 180 degrees switchback)
+                # Use create_stair_run helper function
+                run4_start_x_in = landing3_x_east_in
+                run4_start_y_in = landing3_y_south_in + landing_tread_offset_in
 
-                    tread_x_west_in = landing3_x_east_in + (step * tread_depth_in)
-                    tread_y_south_in = landing3_y_south_in
+                run4_result = create_stair_run(
+                    doc=doc,
+                    catalog_rows=rows,
+                    run_idx=4,
+                    direction="east",
+                    tread_count=run4_tread_count,
+                    start_x_in=run4_start_x_in,
+                    start_y_in=run4_start_y_in,
+                    top_z_in=landing3_z_top_in
+                    - actual_rise_in,  # First Run 4 tread is one rise below landing 3
+                    landing_z_in=landing4_z_top_in,
+                    tread_depth_in=tread_depth_in,
+                    tread_length_in=tread_length_in,
+                    tread_thick_in=tread_thick_in,
+                    rise_per_step_in=actual_rise_in,
+                    tread_label=tread_label,
+                    stringer_label="2x12x96_PT",
+                    header_label="2x12x96_PT",  # Header for Run 4
+                    supplier="lowes",
+                    tread_overhang_in=tread_overhang_in,
+                )
+                created.extend(run4_result["treads"])
+                if run4_result["header"]:
+                    created.append(run4_result["header"])
+                created.extend(run4_result["stringers"])
 
-                    tread = doc.addObject("Part::Feature", f"Stair_Run4_Tread_{step}")
-                    tread_box = Part.makeBox(
-                        bc.inch(tread_depth_in),
-                        bc.inch(tread_length_in),
-                        bc.inch(tread_thick_in),
-                    )
-                    tread_box.Placement.Base = App.Vector(
-                        bc.inch(tread_x_west_in),
-                        bc.inch(tread_y_south_in),
-                        bc.inch(tread_z_bottom_in),
-                    )
-                    tread.Shape = tread_box
-
-                    if tread_row:
-                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-                    try:
-                        if hasattr(tread, "ViewObject") and tread.ViewObject:
-                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                    except Exception:
-                        pass
-
-                    created.append(tread)
+                # Track last Run 4 position for Landing 4 (not used for east direction in current config)
+                last_run4_tread_north_in = run4_start_y_in
 
             # ===== LANDING 4 and RUN 5 (5-run stair) =====
             if has_landing4:
-                # Landing 4 Z: one rise below last Run 4 tread
-                landing4_z_top_in = landing3_z_top_in - ((run4_tread_count + 1) * actual_rise_in)
-                landing4_z_bottom_in = landing4_z_top_in - tread_thick_in
-
                 # Landing 4 position: at the south end of Run 4 (when Run 4 goes south)
-                # Landing 4 is at southwest corner, turning left (south -> east)
-                landing4_x_west_in = landing3_x_west_in
+                # Same pattern as Landing 1: landing edge = last tread edge
+                # For south direction, landing north edge = last tread north edge
+                landing4_x_west_in = run4_start_x_in - landing_tread_offset_in
                 landing4_x_east_in = landing4_x_west_in + landing4_size_in
-                landing4_y_north_in = last_run4_y_south_in
+                landing4_y_north_in = last_run4_tread_north_in
                 landing4_y_south_in = landing4_y_north_in - landing4_size_in
 
-                landing4 = doc.addObject("Part::Feature", "Stair_Landing_4")
-                landing4_box = Part.makeBox(
-                    bc.inch(landing4_size_in),
-                    bc.inch(landing4_size_in),
-                    bc.inch(tread_thick_in),
+                # Convert to center coordinates for create_landing_frame()
+                landing4_x_center_in = landing4_x_west_in + landing4_size_in / 2.0
+                landing4_y_center_in = landing4_y_south_in + landing4_size_in / 2.0
+
+                # Create landing frame (posts + rim joists + deck boards)
+                landing4_frame = create_landing_frame(
+                    doc=doc,
+                    catalog_rows=rows,
+                    landing_x_center_in=landing4_x_center_in,
+                    landing_y_center_in=landing4_y_center_in,
+                    landing_size_in=landing4_size_in,
+                    landing_z_top_in=landing4_z_top_in,
+                    slab_z_in=slab_top_z_in,
+                    landing_idx=4,
+                    post_label="post_4x4x96_PT",
+                    rim_label="2x12x96_PT",
+                    deck_board_label="deckboard_5_4x6x96_PT",
+                    supplier="lowes",
                 )
-                landing4_box.Placement.Base = App.Vector(
-                    bc.inch(landing4_x_west_in),
-                    bc.inch(landing4_y_south_in),
-                    bc.inch(landing4_z_bottom_in),
+                if landing4_frame:
+                    created.append(landing4_frame["group"])
+
+                # ===== RUN 5: Descending EAST =====
+                # Use create_stair_run helper function
+                # Calculate landing5 Z for stringer bottom cut
+                landing5_z_top_in = landing4_z_top_in - ((run5_tread_count + 1) * actual_rise_in)
+
+                # Run 5 starts at landing 4 east edge (header will be placed there)
+                run5_start_x_in = landing4_x_east_in
+                run5_start_y_in = landing4_y_south_in + landing_tread_offset_in
+
+                run5_result = create_stair_run(
+                    doc=doc,
+                    catalog_rows=rows,
+                    run_idx=5,
+                    direction="east",
+                    tread_count=run5_tread_count,
+                    start_x_in=run5_start_x_in,
+                    start_y_in=run5_start_y_in,
+                    top_z_in=landing4_z_top_in
+                    - actual_rise_in,  # First Run 5 tread is one rise below landing 4
+                    landing_z_in=landing5_z_top_in,
+                    tread_depth_in=tread_depth_in,
+                    tread_length_in=tread_length_in,
+                    tread_thick_in=tread_thick_in,
+                    rise_per_step_in=actual_rise_in,
+                    tread_label=tread_label,
+                    stringer_label="2x12x96_PT",
+                    header_label="2x12x96_PT",  # Header for Run 5
+                    supplier="lowes",
+                    tread_overhang_in=tread_overhang_in,
                 )
-                landing4.Shape = landing4_box
+                created.extend(run5_result["treads"])
+                if run5_result["header"]:
+                    created.append(run5_result["header"])
+                created.extend(run5_result["stringers"])
 
-                if tread_row:
-                    attach_metadata(landing4, tread_row, tread_label, supplier="lowes")
-                try:
-                    if hasattr(landing4, "ViewObject") and landing4.ViewObject:
-                        landing4.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                except Exception:
-                    pass
-
-                created.append(landing4)
-
-                # ===== RUN 5: Descending EAST to slab =====
-                # Treads oriented N-S (3' width in Y direction), descending toward +X
-                for step in range(run5_tread_count):
-                    tread_top_z_in = landing4_z_top_in - ((step + 1) * actual_rise_in)
-                    tread_z_bottom_in = tread_top_z_in - tread_thick_in
-
-                    # X position: tread west face at landing 4 east edge + (step * tread_depth)
-                    tread_x_west_in = landing4_x_east_in + (step * tread_depth_in)
-
-                    # Y position: constant for all Run 5 treads
-                    tread_y_south_in = landing4_y_south_in
-
-                    tread = doc.addObject("Part::Feature", f"Stair_Run5_Tread_{step}")
-                    tread_box = Part.makeBox(
-                        bc.inch(tread_depth_in),  # X dimension (tread depth, descending east)
-                        bc.inch(tread_length_in),  # Y dimension (3' width)
-                        bc.inch(tread_thick_in),  # Z dimension
-                    )
-                    tread_box.Placement.Base = App.Vector(
-                        bc.inch(tread_x_west_in),
-                        bc.inch(tread_y_south_in),
-                        bc.inch(tread_z_bottom_in),
-                    )
-                    tread.Shape = tread_box
-
-                    if tread_row:
-                        attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-                    try:
-                        if hasattr(tread, "ViewObject") and tread.ViewObject:
-                            tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                    except Exception:
-                        pass
-
-                    created.append(tread)
-
-                # Track last Run 5 position for Landing 5
-                last_run5_x_east_in = landing4_x_east_in + (run5_tread_count * tread_depth_in)
+                # Track last Run 5 position for Landing 5 (same pattern as Landing 1)
+                # Last tread west edge = run5_start_x_in + (count-1) * spacing
+                last_run5_tread_west_in = run5_start_x_in + (
+                    (run5_tread_count - 1) * tread_spacing_in
+                )
 
                 # ===== LANDING 5 and RUN 6 (6-run stair) =====
                 if has_landing5:
-                    # Landing 5 Z: one rise below last Run 5 tread
-                    landing5_z_top_in = landing4_z_top_in - (
-                        (run5_tread_count + 1) * actual_rise_in
-                    )
-                    landing5_z_bottom_in = landing5_z_top_in - tread_thick_in
-
                     # Landing 5 position: at the east end of Run 5
-                    # After going east, turn left (east -> north)
-                    landing5_x_west_in = last_run5_x_east_in
-                    _landing5_x_east_in = landing5_x_west_in + landing5_size_in  # noqa: F841
-                    landing5_y_south_in = landing4_y_south_in
+                    # Same pattern as Landing 1: landing edge = last tread edge
+                    # For east direction, landing west edge = last tread west edge
+                    landing5_x_west_in = last_run5_tread_west_in
+                    landing5_y_south_in = run5_start_y_in - landing_tread_offset_in
                     landing5_y_north_in = landing5_y_south_in + landing5_size_in
 
-                    landing5 = doc.addObject("Part::Feature", "Stair_Landing_5")
-                    landing5_box = Part.makeBox(
-                        bc.inch(landing5_size_in),
-                        bc.inch(landing5_size_in),
-                        bc.inch(tread_thick_in),
-                    )
-                    landing5_box.Placement.Base = App.Vector(
-                        bc.inch(landing5_x_west_in),
-                        bc.inch(landing5_y_south_in),
-                        bc.inch(landing5_z_bottom_in),
-                    )
-                    landing5.Shape = landing5_box
+                    # Convert to center coordinates for create_landing_frame()
+                    landing5_x_center_in = landing5_x_west_in + landing5_size_in / 2.0
+                    landing5_y_center_in = landing5_y_south_in + landing5_size_in / 2.0
 
-                    if tread_row:
-                        attach_metadata(landing5, tread_row, tread_label, supplier="lowes")
-                    try:
-                        if hasattr(landing5, "ViewObject") and landing5.ViewObject:
-                            landing5.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                    except Exception:
-                        pass
-
-                    created.append(landing5)
+                    # Create landing frame (posts + rim joists + deck boards)
+                    landing5_frame = create_landing_frame(
+                        doc=doc,
+                        catalog_rows=rows,
+                        landing_x_center_in=landing5_x_center_in,
+                        landing_y_center_in=landing5_y_center_in,
+                        landing_size_in=landing5_size_in,
+                        landing_z_top_in=landing5_z_top_in,
+                        slab_z_in=slab_top_z_in,
+                        landing_idx=5,
+                        post_label="post_4x4x96_PT",
+                        rim_label="2x12x96_PT",
+                        deck_board_label="deckboard_5_4x6x96_PT",
+                        supplier="lowes",
+                    )
+                    if landing5_frame:
+                        created.append(landing5_frame["group"])
 
                     # ===== RUN 6: Descending NORTH to slab =====
-                    # Treads oriented E-W (3' width in X direction), descending toward +Y
-                    for step in range(run6_tread_count):
-                        tread_top_z_in = landing5_z_top_in - ((step + 1) * actual_rise_in)
-                        tread_z_bottom_in = tread_top_z_in - tread_thick_in
+                    # Use create_stair_run helper function
+                    # Run 6 is the last run - stringers sit on concrete slab
+                    run6_start_x_in = landing5_x_west_in + landing_tread_offset_in
+                    run6_start_y_in = landing5_y_north_in
 
-                        # X position: constant (west edge at landing 5 west edge)
-                        tread_x_west_in = landing5_x_west_in
-
-                        # Y position: tread south face at landing 5 north edge + (step * tread_depth)
-                        tread_y_south_in = landing5_y_north_in + (step * tread_depth_in)
-
-                        tread = doc.addObject("Part::Feature", f"Stair_Run6_Tread_{step}")
-                        tread_box = Part.makeBox(
-                            bc.inch(tread_length_in),  # X dimension (3' width)
-                            bc.inch(tread_depth_in),  # Y dimension (tread depth, descending north)
-                            bc.inch(tread_thick_in),  # Z dimension
-                        )
-                        tread_box.Placement.Base = App.Vector(
-                            bc.inch(tread_x_west_in),
-                            bc.inch(tread_y_south_in),
-                            bc.inch(tread_z_bottom_in),
-                        )
-                        tread.Shape = tread_box
-
-                        if tread_row:
-                            attach_metadata(tread, tread_row, tread_label, supplier="lowes")
-                        try:
-                            if hasattr(tread, "ViewObject") and tread.ViewObject:
-                                tread.ViewObject.ShapeColor = (0.55, 0.45, 0.35)
-                        except Exception:
-                            pass
-
-                        created.append(tread)
+                    run6_result = create_stair_run(
+                        doc=doc,
+                        catalog_rows=rows,
+                        run_idx=6,
+                        direction="north",
+                        tread_count=run6_tread_count,
+                        start_x_in=run6_start_x_in,
+                        start_y_in=run6_start_y_in,
+                        top_z_in=landing5_z_top_in
+                        - actual_rise_in,  # First Run 6 tread is one rise below landing 5
+                        landing_z_in=slab_top_z_in,  # Bottom cut at slab level
+                        tread_depth_in=tread_depth_in,
+                        tread_length_in=tread_length_in,
+                        tread_thick_in=tread_thick_in,
+                        rise_per_step_in=actual_rise_in,
+                        tread_label=tread_label,
+                        stringer_label="2x12x144_PT",  # 12' for longer run
+                        header_label="2x12x96_PT",  # Header for Run 6
+                        supplier="lowes",
+                        tread_overhang_in=tread_overhang_in,
+                    )
+                    created.extend(run6_result["treads"])
+                    if run6_result["header"]:
+                        created.append(run6_result["header"])
+                    created.extend(run6_result["stringers"])
 
     else:
         # STRAIGHT STAIR: Original single-run behavior
@@ -3288,7 +4619,7 @@ def create_utilities_group(
     electrical_stub = create_electrical_stub_up(doc, utilities_config)
     electrical_parts.append(electrical_stub)
 
-    # Electrical infrastructure (meter → disconnect → panel)
+    # Electrical infrastructure (meter -> disconnect -> panel)
     meter_box = create_electrical_meter_box(doc, utilities_config)
     electrical_parts.append(meter_box)
 

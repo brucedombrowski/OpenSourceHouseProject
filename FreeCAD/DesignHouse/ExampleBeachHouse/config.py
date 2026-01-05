@@ -13,15 +13,15 @@ For Luke Dombrowski. Stay Alive.
 #
 # Think of the lot as a 6-sided die viewed from above:
 #
-#   TOP/BOTTOM → Z axis (vertical, up/down)
-#   FRONT/REAR → Y axis (horizontal, north/south)
-#   LEFT/RIGHT → X axis (horizontal, east/west)
+#   TOP/BOTTOM -> Z axis (vertical, up/down)
+#   FRONT/REAR -> Y axis (horizontal, north/south)
+#   LEFT/RIGHT -> X axis (horizontal, east/west)
 #
 # Origin: (0, 0, 0) at southwest corner of lot, grade level
 #
-# X axis: Increases EAST (left → right when viewing from above)
-# Y axis: Increases NORTH (front → rear when viewing from above, facing north)
-# Z axis: Increases UP (bottom → top, grade → sky)
+# X axis: Increases EAST (left -> right when viewing from above)
+# Y axis: Increases NORTH (front -> rear when viewing from above, facing north)
+# Z axis: Increases UP (bottom -> top, grade -> sky)
 #
 # Lot Centerlines:
 #   EW Centerline: X = lot_width_ft / 2.0 = 25.0'
@@ -31,10 +31,10 @@ For Luke Dombrowski. Stay Alive.
 #   Lot Center Point: (25', 50', 0) where both centerlines intersect
 #
 # Setback Naming (from property lines):
-#   front_setback_ft → South edge (Y = front_setback_ft)
-#   rear_setback_ft  → North edge (Y = lot_depth_ft - rear_setback_ft)
-#   left_setback_ft  → West edge (X = left_setback_ft)
-#   right_setback_ft → East edge (X = lot_width_ft - right_setback_ft)
+#   front_setback_ft -> South edge (Y = front_setback_ft)
+#   rear_setback_ft  -> North edge (Y = lot_depth_ft - rear_setback_ft)
+#   left_setback_ft  -> West edge (X = left_setback_ft)
+#   right_setback_ft -> East edge (X = lot_width_ft - right_setback_ft)
 #
 # ============================================================
 # LOT SURVEY
@@ -61,10 +61,10 @@ LOT = {
 #   1. Maximize house size for lot width (40' usable between setbacks)
 #   2. Support 4' deck overhangs on east and west sides
 #   3. Maximize pile spacing for ground-level usability (covered patio)
-#   4. Maintain structural integrity for 2-story, 40'×60' house with 9' walls
+#   4. Maintain structural integrity for 2-story, 40'x60' house with 9' walls
 #
 # House Dimensions:
-#   - Total footprint: 40' wide × 60' deep (east-west × north-south)
+#   - Total footprint: 40' wide x 60' deep (east-west x north-south)
 #   - Two stories with 9' ceiling height per floor
 #   - 4' decking extends beyond pile line on east and west sides
 #   - Foundation spans from front setback (Y=20') to rear setback area
@@ -74,7 +74,7 @@ LOT = {
 #   - West pile column: west face at X = left_setback_ft (5')
 #   - East pile column: east face at X = lot_width - right_setback_ft (45')
 #   - Interior piles evenly spaced between edge columns
-#   - 5 pile columns total → 4 bays @ ~9.76' each (calculated at runtime)
+#   - 5 pile columns total -> 4 bays @ ~9.76' each (calculated at runtime)
 #
 #   Calculation:
 #     pile_half_thickness = 11.25" / 24 = 0.46875'
@@ -89,7 +89,7 @@ LOT = {
 #   - Total pile field depth: 60' (rows 1-7 spanning Y=20' to Y=80')
 #
 # Structural Considerations:
-#   - LVL beams (1.75"×11.875"×20') span 20' between piles (3 piles per span)
+#   - LVL beams (1.75"x11.875"x20') span 20' between piles (3 piles per span)
 #   - Each girder line has 3 segments: rows 1-3, 3-5, 5-7
 #   - Piles at segment boundaries (rows 3, 5) get full-width notches
 #   - Endpoint piles (rows 1, 7) get corner notches
@@ -101,7 +101,7 @@ LOT = {
 #   - 20' clear height under house (40' piles - 20' embedment)
 #
 FOUNDATION = {
-    # Pile grid (calculated: grid_x × grid_y = total piles, footprint spans)
+    # Pile grid (calculated: grid_x x grid_y = total piles, footprint spans)
     # NOTE: pile_spacing_x_ft is CALCULATED at runtime based on setbacks and pile count
     # Outside pile faces align with setback lines, interior piles evenly spaced
     "pile_spacing_x_ft": 9.765625,  # CALCULATED: ~9' 9-3/16" (see rationale above)
@@ -113,7 +113,7 @@ FOUNDATION = {
     "pile_length_ft": 40.0,  # Pile length
     "pile_embed_depth_ft": 20.0,  # Embed depth below grade (local code + storm surge + safety factor)
     # LVL beams (2-ply laminated assemblies)
-    "lvl_label": "lvl_1.75x11.875x240",  # LVL catalog key (1.75"×11.875"×20')
+    "lvl_label": "lvl_1.75x11.875x240",  # LVL catalog key (1.75"x11.875"x20')
     "beam_stock": "2x12x192",  # OLD: Beam stock label (16' beams) - DEPRECATED
     "beam_stock_short": "2x12x96",  # OLD: Short beam stock (8' beams) - DEPRECATED
     "beam_pressure_treated": True,  # Use PT lumber for beams
@@ -148,7 +148,7 @@ FIRST_FLOOR = {
     "hanger_height_in": 7.8125,
     "hanger_seat_depth_in": 2.0,
     # Floor module dimensions (actual with rims)
-    # 3×3 grid of 16'×16' modules = 48' × 48' total floor area
+    # 3x3 grid of 16'x16' modules = 48' x 48' total floor area
     "module_16x16_width_in": 195.0,  # 16' module + rims (192" + 3" for rim overlap)
     "module_16x16_depth_in": 192.0,  # 16' module depth
     # Layout (assembly-based, no hard-coded offsets!)
@@ -218,23 +218,23 @@ DECKS = {
 }
 
 # ============================================================
-# SECOND FLOOR (20' LVL rims × 12' 2x12 joists)
+# SECOND FLOOR (20' LVL rims x 12' 2x12 joists)
 # ============================================================
 #
 # DESIGN RATIONALE - Second Floor Joist Modules
 # ==============================================
 #
 # Goals:
-#   1. Match first floor footprint (40' × 48')
+#   1. Match first floor footprint (40' x 48')
 #   2. Use LVL beams as rim joists for 20' spans (E-W)
 #   3. Use 2x12 joists at 12' spans (N-S)
-#   4. Modular grid: 2 columns × 4 rows = 8 modules
+#   4. Modular grid: 2 columns x 4 rows = 8 modules
 #
 # Module Dimensions:
-#   - 20' wide (E-W) × 12' deep (N-S) per module
-#   - LVL rims: 1.75" × 11.875" × 20' (lvl_1.75x11.875x240)
-#   - 2x12 joists: 1.5" × 11.25" × 12' at 16" OC
-#   - Total floor: 40' × 48' (2 × 20' wide, 4 × 12' deep)
+#   - 20' wide (E-W) x 12' deep (N-S) per module
+#   - LVL rims: 1.75" x 11.875" x 20' (lvl_1.75x11.875x240)
+#   - 2x12 joists: 1.5" x 11.25" x 12' at 16" OC
+#   - Total floor: 40' x 48' (2 x 20' wide, 4 x 12' deep)
 #
 # Grid Layout (viewed from above, north up):
 #   +----------+----------+
@@ -256,7 +256,7 @@ DECKS = {
 #
 
 SECOND_FLOOR = {
-    # Module layout (2 columns × 4 rows = 8 modules)
+    # Module layout (2 columns x 4 rows = 8 modules)
     "grid_columns": 2,  # Columns in X direction (E-W)
     "grid_rows": 4,  # Rows in Y direction (N-S)
     # Module dimensions
@@ -321,7 +321,7 @@ SEPTIC_SYSTEM = {
     #   - Derived from last pile Y position + pile_half_thickness + 2' clearance
     #   - This ensures leach field is always north of piles regardless of pile grid config
     "leach_field_y_start_ft": 82.5,  # Placeholder - overridden at runtime (2' north of last pile row)
-    "leach_field_length_ft": 30.0,  # 3 trenches × 5' spacing (fits within lot)
+    "leach_field_length_ft": 30.0,  # 3 trenches x 5' spacing (fits within lot)
     "leach_field_width_ft": 20.0,  # Trench width + spacing
     "leach_field_trench_count": 3,
     "leach_field_trench_spacing_ft": 5.0,  # Reduced from 10' to 5' to fit within lot (rear setback at Y=90')
@@ -337,9 +337,9 @@ SEPTIC_SYSTEM = {
     # Drain line routing strategy:
     # 1. Vertical stub-up through concrete slab at pile 4,5 east face: (33.635, 52.46875)
     # 2. Underground 90-degree elbow at slab bottom (Z=-24")
-    # 3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) → (37.0, 52.46875)
+    # 3. Underground horizontal run EAST (with slope) to gap middle: (33.635, 52.46875) -> (37.0, 52.46875)
     # 4. Underground 90-degree elbow at gap middle
-    # 5. Underground horizontal run NORTH (with slope) in pile gap to tank: (37.0, 52.46875) → (37.0, 88.0)
+    # 5. Underground horizontal run NORTH (with slope) in pile gap to tank: (37.0, 52.46875) -> (37.0, 88.0)
     # Tank is centered at X=37.0' so north-south run goes straight into tank inlet
     "drain_line_lateral_x_ft": 37.0,  # X position for vertical drop (gap middle between pile columns 4 and 5)
     "drain_line_waypoint_x_ft": 37.0,  # Same as lateral (no turn needed - straight run to tank)
@@ -426,13 +426,13 @@ UTILITIES = {
 #   ...
 #   [Tread N]
 #   |
-#   [Landing 1] <--- 90° left turn (to north)
+#   [Landing 1] <--- 90 degrees left turn (to north)
 #   |
 #   [Tread N+1] ---> NORTH (Run 2: descend north, oriented E-W)
 #   ...
 #   [Tread 2N]
 #   |
-#   [Landing 2] <--- 90° left turn (to west)
+#   [Landing 2] <--- 90 degrees left turn (to west)
 #   |
 #   [Remaining] <--- WEST (Run 3: descend to slab, oriented N-S)
 #   ...
@@ -447,7 +447,9 @@ UTILITIES = {
 # Stair parameters defined before STAIRS dict for use in calculations
 _STAIR_TREAD_WIDTH_FT = 3.0  # Stair width (36" minimum per IRC R311.7.1)
 _STAIR_DECK_LANDING_FT = 4.0  # Deck landing depth (from elevator to stair opening)
-_STAIR_LANDING_SIZE_FT = 3.0  # Turn landing size (36" x 36" per IRC R311.7.6)
+_STAIR_LANDING_SIZE_FT = (
+    4.0  # Turn landing size (48" x 48" - larger than IRC min to fit posts outside 36" treads)
+)
 
 # Calculate tread 0 X position:
 # Front_Deck_Right origin X = floor_start_x + 2 * 192" (two 16' deck modules)
@@ -484,7 +486,15 @@ STAIRS = {
     "tread_rise_in": 7.25,  # Riser height (7.25" per IRC R311.7.5.1 max 7-3/4")
     "tread_run_in": 11.25,  # Tread depth (11.25" = 2x12 actual width)
     "tread_width_ft": _STAIR_TREAD_WIDTH_FT,  # Stair width (36" minimum per IRC R311.7.1)
-    "tread_stock": "2x12x96_PT",  # Tread material (2x12 PT lumber)
+    "tread_overhang_in": 1.0,  # Nosing overhang (IRC R311.7.5.3: 3/4" to 1-1/4")
+    "tread_stock": "2x12x96_PT",  # Tread lumber (2x12 PT: 1.5" x 11.25")
+    "stringer_stock": "2x12x192_PT",  # Stringer lumber (2x12 PT: 1.5" x 11.25", 16' length)
+    # Stair header: 2x12 standing vertically, runs N-S under tread 0
+    # - Header west face aligns with tread 0 west face
+    # - Stringer west faces attach to header east face via hangers
+    # - Length = tread width + allowance for connections
+    "header_stock": "2x12x48_PT",  # Header joist (2x12 PT: 1.5" x 11.25", 4' length for 36" stairs)
+    "min_throat_depth_in": 3.5,  # Minimum throat (IRC R311.7.5.3: 3.5" minimum)
     # Headroom clearance (IRC R311.7.2 requires minimum 80" vertical clearance)
     "headroom_clearance_in": 80.0,  # 6'8" minimum headroom from tread to joist bottom
     #
@@ -498,40 +508,39 @@ STAIRS = {
     "run1_direction": "east",  # Descending direction for Run 1
     "run1_tread_count": 6,  # Number of treads in Run 1
     #
-    # Landing 1: 90° left turn (east -> north)
+    # Landing 1: 90 degrees left turn (east -> north)
     "landing1_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
-    "landing1_turn": "left",  # 90° left = from east to north
+    "landing1_turn": "left",  # 90 degrees left = from east to north
     #
     # Run 2: Descends NORTH
     # - Treads oriented E-W (3' in X direction)
     # - Descending toward +Y (north)
-    # - Only 2 treads to stay within pile box
     "run2_direction": "north",  # Descending direction for Run 2
-    "run2_tread_count": 2,  # Number of treads in Run 2 (short run to stay in pile box)
+    "run2_tread_count": 2,  # Number of treads in Run 2
     #
-    # Landing 2: 90° left turn (north -> west)
+    # Landing 2: 90 degrees left turn (north -> west)
     "landing2_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
-    "landing2_turn": "left",  # 90° left = from north to west
+    "landing2_turn": "left",  # 90 degrees left = from north to west
     #
     # Run 3: Descends WEST (short run before L-turn)
     # - Treads oriented N-S (3' in Y direction)
     # - Descending toward -X (west)
     "run3_direction": "west",  # Descending direction for Run 3
-    "run3_tread_count": 4,  # 4 treads before Landing 3 (tread 5 becomes landing)
+    "run3_tread_count": 4,  # 4 treads before Landing 3
     #
-    # Landing 3: 90° left turn (west -> south)
+    # Landing 3: 90 degrees left turn (west -> south)
     "landing3_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
-    "landing3_turn": "left",  # 90° left = from west to south
+    "landing3_turn": "left",  # 90 degrees left = from west to south
     #
-    # Run 4: Descends SOUTH (3 treads)
+    # Run 4: Descends SOUTH
     # - Treads oriented E-W (3' in X direction)
     # - Descending toward -Y (south)
     "run4_direction": "south",  # Descending direction for Run 4
-    "run4_tread_count": 3,  # 3 treads before Landing 4
+    "run4_tread_count": 2,  # 2 treads before Landing 4
     #
-    # Landing 4: 90° left turn (south -> east)
+    # Landing 4: 90 degrees left turn (south -> east)
     "landing4_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
-    "landing4_turn": "left",  # 90° left = from south to east
+    "landing4_turn": "left",  # 90 degrees left = from south to east
     #
     # Run 5: Descends EAST (4 treads before Landing 5)
     # - Treads oriented N-S (3' in Y direction)
@@ -539,9 +548,9 @@ STAIRS = {
     "run5_direction": "east",  # Descending direction for Run 5
     "run5_tread_count": 4,  # 4 treads before Landing 5
     #
-    # Landing 5: 90° left turn (east -> north)
+    # Landing 5: 90 degrees left turn (east -> north)
     "landing5_size_ft": _STAIR_LANDING_SIZE_FT,  # 3' x 3'
-    "landing5_turn": "left",  # 90° left = from east to north
+    "landing5_turn": "left",  # 90 degrees left = from east to north
     #
     # Run 6: Descends NORTH to slab (remaining treads)
     # - Treads oriented E-W (3' in X direction)
@@ -611,12 +620,12 @@ BUILD = {
     "include_foundation": True,  # LVL beam system on pilings (piles only, no beams)
     "include_concrete_slab": True,  # Concrete slab under house
     "include_deck_joists": True,  # Deck joists, rims, hangers (installed BEFORE sheathing)
-    "include_first_floor": True,  # 3×3 grid: 40' × 48'
+    "include_first_floor": True,  # 3x3 grid: 40' x 48'
     "include_stairs": True,  # Exterior stairs from slab to first floor (built early for access)
     "include_walls": False,  # Front and rear walls
     "include_deck_surface": False,  # Deck boards (installed AFTER stairs)
     "include_deck_railings": False,  # Deck railing posts
-    "include_second_floor": False,  # 20' LVL rims × 12' 2x12 joists
+    "include_second_floor": False,  # 20' LVL rims x 12' 2x12 joists
     "include_roof": False,  # Not yet implemented
     # Output options
     "save_fcstd": True,

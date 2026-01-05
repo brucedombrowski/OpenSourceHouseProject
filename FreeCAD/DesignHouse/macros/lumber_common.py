@@ -161,8 +161,8 @@ def make_hanger(
     Build a simple U-shape hanger (rim flange + seat + two side flanges + far flange).
     Built at origin in local coordinates, then translated to the requested rim face.
 
-    axis="X": rim face at x_pos, hanger extends along ±X.
-    axis="Y": rim face at y_pos (x_pos arg), hanger extends along ±Y.
+    axis="X": rim face at x_pos, hanger extends along +/-X.
+    axis="Y": rim face at y_pos (x_pos arg), hanger extends along +/-Y.
     direction=+1 extends into +axis; direction=-1 extends into -axis.
 
     When debug_components is True, return a colored group of sub-parts instead of a fused solid (used by test macro).

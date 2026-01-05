@@ -560,7 +560,7 @@ def create_deck_joists_16x8(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(centers)} joists, 2 rims, {len(hangs)} hangers)\n"
     )
 
@@ -774,7 +774,7 @@ def create_deck_joists_8ft9in_x_8ft(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(centers)} joists, 2 rims, {len(hangs)} hangers)\n"
     )
 
@@ -861,12 +861,12 @@ def _make_mitered_edge_board(
     #     SW corner              SE corner
     #
     # For EW boards (front/back):
-    #   - "left" miter: 45° cut at west end, diagonal from (0,0) to (deck_width, deck_width)
-    #   - "right" miter: 45° cut at east end, diagonal from (length,deck_width) to (length-deck_width,0)
+    #   - "left" miter: 45 degrees cut at west end, diagonal from (0,0) to (deck_width, deck_width)
+    #   - "right" miter: 45 degrees cut at east end, diagonal from (length,deck_width) to (length-deck_width,0)
     #
     # For NS boards (left/right):
-    #   - "front"/"south" miter: 45° cut at south end
-    #   - "back"/"north" miter: 45° cut at north end
+    #   - "front"/"south" miter: 45 degrees cut at south end
+    #   - "back"/"north" miter: 45 degrees cut at north end
 
     if edge_axis == "Y":
         # Board runs N-S (Y direction)
@@ -1043,7 +1043,7 @@ def _make_scarf_cut(
     import math
 
     # Calculate the horizontal run of the angled cut
-    # For a 22.5° angle, run = board_width * tan(22.5°) ≈ 0.414 * board_width
+    # For a 22.5 degrees angle, run = board_width * tan(22.5 degrees) ≈ 0.414 * board_width
     angle_rad = math.radians(cut_angle_deg)
     cut_run = board_width * math.tan(angle_rad)
 
@@ -1696,7 +1696,7 @@ def create_unified_deck_surface(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Unified deck surface complete: {assembly_name} "
+        f"[deck_assemblies] (done) Unified deck surface complete: {assembly_name} "
         f"({len(edge_boards)} frame boards, {len(seam_boards)} seam boards, "
         f"{len(field_boards)} field boards, {len(all_blocking)} blocking)\n"
     )
@@ -1832,7 +1832,7 @@ def _create_zone_field_boards(
                     if joist_row:
                         sister_name = f"{zone_name}_SisterJoist_{seam_count}"
                         sister = doc.addObject("Part::Feature", sister_name)
-                        # Joist: thickness (X) × length (Y) × depth (Z)
+                        # Joist: thickness (X) x length (Y) x depth (Z)
                         sister.Shape = Part.makeBox(
                             lc.inch(joist_thick), lc.inch(sister_joist_length), lc.inch(joist_depth)
                         )
@@ -1942,7 +1942,7 @@ def _create_zone_field_boards(
                     if joist_row:
                         sister_name = f"{zone_name}_SisterJoist_{seam_count}"
                         sister = doc.addObject("Part::Feature", sister_name)
-                        # Joist runs EW: length (X) × thickness (Y) × depth (Z)
+                        # Joist runs EW: length (X) x thickness (Y) x depth (Z)
                         sister.Shape = Part.makeBox(
                             lc.inch(zone_width), lc.inch(joist_thick), lc.inch(joist_depth)
                         )
@@ -2600,7 +2600,7 @@ def create_deck_surface(
     direction_str = "E-W" if board_direction.upper() == "EW" else "N-S"
     seam_str = f", {len(seam_boards)} seam boards" if seam_boards else ""
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({width_ft:.0f}' x {depth_ft:.0f}', {len(boards)} boards {direction_str}, "
         f"{len(edge_boards)} edge boards{seam_str})\n"
     )
@@ -2782,7 +2782,7 @@ def create_deck_surface_16x8(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(boards)} deck boards, {len(edge_boards)} edge boards)\n"
     )
 
@@ -2949,7 +2949,7 @@ def create_deck_surface_filler(
 
     num_boards = len([o for o in created if o not in edge_boards])
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({num_boards} deck boards, {len(edge_boards)} edge boards, {width_in:.1f}\" x {depth_ft}' filler)\n"
     )
 
@@ -3154,7 +3154,7 @@ def create_deck_surface_8ft9in_x_8ft(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(boards)} deck boards, {len(edge_boards)} edge boards)\n"
     )
 
@@ -3407,7 +3407,7 @@ def create_deck_16x8(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(centers)} joists, {len(boards)} deck boards, {len(posts)} posts, {len(hangs)} hangers)\n"
     )
 
@@ -3511,7 +3511,7 @@ def create_deck_surface_perpendicular_over_stair(
     doc.recompute()
 
     App.Console.PrintMessage(
-        f"[deck_assemblies] ✓ Assembly complete: {assembly_name} "
+        f"[deck_assemblies] (done) Assembly complete: {assembly_name} "
         f"({len(boards)} perpendicular deck boards over stair opening)\n"
     )
 

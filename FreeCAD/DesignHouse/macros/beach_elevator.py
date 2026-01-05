@@ -152,17 +152,19 @@ def create_beach_elevator(doc, config, foundation_config=None):
         bc.inch(railing_tube_dia_in / 2.0), bc.ft(platform_depth_ft)
     )
     # Cylinder extends from (0,0,0) to (0,0,height) by default (along +Z)
-    # After Rotation(1,0,0,90°): extends from placement point along -Y direction
-    # After Rotation(1,0,0,-90°): extends from placement point along +Y direction
+    # After Rotation(1,0,0,90 degrees): extends from placement point along -Y direction
+    # After Rotation(1,0,0,-90 degrees): extends from placement point along +Y direction
     # We want it to extend from south_y to north_y (in +Y direction)
-    # So use -90° rotation and place at SE corner
+    # So use -90 degrees rotation and place at SE corner
     east_railing_shape.Placement = App.Placement(
         App.Vector(
             bc.ft(platform_se_x),  # SE corner X (east edge)
             bc.ft(platform_se_y),  # SE corner Y (south edge)
             railing_z,  # Z height at railing top
         ),
-        App.Rotation(App.Vector(1, 0, 0), -90),  # Rotate -90° around X makes cylinder extend +Y
+        App.Rotation(
+            App.Vector(1, 0, 0), -90
+        ),  # Rotate -90 degrees around X makes cylinder extend +Y
     )
     east_railing.Shape = east_railing_shape
     _set_color(east_railing, steel_color)
@@ -174,14 +176,16 @@ def create_beach_elevator(doc, config, foundation_config=None):
     west_railing_shape = Part.makeCylinder(
         bc.inch(railing_tube_dia_in / 2.0), bc.ft(platform_depth_ft)
     )
-    # Same rotation as east railing: -90° to extend in +Y direction
+    # Same rotation as east railing: -90 degrees to extend in +Y direction
     west_railing_shape.Placement = App.Placement(
         App.Vector(
             bc.ft(platform_sw_x),  # SW corner X (west edge)
             bc.ft(platform_sw_y),  # SW corner Y (south edge)
             railing_z,  # Z height at railing top
         ),
-        App.Rotation(App.Vector(1, 0, 0), -90),  # Rotate -90° around X makes cylinder extend +Y
+        App.Rotation(
+            App.Vector(1, 0, 0), -90
+        ),  # Rotate -90 degrees around X makes cylinder extend +Y
     )
     west_railing.Shape = west_railing_shape
     _set_color(west_railing, steel_color)
@@ -261,7 +265,7 @@ def create_beach_elevator(doc, config, foundation_config=None):
 
     App.Console.PrintMessage(
         f"[beach_elevator] Created beach elevator: "
-        f"{platform_width_ft:.1f}' × {platform_depth_ft:.1f}' platform, "
+        f"{platform_width_ft:.1f}' x {platform_depth_ft:.1f}' platform, "
         f"{travel_height_ft:.1f}' travel height, "
         f"position X={elevator_x_ft:.1f}', Y={elevator_y_ft:.1f}'\n"
     )

@@ -506,19 +506,26 @@ def create_deck_railings(
     y_min = perimeter["y_min_in"]
     y_max = perimeter["y_max_in"]
 
-    # Post inset from perimeter edge
-    # Posts go INSIDE the rim joist, directly against the rim inside face
-    # Post is bolted to rim for strength, blocking added later for lateral support
+    # Run boundaries: Posts go INSIDE the rim joist, with post face touching rim inside face
+    # Run boundaries are at rim inside face (perimeter - rim_thick)
+    # _calculate_post_positions will place first/last post centers at run_boundary + post_thick/2
+    # This puts post outside face against rim inside face (correct)
     rim_thick = RIM_JOIST_ACTUAL_THICKNESS_IN  # 1.5" (2x lumber)
     post_thick = POST_ACTUAL_THICKNESS_IN  # 3.5" (4x4 actual)
-    # Inset = rim thickness + post_thick/2 (post face touches rim inside face)
-    post_inset = rim_thick + post_thick / 2.0  # 3.25" (rim + half post)
 
-    # Adjust perimeter inward for post centerline positions
-    x_min_posts = x_min + post_inset
-    x_max_posts = x_max - post_inset
-    y_min_posts = y_min + post_inset
-    y_max_posts = y_max - post_inset
+    # Run boundaries: where posts can start/end (at rim inside faces)
+    # Posts will be centered at run_start + post_thick/2 and run_end - post_thick/2
+    x_min_run = x_min + rim_thick  # West run boundary (rim inside face)
+    x_max_run = x_max - rim_thick  # East run boundary (rim inside face)
+    y_min_run = y_min + rim_thick  # South run boundary (rim inside face)
+    y_max_run = y_max - rim_thick  # North run boundary (rim inside face)
+
+    # Post centerlines (for corner deduplication logic reference)
+    # First/last post centers will be at run_boundary + post_thick/2
+    _x_min_posts = x_min_run + post_thick / 2.0  # noqa: F841
+    _x_max_posts = x_max_run - post_thick / 2.0  # noqa: F841
+    _y_min_posts = y_min_run + post_thick / 2.0  # noqa: F841
+    _y_max_posts = y_max_run - post_thick / 2.0  # noqa: F841
 
     all_posts = []
     all_rails = []
@@ -537,11 +544,13 @@ def create_deck_railings(
     # Convention: E-W sides (south, north) own corner posts
     #            N-S sides (west, east) skip corner posts where E-W side exists
 
+    # Sides use RUN boundaries (not post centerlines)
+    # _calculate_post_positions will place posts inset by post_thick/2 from these boundaries
     sides = {
-        "south": (x_min_posts, y_min_posts, x_max_posts, y_min_posts),  # Front edge
-        "north": (x_min_posts, y_max_posts, x_max_posts, y_max_posts),  # Back edge
-        "west": (x_min_posts, y_min_posts, x_min_posts, y_max_posts),  # Left edge
-        "east": (x_max_posts, y_min_posts, x_max_posts, y_max_posts),  # Right edge
+        "south": (x_min_run, y_min_run, x_max_run, y_min_run),  # Front edge
+        "north": (x_min_run, y_max_run, x_max_run, y_max_run),  # Back edge
+        "west": (x_min_run, y_min_run, x_min_run, y_max_run),  # Left edge
+        "east": (x_max_run, y_min_run, x_max_run, y_max_run),  # Right edge
     }
 
     # Determine which sides are included
@@ -599,30 +608,74 @@ def create_deck_railings(
             all_balusters.extend(bals)
         else:
             # Split railing around gate openings
-            # TODO: Implement gate opening support
-            App.Console.PrintWarning(
-                f"[railing] Gate openings not yet implemented for {side_name}\n"
+            # Gate openings specify start_in (from start of run) and width_in
+            # We create segments: start-to-opening1, opening1_end-to-opening2, etc.
+            import math
+
+            run_length = math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2)
+            dir_x = (ex - sx) / run_length if run_length > 0 else 0
+            dir_y = (ey - sy) / run_length if run_length > 0 else 0
+
+            # Sort gate openings by start position
+            sorted_gates = sorted(side_gates, key=lambda g: g.get("start_in", 0))
+
+            # Build list of segments (portions of railing to create)
+            segments = []
+            current_pos = 0.0
+
+            for gate in sorted_gates:
+                gate_start = gate.get("start_in", 0)
+                gate_width = gate.get("width_in", 36)
+                gate_end = gate_start + gate_width
+
+                # Segment before this gate
+                if gate_start > current_pos + 1.0:  # Need at least 1" for a segment
+                    segments.append((current_pos, gate_start))
+
+                current_pos = gate_end
+
+            # Final segment after last gate
+            if run_length > current_pos + 1.0:
+                segments.append((current_pos, run_length))
+
+            App.Console.PrintMessage(
+                f"[railing] {side_name}: {len(sorted_gates)} gate opening(s), "
+                f"creating {len(segments)} railing segment(s)\n"
             )
-            # For now, create full railing
-            section_name = f"{assembly_name}_{side_name.capitalize()}"
-            posts, rails, bals = create_railing_section(
-                doc,
-                catalog_rows,
-                sx,
-                sy,
-                ex,
-                ey,
-                deck_surface_z_in,
-                section_name=section_name,
-                supplier=supplier,
-                include_start_post=include_start,
-                include_end_post=include_end,
-                post_height_above_deck_in=post_height_above_deck_in,
-                post_base_z_in=post_base_z_in,
-            )
-            all_posts.extend(posts)
-            all_rails.extend(rails)
-            all_balusters.extend(bals)
+
+            # Create each segment
+            for seg_idx, (seg_start, seg_end) in enumerate(segments):
+                # Calculate segment start/end points in world coordinates
+                seg_sx = sx + dir_x * seg_start
+                seg_sy = sy + dir_y * seg_start
+                seg_ex = sx + dir_x * seg_end
+                seg_ey = sy + dir_y * seg_end
+
+                # Determine which end posts to include
+                # First segment inherits include_start, last segment inherits include_end
+                # All other ends get posts (they're at gate edges)
+                seg_include_start = include_start if seg_idx == 0 else True
+                seg_include_end = include_end if seg_idx == len(segments) - 1 else True
+
+                section_name = f"{assembly_name}_{side_name.capitalize()}_Seg{seg_idx + 1}"
+                posts, rails, bals = create_railing_section(
+                    doc,
+                    catalog_rows,
+                    seg_sx,
+                    seg_sy,
+                    seg_ex,
+                    seg_ey,
+                    deck_surface_z_in,
+                    section_name=section_name,
+                    supplier=supplier,
+                    include_start_post=seg_include_start,
+                    include_end_post=seg_include_end,
+                    post_height_above_deck_in=post_height_above_deck_in,
+                    post_base_z_in=post_base_z_in,
+                )
+                all_posts.extend(posts)
+                all_rails.extend(rails)
+                all_balusters.extend(bals)
 
     # Create assembly
     assembly = doc.addObject("App::Part", assembly_name)
@@ -632,7 +685,7 @@ def create_deck_railings(
         assembly.addObject(obj)
 
     App.Console.PrintMessage(
-        f"[railing] ✓ Deck railings complete: {assembly_name} "
+        f"[railing] (done) Deck railings complete: {assembly_name} "
         f"({len(all_posts)} posts, {len(all_rails)} rails, {len(all_balusters)} balusters)\n"
     )
 

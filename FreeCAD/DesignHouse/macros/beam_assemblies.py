@@ -4,7 +4,7 @@
 beam_assemblies.py - LVL beam assemblies for 950 Surf foundation.
 
 Assembly types:
-  1. LVL_Beam_20ft - Two-ply laminated LVL beam (1.75" × depth × 240")
+  1. LVL_Beam_20ft - Two-ply laminated LVL beam (1.75" x depth x 240")
 
 Construction sequence:
   1. Place ply 1 (west ply, centered on pile)
@@ -12,10 +12,10 @@ Construction sequence:
   3. Field-laminate with construction adhesive + nails (per manufacturer spec)
 
 Geometry:
-  - LVL stock: 1.75" × depth × 240" (configurable depth: 9.25", 11.875", 14", 16", 24")
+  - LVL stock: 1.75" x depth x 240" (configurable depth: 9.25", 11.875", 14", 16", 24")
   - Assembly: 2 plies laminated together = 3.5" total width
   - No blocking (LVL plies form continuous laminated unit)
-  - Single notch per pile: 3.5" wide × depth deep
+  - Single notch per pile: 3.5" wide x depth deep
 
 Design rationale:
   - LVL spans 20' over 3 piles (10' OC) vs. old 2x12 doubled beams (16' over 2 piles at 8' OC)
@@ -63,7 +63,7 @@ def create_lvl_beam_assembly_20ft(
         y_start_ft: Y starting position (south pile center, feet)
         y_end_ft: Y ending position (north pile center, feet)
         z_base_in: Z base elevation (inches above datum)
-        lvl_label: LVL catalog label (default: 1.75"×11.875"×240")
+        lvl_label: LVL catalog label (default: 1.75"x11.875"x240")
         assembly_idx: Index for unique naming (default 0)
         side: Which side of pile to place LVL ("west" or "east")
 
@@ -113,7 +113,7 @@ def create_lvl_beam_assembly_20ft(
 
     App.Console.PrintMessage(
         f"[beam_assemblies] Creating LVL assembly: {assembly_name} "
-        f'({ply_thick_in:.2f}"×{lvl_depth_in:.2f}"×{beam_length_ft:.1f}\', 2 plies)\n'
+        f'({ply_thick_in:.2f}"x{lvl_depth_in:.2f}"x{beam_length_ft:.1f}\', 2 plies)\n'
     )
 
     created = []
@@ -181,7 +181,7 @@ def create_lvl_beam_assembly_20ft(
     # ====================
     # THROUGH-BOLTS (connect two plies together)
     # ====================
-    # Design: 1/2" × 10" carriage bolts with washers and nuts
+    # Design: 1/2" x 10" carriage bolts with washers and nuts
     # Spacing: IRC requires bolts every 4' OC max for laminated beams
     # Pattern: Stagger bolts in 2 rows (top/bottom) at 2' OC
     # Position: Bolts run horizontally through both plies (X direction)
@@ -269,7 +269,7 @@ def create_lvl_beam_assembly_20ft(
         assembly.addObject(obj)
 
     App.Console.PrintMessage(
-        f"[beam_assemblies] ✓ LVL assembly complete: {assembly_name} "
+        f"[beam_assemblies] (done) LVL assembly complete: {assembly_name} "
         f"(X={x_girder_ft:.2f}', Y={y_start_ft:.2f}'-{y_end_ft:.2f}', "
         f'width={total_width_in:.2f}", depth={lvl_depth_in:.2f}")\n'
     )
@@ -299,7 +299,7 @@ def create_lvl_beam_segments_for_girder(
         x_girder_ft: X position of girder centerline (feet)
         y_pile_positions_ft: List of pile Y positions (7 piles, feet)
         z_base_in: Z base elevation (inches above datum)
-        lvl_label: LVL catalog label (default: 1.75"×11.875"×240")
+        lvl_label: LVL catalog label (default: 1.75"x11.875"x240")
         girder_idx: Girder line index for naming (default 0)
         side: Which side of pile to place LVL ("west" or "east")
 

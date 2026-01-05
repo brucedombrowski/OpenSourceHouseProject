@@ -159,7 +159,7 @@ def create_window_wall_double_3x5(
         make_plate("Plate_Top_2", plate_thick + stud_length + plate_thick)
     )  # Double top plate
 
-    # End kings (rotated 90°: X=3.5, Y=1.5, Z=height)
+    # End kings (rotated 90 degrees: X=3.5, Y=1.5, Z=height)
     def make_king(name, y_offset):
         box = Part.makeBox(inch(stud_width), inch(stud_thick), inch(stud_length))
         obj = doc.addObject("Part::Feature", name)
@@ -424,7 +424,7 @@ def create_window_wall_double_3x5(
         assembly.addObject(obj)
 
     App.Console.PrintMessage(
-        f"[wall_assemblies] ✓ Assembly complete: {assembly_name} ({len(created)} parts)\n"
+        f"[wall_assemblies] (done) Assembly complete: {assembly_name} ({len(created)} parts)\n"
     )
 
     return assembly
@@ -717,7 +717,7 @@ def create_sliding_door_72x80(
         assembly.addObject(obj)
 
     App.Console.PrintMessage(
-        f"[wall_assemblies] ✓ Assembly complete: {assembly_name} ({len(created)} parts)\n"
+        f"[wall_assemblies] (done) Assembly complete: {assembly_name} ({len(created)} parts)\n"
     )
 
     return assembly
@@ -879,7 +879,7 @@ def create_solid_stud_wall(
         assembly.addObject(obj)
 
     App.Console.PrintMessage(
-        f"[wall_assemblies] ✓ Assembly complete: {assembly_name} ({len(created)} parts)\n"
+        f"[wall_assemblies] (done) Assembly complete: {assembly_name} ({len(created)} parts)\n"
     )
 
     return assembly
