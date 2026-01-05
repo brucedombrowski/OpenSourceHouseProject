@@ -3584,7 +3584,6 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
     x_ft = stairs_config["stair_x_ft"]
     y_snap_ft = stairs_config["stair_y_snap_ft"]  # Top tread south edge position
     rise_in = stairs_config["tread_rise_in"]
-    _run_in = stairs_config["tread_run_in"]  # noqa: F841
     width_ft = stairs_config["tread_width_ft"]
     tread_label = stairs_config["tread_stock"]
 
@@ -3830,8 +3829,6 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         # Run 2 starts from the landing, descending west (-X)
         # First Run 2 tread is one rise below landing
         for step in range(run2_tread_count):
-            # Global step number (landing counts as a step)
-            _run2_step = run1_tread_count + 1 + step  # noqa: F841
             tread_top_z_in = landing_z_top_in - ((step + 1) * actual_rise_in)
             tread_z_bottom_in = tread_top_z_in - tread_thick_in
 
@@ -3887,11 +3884,9 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         # Configuration from stairs_config
         run1_direction = stairs_config.get("run1_direction", "east")
         run1_tread_count = stairs_config.get("run1_tread_count", 6)
-        _landing1_turn = stairs_config.get("landing1_turn", "left")  # noqa: F841
 
         run2_direction = stairs_config.get("run2_direction", "north")
         run2_tread_count = stairs_config.get("run2_tread_count", 6)
-        _landing2_turn = stairs_config.get("landing2_turn", "left")  # noqa: F841
 
         run3_direction = stairs_config.get("run3_direction", "west")
         # Run 3 tread count: can be specified or calculated
@@ -3945,8 +3940,6 @@ def create_exterior_stairs(doc, stairs_config, floor_z_ft=20.0, slab_z_ft=0.0):
         landing1_size_ft = landing_size_in_derived / 12.0
         landing2_size_ft = landing_size_in_derived / 12.0
         landing3_size_ft = landing_size_in_derived / 12.0
-        _landing4_size_ft = landing_size_in_derived / 12.0  # noqa: F841
-        _landing5_size_ft = landing_size_in_derived / 12.0  # noqa: F841
 
         # Determine stair complexity (based on turn config, not landing size)
         has_landing3 = landing3_turn is not None
